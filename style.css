@@ -1,0 +1,127 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a1f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  user-select: none;
+  -webkit-user-select: none;
+}
+canvas { display: block; touch-action: none; }
+#ui {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* ── HUD ── */
+#hud {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 18px 24px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.hud-block { display: flex; flex-direction: column; }
+.hud-label { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase; }
+.hud-value { font-size: 26px; font-weight: bold; color: #fff; letter-spacing: 2px; text-shadow: 0 0 20px rgba(255,200,80,0.6); }
+.hud-value.best { color: rgba(255,200,80,0.7); }
+#drift-indicator {
+  position: absolute;
+  bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px; letter-spacing: 4px;
+  color: rgba(255,180,50,0.0);
+  text-transform: uppercase;
+  transition: color 0.1s;
+}
+#drift-indicator.active { color: rgba(255,180,50,0.9); }
+
+/* ── START SCREEN ── */
+#start-screen {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(180deg, #0e0e12 0%, #1a1a22 60%, #0e0e12 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: all;
+}
+#logo {
+  font-size: clamp(36px, 8vw, 72px); font-weight: 900; letter-spacing: 12px;
+  color: #fff; text-transform: uppercase;
+  text-shadow: 0 0 60px rgba(255,190,60,0.4), 0 2px 0 rgba(0,0,0,0.8);
+  margin-bottom: 4px;
+}
+#tagline { font-size: 11px; letter-spacing: 5px; color: rgba(255,200,80,0.6); text-transform: uppercase; margin-bottom: 40px; }
+#car-select-label { font-size: 10px; letter-spacing: 4px; color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 20px; }
+#car-grid { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+.car-card {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 20px 16px 16px;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 12px; width: 148px;
+}
+.car-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,200,80,0.3); transform: translateY(-3px); }
+.car-card.selected { background: rgba(255,200,80,0.08); border-color: rgba(255,200,80,0.7); box-shadow: 0 0 24px rgba(255,200,80,0.15); transform: translateY(-4px); }
+.car-canvas-wrap canvas { display: block; }
+.car-name { font-size: 11px; letter-spacing: 2px; color: rgba(255,255,255,0.6); text-transform: uppercase; text-align: center; }
+.car-card.selected .car-name { color: rgba(255,200,80,0.9); }
+.car-stat { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.3); text-align: center; }
+.car-card.selected .car-stat { color: rgba(255,200,80,0.5); }
+#start-btn {
+  background: linear-gradient(135deg, #f0a020, #e07010); color: #000; border: none;
+  padding: 16px 48px; font-size: 13px; font-weight: bold; letter-spacing: 5px;
+  text-transform: uppercase; cursor: pointer; border-radius: 8px;
+  font-family: 'Courier New', monospace; transition: all 0.2s;
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 4px 24px rgba(240,160,32,0.3);
+}
+#start-btn.visible { opacity: 1; pointer-events: all; }
+#start-btn:hover { transform: scale(1.04); box-shadow: 0 6px 32px rgba(240,160,32,0.5); }
+
+/* ── GAME OVER ── */
+#gameover-screen {
+  display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center; pointer-events: all;
+}
+#gameover-screen.show { display: flex; }
+#gameover-panel {
+  background: rgba(14,14,18,0.95); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 40px 48px; text-align: center; min-width: 280px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8);
+}
+#go-title { font-size: 11px; letter-spacing: 5px; color: rgba(255,80,60,0.8); text-transform: uppercase; margin-bottom: 24px; }
+#go-dist { font-size: 48px; font-weight: 900; color: #fff; letter-spacing: 2px; line-height: 1; text-shadow: 0 0 30px rgba(255,200,80,0.4); }
+#go-dist-label { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,0.35); margin-bottom: 20px; margin-top: 4px; }
+#go-best-wrap { margin-bottom: 32px; }
+#go-best { font-size: 18px; color: rgba(255,200,80,0.8); letter-spacing: 2px; }
+#go-best-label { font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.25); text-transform: uppercase; }
+.go-btn {
+  display: block; width: 100%; padding: 13px; margin-bottom: 10px;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.8);
+  font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 3px;
+  text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+}
+.go-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
+.go-btn.primary { background: linear-gradient(135deg, #f0a020, #e07010); border-color: transparent; color: #000; font-weight: bold; box-shadow: 0 4px 20px rgba(240,160,32,0.3); }
+.go-btn.primary:hover { box-shadow: 0 6px 28px rgba(240,160,32,0.5); }
+
+/* ── MOBILE CONTROLS ── */
+#mobile-controls {
+  display: none; position: absolute; bottom: 0; left: 0; right: 0; height: 120px; pointer-events: all;
+}
+#btn-left, #btn-right {
+  position: absolute; bottom: 20px; width: 110px; height: 80px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: rgba(255,255,255,0.4); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#btn-left { left: 20px; } #btn-right { right: 20px; }
+#btn-left:active, #btn-right:active { background: rgba(255,200,80,0.12); border-color: rgba(255,200,80,0.3); }
