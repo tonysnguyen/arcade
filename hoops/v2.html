@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Arcade Hoops 🏀</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: radial-gradient(ellipse at center, #2a0e00 0%, #0d0400 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#cabinet {
+  position: relative;
+  width:  min(430px, 100vw);
+  height: min(680px, 100svh);
+  background: linear-gradient(170deg, #3d1800 0%, #2a0e00 50%, #1a0800 100%);
+  border-radius: 20px 20px 10px 10px;
+  border: 5px solid #b85c10;
+  box-shadow:
+    0 0 0 2px #ff9900,
+    0 0 0 6px #5a2400,
+    0 0 50px rgba(255,100,0,0.5),
+    inset 0 0 40px rgba(0,0,0,0.6);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+#cabinet::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 10px;
+  background: repeating-linear-gradient(90deg,
+    #ff6600 0px, #ff6600 12px,
+    #ffcc00 12px, #ffcc00 24px);
+  z-index: 50;
+  border-radius: 15px 15px 0 0;
+}
+#cabinet::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0; height: 10px;
+  background: repeating-linear-gradient(90deg,
+    #ff6600 0px, #ff6600 12px,
+    #ffcc00 12px, #ffcc00 24px);
+  z-index: 50;
+  border-radius: 0 0 5px 5px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px, transparent 3px,
+    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 40;
+  border-radius: 15px;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 3, 0, 0.93);
+  z-index: 20;
+  border-radius: 15px;
+  padding: 20px;
+}
+.screen.hidden { display: none; }
+
+.title-glow {
+  font-size: clamp(26px, 7vw, 40px);
+  font-weight: 900;
+  color: #ffaa00;
+  text-align: center;
+  line-height: 1.2;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 10px #ff6600,
+    0 0 30px #ff4400,
+    3px 3px 0 #5a1800;
+  animation: gpulse 1.8s ease-in-out infinite;
+}
+@keyframes gpulse {
+  0%,100% { text-shadow: 0 0 10px #ff6600, 0 0 30px #ff4400, 3px 3px 0 #5a1800; }
+  50%      { text-shadow: 0 0 20px #ffcc00, 0 0 55px #ff8800, 3px 3px 0 #5a1800; }
+}
+
+.subtitle {
+  margin-top: 10px;
+  font-size: clamp(8px, 2.2vw, 11px);
+  color: #cc6622;
+  letter-spacing: 3px;
+  text-align: center;
+}
+
+.final-score {
+  margin-top: 20px;
+  font-size: clamp(12px, 3.5vw, 18px);
+  color: #ccc;
+  letter-spacing: 2px;
+  text-align: center;
+}
+.final-score strong {
+  color: #ffcc00;
+  font-size: 1.7em;
+  text-shadow: 0 0 15px #ff8800;
+  display: block;
+  margin-top: 6px;
+}
+
+.arcade-btn {
+  margin-top: 26px;
+  padding: 13px 30px;
+  font-size: clamp(11px, 3vw, 14px);
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #1a0500;
+  background: linear-gradient(180deg, #ffdd00 0%, #ff9900 45%, #ff5500 100%);
+  border: 3px solid #ffcc00;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #7a2800, 0 0 25px rgba(255,140,0,0.5);
+  transition: transform 0.08s, box-shadow 0.08s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.arcade-btn:hover  { transform: translateY(-2px); box-shadow: 0 7px 0 #7a2800, 0 0 35px rgba(255,140,0,0.7); }
+.arcade-btn:active { transform: translateY(3px);  box-shadow: 0 2px 0 #7a2800; }
+
+.hint {
+  margin-top: 14px;
+  font-size: clamp(8px, 2vw, 10px);
+  color: #774433;
+  letter-spacing: 1px;
+  text-align: center;
+  line-height: 1.9;
+}
+
+#score-pop {
+  position: absolute;
+  top: 29%;
+  left: 50%;
+  transform: translateX(-50%) translateY(0) scale(1);
+  font-size: clamp(24px, 6.5vw, 38px);
+  font-weight: 900;
+  font-family: 'Courier New', monospace;
+  color: #ffff00;
+  text-shadow: 0 0 20px #ffff00, 0 0 45px #ff8800;
+  letter-spacing: 4px;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+}
+
+#logo-plate {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: #4a1f00;
+  letter-spacing: 2px;
+  z-index: 60;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div id="cabinet">
+  <canvas id="gameCanvas"></canvas>
+  <div class="scanlines"></div>
+
+  <div id="startScreen" class="screen">
+    <div class="title-glow">🏀 ARCADE<br>HOOPS</div>
+    <div class="subtitle">— CLASSIC ARCADE BASKETBALL —</div>
+    <button class="arcade-btn" id="startBtn">▶ INSERT COIN</button>
+    <div class="hint">
+      GRAB THE BALL &amp; FLICK UPWARD TO SHOOT<br>
+      SWIPE FAST FOR MORE POWER &nbsp;·&nbsp; 30 SECONDS
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="screen hidden">
+    <div class="title-glow" style="font-size:clamp(28px,8vw,46px)">GAME<br>OVER</div>
+    <div class="final-score">FINAL SCORE<strong id="finalScore">000</strong></div>
+    <button class="arcade-btn" id="restartBtn">↺ PLAY AGAIN</button>
+  </div>
+
+  <div id="score-pop">+2</div>
+  <div id="logo-plate">© ARCADE HOOPS · 1 PLAYER · INSERT COIN</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  ARCADE HOOPS  —  Single-file HTML5 Canvas Game
+//  No external dependencies. Desktop + Mobile.
+// ════════════════════════════════════════════════════════════
+
+const canvas         = document.getElementById('gameCanvas');
+const ctx            = canvas.getContext('2d');
+const cabinet        = document.getElementById('cabinet');
+const startScreen    = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const startBtn       = document.getElementById('startBtn');
+const restartBtn     = document.getElementById('restartBtn');
+const finalScoreEl   = document.getElementById('finalScore');
+const scorePop       = document.getElementById('score-pop');
+
+// ── Layout (recalculated on resize) ─────────────────────────
+let W, H;
+let HOOP_X, HOOP_Y, RIM_R, RIM_THICK;
+let RIM_LEFT_X, RIM_RIGHT_X;
+let BOARD_X, BOARD_Y, BOARD_W, BOARD_H;
+let BALL_HOME_X, BALL_HOME_Y, BALL_R;
+let FLOOR_Y, NET_DROP;
+
+function initLayout() {
+  W = canvas.width;  H = canvas.height;
+  HOOP_X      = W * 0.50;
+  HOOP_Y      = H * 0.30;
+  RIM_R       = W * 0.108;
+  RIM_THICK   = Math.max(5, W * 0.014);
+  RIM_LEFT_X  = HOOP_X - RIM_R;
+  RIM_RIGHT_X = HOOP_X + RIM_R;
+  BOARD_W     = W * 0.28;
+  BOARD_H     = H * 0.105;
+  BOARD_X     = HOOP_X - BOARD_W * 0.5;
+  BOARD_Y     = HOOP_Y - BOARD_H * 1.08;
+  BALL_R      = W * 0.068;
+  BALL_HOME_X = W * 0.50;
+  BALL_HOME_Y = H * 0.80;
+  FLOOR_Y     = H * 0.875;
+  NET_DROP    = RIM_R * 1.15;
+}
+
+function resizeCanvas() {
+  const r = cabinet.getBoundingClientRect();
+  canvas.width  = Math.round(r.width);
+  canvas.height = Math.round(r.height);
+  initLayout();
+}
+
+// ── Game state ───────────────────────────────────────────────
+let gamePhase = 'start';   // 'start' | 'playing' | 'over'
+let score = 0, timeLeft = 30;
+let timerId = null, rafId = null;
+
+// ── Ball object ──────────────────────────────────────────────
+const ball = { x:0, y:0, vx:0, vy:0, r:0, flying:false, grounded:true, trail:[] };
+
+// ── Shot flags (reset each throw) ───────────────────────────
+let rimHit=false, boardHit=false, scored=false, awaitingReset=false;
+
+// ── Drag / fling input ───────────────────────────────────────
+const drag = { on:false, sx:0, sy:0, cx:0, cy:0 };
+
+// ── Visual effects counters ──────────────────────────────────
+let courtFlash = 0;
+
+// ════════════════════════════════════════════════════════════
+//  AUDIO ENGINE  (Web Audio API, synthesized in code)
+// ════════════════════════════════════════════════════════════
+let AC = null;
+
+function getAC() {
+  if (!AC) {
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ return null; }
+  }
+  if (AC && AC.state === 'suspended') AC.resume().catch(()=>{});
+  return AC;
+}
+
+function oscTone(freq, type, vol, atk, rel, delay) {
+  try {
+    const ac=getAC(); if(!ac) return;
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type=type; o.frequency.value=freq;
+    const t=ac.currentTime+(delay||0);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol, t+atk);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+atk+rel);
+    o.start(t); o.stop(t+atk+rel+0.05);
+  } catch(e){}
+}
+
+function noiseBurst(duration, filterFreq, filterQ, vol) {
+  try {
+    const ac=getAC(); if(!ac) return;
+    const len=Math.ceil(ac.sampleRate*duration);
+    const buf=ac.createBuffer(1,len,ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1);
+    const src=ac.createBufferSource(); src.buffer=buf;
+    const flt=ac.createBiquadFilter(); flt.type='bandpass';
+    flt.frequency.value=filterFreq; flt.Q.value=filterQ||1;
+    const g=ac.createGain(); const t=ac.currentTime;
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+    src.connect(flt); flt.connect(g); g.connect(ac.destination);
+    src.start(t);
+  } catch(e){}
+}
+
+function sndSwish() {
+  noiseBurst(0.20, 2800, 0.7, 0.65);
+  oscTone(880,  'sine', 0.30, 0.01, 0.13, 0.04);
+  oscTone(1108, 'sine', 0.22, 0.01, 0.13, 0.15);
+  oscTone(1320, 'sine', 0.18, 0.01, 0.15, 0.27);
+}
+
+function sndRim() {
+  oscTone(220, 'sawtooth', 0.26, 0.003, 0.15);
+  oscTone(185, 'square',   0.16, 0.003, 0.10);
+}
+
+function sndBoard() {
+  noiseBurst(0.10, 500, 1.2, 0.45);
+  oscTone(140, 'square', 0.12, 0.005, 0.10);
+}
+
+function sndMiss() {
+  oscTone(130, 'sawtooth', 0.20, 0.01, 0.32);
+}
+
+function sndCoin() {
+  oscTone(600,  'square', 0.14, 0.005, 0.08, 0.00);
+  oscTone(800,  'square', 0.11, 0.005, 0.08, 0.09);
+  oscTone(1000, 'square', 0.09, 0.005, 0.10, 0.18);
+}
+
+function sndGameOver() {
+  oscTone(330, 'sawtooth', 0.22, 0.02, 0.50, 0.00);
+  oscTone(247, 'sawtooth', 0.20, 0.02, 0.50, 0.35);
+  oscTone(196, 'sawtooth', 0.18, 0.02, 0.80, 0.70);
+}
+
+function sndTick() {
+  oscTone(1100, 'square', 0.07, 0.005, 0.06);
+}
+
+// ════════════════════════════════════════════════════════════
+//  BALL MANAGEMENT
+// ════════════════════════════════════════════════════════════
+function resetBall() {
+  ball.x=BALL_HOME_X; ball.y=BALL_HOME_Y; ball.r=BALL_R;
+  ball.vx=0; ball.vy=0;
+  ball.flying=false; ball.grounded=true;
+  ball.trail=[];
+  drag.on=false;
+  rimHit=false; boardHit=false; scored=false; awaitingReset=false;
+}
+
+function launchBall() {
+  // Flick-forward: ball travels in the same direction the finger/mouse moved.
+  // dx/dy = current minus start = the flick vector.
+  const dx = drag.cx - drag.sx;
+  const dy = drag.cy - drag.sy;
+  const dist = Math.hypot(dx, dy);
+  // Must flick upward (dy < 0) and have enough motion
+  if (dist < 12 || dy > -8) { resetBall(); return; }
+
+  const maxPower = H * 0.021;
+  const power    = Math.min(dist * 0.40, maxPower);
+  const ratio    = power / dist;
+
+  ball.x=BALL_HOME_X; ball.y=BALL_HOME_Y; ball.r=BALL_R;
+  ball.vx=dx*ratio; ball.vy=dy*ratio;
+  ball.flying=true; ball.grounded=false;
+  ball.trail=[];
+  rimHit=false; boardHit=false; scored=false; awaitingReset=false;
+}
+
+// ════════════════════════════════════════════════════════════
+//  PHYSICS UPDATE
+// ════════════════════════════════════════════════════════════
+const GRAVITY  = 0.43;
+const RIM_POST_R = 6.5;
+
+function updateBall() {
+  if (!ball.flying) return;
+
+  // Trail
+  ball.trail.push({x:ball.x, y:ball.y});
+  if (ball.trail.length > 14) ball.trail.shift();
+
+  // Integrate
+  ball.vy += GRAVITY;
+  ball.vx *= 0.998;
+  ball.x  += ball.vx;
+  ball.y  += ball.vy;
+
+  handleCollisions();
+}
+
+function resolveCircleCircle(cx, cy, cr) {
+  const dx=ball.x-cx, dy=ball.y-cy;
+  const dist=Math.hypot(dx,dy);
+  if (dist < ball.r + cr) {
+    const nx=dx/dist, ny=dy/dist;
+    const overlap=ball.r+cr-dist;
+    ball.x+=nx*overlap; ball.y+=ny*overlap;
+    const dot=ball.vx*nx+ball.vy*ny;
+    ball.vx-=2*dot*nx*0.50;
+    ball.vy-=2*dot*ny*0.50;
+    return true;
+  }
+  return false;
+}
+
+function handleCollisions() {
+  // ── Floor ───────────────────────────────────────────────
+  if (ball.y + ball.r >= FLOOR_Y) {
+    ball.y  = FLOOR_Y - ball.r;
+    ball.vy *= -0.42;
+    ball.vx *= 0.78;
+    if (Math.abs(ball.vy) < 1.8) {
+      ball.vy=0; ball.vx=0;
+      ball.flying=false; ball.grounded=true;
+      if (!scored) sndMiss();
+      if (!awaitingReset) { awaitingReset=true; setTimeout(resetBall, 650); }
+    }
+    return;
+  }
+
+  // ── Wall bounds ─────────────────────────────────────────
+  const wallPad = W * 0.055;
+  if (ball.x - ball.r < wallPad) {
+    ball.x = wallPad + ball.r;
+    ball.vx = Math.abs(ball.vx) * 0.52;
+  }
+  if (ball.x + ball.r > W - wallPad) {
+    ball.x = W - wallPad - ball.r;
+    ball.vx = -Math.abs(ball.vx) * 0.52;
+  }
+
+  // ── Backboard front face ─────────────────────────────────
+  if (ball.x > BOARD_X && ball.x < BOARD_X + BOARD_W) {
+    // Bottom of backboard (ball comes from below while moving up)
+    if (ball.vy < 0 &&
+        ball.y - ball.r <= BOARD_Y + BOARD_H &&
+        ball.y + ball.r >= BOARD_Y + BOARD_H - 5) {
+      ball.y = BOARD_Y + BOARD_H + ball.r;
+      ball.vy = Math.abs(ball.vy) * 0.48;
+      ball.vx *= 0.62;
+      if (!boardHit) { sndBoard(); boardHit=true; }
+    }
+  }
+
+  // ── Rim posts ───────────────────────────────────────────
+  if (resolveCircleCircle(RIM_LEFT_X, HOOP_Y, RIM_POST_R)) {
+    if (!rimHit) { sndRim(); rimHit=true; }
+  }
+  if (resolveCircleCircle(RIM_RIGHT_X, HOOP_Y, RIM_POST_R)) {
+    if (!rimHit) { sndRim(); rimHit=true; }
+  }
+
+  // ── Score zone ──────────────────────────────────────────
+  if (!scored && ball.vy > 0) {
+    const margin = ball.r * 0.50;
+    const inX = ball.x > RIM_LEFT_X  + margin &&
+                ball.x < RIM_RIGHT_X - margin;
+    const inY = ball.y >= HOOP_Y - ball.r * 0.25 &&
+                ball.y <= HOOP_Y + ball.r * 0.85;
+    if (inX && inY) {
+      scored = true;
+      doScore();
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  SCORE LOGIC
+// ════════════════════════════════════════════════════════════
+function doScore() {
+  score      += 2;
+  courtFlash  = 55;
+  sndSwish();
+  flashScorePop();
+  // gentle fall through net
+  ball.vy = Math.abs(ball.vy) * 0.25 + 1.2;
+  ball.vx *= 0.08;
+  if (!awaitingReset) {
+    awaitingReset = true;
+    setTimeout(resetBall, 580);
+  }
+}
+
+function flashScorePop() {
+  scorePop.style.transition = 'none';
+  scorePop.style.opacity    = '1';
+  scorePop.style.transform  = 'translateX(-50%) translateY(0px) scale(1.5)';
+  void scorePop.offsetWidth; // force reflow
+  scorePop.style.transition = 'opacity 0.85s ease, transform 0.85s ease';
+  scorePop.style.opacity    = '0';
+  scorePop.style.transform  = 'translateX(-50%) translateY(-60px) scale(1)';
+}
+
+// ════════════════════════════════════════════════════════════
+//  TIMER
+// ════════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerId);
+  timerId = setInterval(() => {
+    timeLeft--;
+    if (timeLeft <= 5 && timeLeft > 0) sndTick();
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      clearInterval(timerId);
+      endGame();
+    }
+  }, 1000);
+}
+
+function endGame() {
+  gamePhase = 'over';
+  ball.flying = false;
+  sndGameOver();
+  setTimeout(() => {
+    finalScoreEl.textContent = String(score).padStart(3, '0');
+    gameOverScreen.classList.remove('hidden');
+  }, 550);
+}
+
+// ════════════════════════════════════════════════════════════
+//  INPUT — Mouse & Touch
+// ════════════════════════════════════════════════════════════
+function pointerPos(e) {
+  const rect=canvas.getBoundingClientRect();
+  const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+  const src=e.touches ? e.touches[0] : e;
+  return { x:(src.clientX-rect.left)*sx, y:(src.clientY-rect.top)*sy };
+}
+
+function nearBall(px, py) {
+  return Math.hypot(px-ball.x, py-ball.y) < ball.r * 2.8;
+}
+
+function onDown(e) {
+  e.preventDefault();
+  if (gamePhase !== 'playing') return;
+  if (!ball.grounded || ball.flying) return;
+  const p = pointerPos(e);
+  if (!nearBall(p.x, p.y)) return;
+  drag.on=true; drag.sx=p.x; drag.sy=p.y; drag.cx=p.x; drag.cy=p.y;
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!drag.on) return;
+  const p=pointerPos(e); drag.cx=p.x; drag.cy=p.y;
+}
+
+function onUp(e) {
+  e.preventDefault();
+  if (!drag.on) return;
+  drag.on=false;
+  if (gamePhase==='playing') launchBall();
+}
+
+canvas.addEventListener('mousedown',  onDown);
+canvas.addEventListener('mousemove',  onMove);
+canvas.addEventListener('mouseup',    onUp);
+canvas.addEventListener('mouseleave', onUp);
+canvas.addEventListener('touchstart', onDown, {passive:false});
+canvas.addEventListener('touchmove',  onMove, {passive:false});
+canvas.addEventListener('touchend',   onUp,   {passive:false});
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — helpers
+// ════════════════════════════════════════════════════════════
+function rrect(x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,   x+w,y+r,   r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h, x+w-r,y+h, r);
+  ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,   x,y+h-r,   r);
+  ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,     x+r,y,     r);
+  ctx.closePath();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Scene background + court
+// ════════════════════════════════════════════════════════════
+function drawScene() {
+  // Background
+  const sky=ctx.createLinearGradient(0,0,0,FLOOR_Y);
+  sky.addColorStop(0,'#0f0400'); sky.addColorStop(1,'#1d0800');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+
+  // Court flash
+  if (courtFlash>0) {
+    ctx.fillStyle=`rgba(255,230,80,${(courtFlash/55)*0.12})`;
+    ctx.fillRect(0,0,W,H); courtFlash--;
+  }
+
+  // Hoop-area spotlight
+  const spot=ctx.createRadialGradient(HOOP_X,HOOP_Y,0,HOOP_X,HOOP_Y,W*0.45);
+  spot.addColorStop(0,  'rgba(255,120,30,0.10)');
+  spot.addColorStop(0.6,'rgba(255,80,10,0.03)');
+  spot.addColorStop(1,  'rgba(0,0,0,0)');
+  ctx.fillStyle=spot; ctx.fillRect(0,0,W,FLOOR_Y);
+
+  // Wooden floor
+  const flr=ctx.createLinearGradient(0,FLOOR_Y,0,H);
+  flr.addColorStop(0,  '#b86030');
+  flr.addColorStop(0.4,'#8a4020');
+  flr.addColorStop(1,  '#3a1800');
+  ctx.fillStyle=flr; ctx.fillRect(0,FLOOR_Y,W,H-FLOOR_Y);
+
+  // Plank lines
+  ctx.strokeStyle='#7a3815'; ctx.lineWidth=1; ctx.setLineDash([]);
+  for(let i=1;i<6;i++){
+    const y=FLOOR_Y+(H-FLOOR_Y)*(i/6);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.setLineDash([W*0.12,W*0.03]); ctx.strokeStyle='#6a2e10'; ctx.lineWidth=0.7;
+  for(let i=1;i<12;i++){
+    const y=FLOOR_Y+(H-FLOOR_Y)*(i/12);
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Floor edge stripe
+  ctx.strokeStyle='#ff6600'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(0,FLOOR_Y); ctx.lineTo(W,FLOOR_Y); ctx.stroke();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Cage side walls
+// ════════════════════════════════════════════════════════════
+function drawCageWalls() {
+  const topY=H*0.08, botY=FLOOR_Y;
+  function cage(ox, dir) {
+    // main vertical frame bar
+    ctx.strokeStyle='#5a3a18'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(ox,topY); ctx.lineTo(ox,botY); ctx.stroke();
+    // inner wire bars
+    ctx.strokeStyle='#3a2c10'; ctx.lineWidth=1.3;
+    for(let i=1;i<4;i++){
+      const x=ox+dir*i*4.5;
+      ctx.beginPath(); ctx.moveTo(x,topY); ctx.lineTo(x,botY); ctx.stroke();
+    }
+    // horizontal wires
+    ctx.lineWidth=1;
+    for(let j=0;j<=12;j++){
+      const y=topY+(botY-topY)*(j/12);
+      ctx.beginPath(); ctx.moveTo(ox-dir*6,y); ctx.lineTo(ox+dir*14,y); ctx.stroke();
+    }
+  }
+  cage(W*0.055,  1);
+  cage(W*0.945, -1);
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Ball-return ramp
+// ════════════════════════════════════════════════════════════
+function drawReturnRamp() {
+  const rH=H*0.11, rY=FLOOR_Y;
+  const rampGrad=ctx.createLinearGradient(0,rY,0,rY+rH);
+  rampGrad.addColorStop(0,'#3a1800'); rampGrad.addColorStop(1,'#180800');
+  ctx.fillStyle=rampGrad;
+  ctx.beginPath();
+  ctx.moveTo(W*0.04,rY); ctx.lineTo(W*0.96,rY);
+  ctx.lineTo(W*0.87,rY+rH); ctx.lineTo(W*0.13,rY+rH);
+  ctx.closePath(); ctx.fill();
+
+  // net mesh
+  ctx.strokeStyle='#4a3010'; ctx.lineWidth=1;
+  for(let c=0;c<=14;c++){
+    const tx=W*0.04+(W*0.92)*(c/14), bx=W*0.13+(W*0.74)*(c/14);
+    ctx.beginPath(); ctx.moveTo(tx,rY); ctx.lineTo(bx,rY+rH); ctx.stroke();
+  }
+  for(let r=0;r<=5;r++){
+    const t=r/5, y=rY+rH*t;
+    const lx=W*0.04+(W*0.09)*t, rx=W*0.96-(W*0.09)*t;
+    ctx.beginPath(); ctx.moveTo(lx,y); ctx.lineTo(rx,y); ctx.stroke();
+  }
+  // label
+  ctx.fillStyle='#ff6600'; ctx.shadowColor='#ff6600'; ctx.shadowBlur=5;
+  ctx.font=`bold ${Math.max(9,Math.floor(H*0.016))}px 'Courier New',monospace`;
+  ctx.textAlign='center';
+  ctx.fillText('◆ BALL RETURN ◆', W*0.5, rY+rH*0.60);
+  ctx.shadowBlur=0; ctx.textAlign='left';
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Scoreboard
+// ════════════════════════════════════════════════════════════
+function drawScoreboard() {
+  const sbX=W*0.08, sbY=H*0.03, sbW=W*0.84, sbH=H*0.115;
+
+  // outer frame
+  ctx.fillStyle='#cc5500';
+  rrect(sbX-5,sbY-5,sbW+10,sbH+10,10); ctx.fill();
+
+  // corner rivets
+  [[sbX,sbY],[sbX+sbW-8,sbY],[sbX,sbY+sbH-8],[sbX+sbW-8,sbY+sbH-8]].forEach(([rx,ry])=>{
+    ctx.fillStyle='#881f00';
+    ctx.beginPath(); ctx.arc(rx+4,ry+4,4.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ffcc44';
+    ctx.beginPath(); ctx.arc(rx+4,ry+4,2,0,Math.PI*2); ctx.fill();
+  });
+
+  // inner panel
+  rrect(sbX,sbY,sbW,sbH,7);
+  ctx.fillStyle='#060200'; ctx.fill();
+  // inner glow
+  const ig=ctx.createLinearGradient(sbX,sbY,sbX,sbY+sbH);
+  ig.addColorStop(0,'rgba(255,55,0,0.07)'); ig.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ig; rrect(sbX,sbY,sbW,sbH,7); ctx.fill();
+
+  // divider
+  ctx.strokeStyle='#2a0e00'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W*0.5,sbY+5); ctx.lineTo(W*0.5,sbY+sbH-5); ctx.stroke();
+
+  const midX=sbX+sbW*0.5, hX=sbX+sbW*0.25, sX=sbX+sbW*0.75;
+
+  // ── TIME (left half) ──
+  ctx.textAlign='center';
+  ctx.fillStyle='#5a2800'; ctx.shadowBlur=0;
+  ctx.font=`bold ${Math.floor(sbH*0.21)}px 'Courier New',monospace`;
+  ctx.fillText('TIME', hX, sbY+sbH*0.34);
+
+  const urgent = timeLeft<=10;
+  const blink  = urgent && (Math.floor(Date.now()/280)%2===0);
+  ctx.font=`bold ${Math.floor(sbH*0.57)}px 'Courier New',monospace`;
+  ctx.shadowColor = urgent ? '#ff2200' : '#00ffcc';
+  ctx.shadowBlur  = urgent ? 22 : 10;
+  ctx.fillStyle   = urgent ? (blink ? '#ff4444' : '#ff8888') : '#00ffcc';
+  ctx.fillText(String(timeLeft).padStart(2,'0'), hX, sbY+sbH*0.84);
+
+  // ── SCORE (right half) ──
+  ctx.shadowBlur=0; ctx.fillStyle='#5a2800';
+  ctx.font=`bold ${Math.floor(sbH*0.21)}px 'Courier New',monospace`;
+  ctx.fillText('SCORE', sX, sbY+sbH*0.34);
+
+  ctx.font=`bold ${Math.floor(sbH*0.57)}px 'Courier New',monospace`;
+  ctx.shadowColor='#ff8800'; ctx.shadowBlur=14; ctx.fillStyle='#ff9900';
+  ctx.fillText(String(score).padStart(3,'0'), sX, sbY+sbH*0.84);
+
+  ctx.shadowBlur=0; ctx.textAlign='left';
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Backboard
+// ════════════════════════════════════════════════════════════
+function drawBackboard() {
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(BOARD_X+5,BOARD_Y+5,BOARD_W,BOARD_H);
+  // face
+  const bbg=ctx.createLinearGradient(BOARD_X,BOARD_Y,BOARD_X,BOARD_Y+BOARD_H);
+  bbg.addColorStop(0,'#f2eada'); bbg.addColorStop(1,'#beb5a0');
+  ctx.fillStyle=bbg; ctx.fillRect(BOARD_X,BOARD_Y,BOARD_W,BOARD_H);
+  // border
+  ctx.strokeStyle='#8a7850'; ctx.lineWidth=3;
+  ctx.strokeRect(BOARD_X,BOARD_Y,BOARD_W,BOARD_H);
+  // target box
+  const tPad=BOARD_H*0.12;
+  ctx.strokeStyle='#dd4400'; ctx.lineWidth=2.5;
+  ctx.strokeRect(BOARD_X+tPad, BOARD_Y+BOARD_H*0.50, BOARD_W-tPad*2, BOARD_H*0.43);
+  // support pole
+  ctx.fillStyle='#4a2000';
+  ctx.fillRect(HOOP_X-4, BOARD_Y+BOARD_H, 8, H*0.033);
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Hoop + Net
+// ════════════════════════════════════════════════════════════
+function drawNet() {
+  const lx=RIM_LEFT_X, rx=RIM_RIGHT_X, ty=HOOP_Y, by=HOOP_Y+NET_DROP, segs=9;
+  ctx.strokeStyle='rgba(210,205,178,0.80)'; ctx.lineWidth=1.3;
+  // vertical strings
+  for(let i=0;i<=segs;i++){
+    const tx=lx+i*(rx-lx)/segs;
+    const bx=HOOP_X+(tx-HOOP_X)*0.68;
+    ctx.beginPath(); ctx.moveTo(tx,ty+2); ctx.lineTo(bx,by); ctx.stroke();
+  }
+  // horizontal rings
+  for(let j=1;j<=4;j++){
+    const t=j/4, y=ty+(by-ty)*t;
+    const hrx=(rx-lx)/2*(1-t*0.30);
+    ctx.beginPath(); ctx.ellipse(HOOP_X,y,hrx,hrx*0.12,0,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+function drawHoop() {
+  drawNet();
+  // support arm
+  ctx.strokeStyle='#993300'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(RIM_RIGHT_X,HOOP_Y); ctx.lineTo(BOARD_X+BOARD_W,HOOP_Y+BOARD_H*0.05); ctx.stroke();
+  // rim shadow
+  ctx.save();
+  ctx.strokeStyle='#440e00'; ctx.lineWidth=RIM_THICK+5;
+  ctx.beginPath(); ctx.ellipse(HOOP_X,HOOP_Y+4,RIM_R,RIM_R*0.155,0,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+  // rim
+  ctx.save();
+  ctx.shadowColor='#ff5500'; ctx.shadowBlur=14;
+  ctx.strokeStyle='#ff4400'; ctx.lineWidth=RIM_THICK;
+  ctx.beginPath(); ctx.ellipse(HOOP_X,HOOP_Y,RIM_R,RIM_R*0.155,0,0,Math.PI*2); ctx.stroke();
+  // highlight
+  ctx.strokeStyle='#ff8855'; ctx.lineWidth=2; ctx.shadowBlur=0;
+  ctx.beginPath(); ctx.ellipse(HOOP_X,HOOP_Y-2,RIM_R-3,(RIM_R*0.155)*0.65,0,Math.PI,0,false); ctx.stroke();
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Ball
+// ════════════════════════════════════════════════════════════
+function drawBall() {
+  const bx=ball.x, by=ball.y, br=ball.r;
+
+  // trail
+  if (ball.flying) {
+    for(let i=0;i<ball.trail.length;i++){
+      const t=(i+1)/ball.trail.length;
+      ctx.beginPath();
+      ctx.arc(ball.trail[i].x,ball.trail[i].y,br*t*0.44,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,88,10,${t*0.15})`;
+      ctx.fill();
+    }
+  }
+
+  // floor shadow
+  const sdist=Math.max(0,FLOOR_Y-by);
+  const sscale=Math.max(0.04,1-sdist/(H*0.52));
+  ctx.save(); ctx.globalAlpha=sscale*0.28;
+  ctx.beginPath(); ctx.ellipse(bx,FLOOR_Y-2,br*0.88*sscale,br*0.22*sscale,0,0,Math.PI*2);
+  ctx.fillStyle='#000'; ctx.fill(); ctx.restore();
+
+  // body
+  const g=ctx.createRadialGradient(bx-br*0.27,by-br*0.27,br*0.04,bx,by,br);
+  g.addColorStop(0.00,'#ffb860');
+  g.addColorStop(0.35,'#ff6600');
+  g.addColorStop(0.80,'#cc3300');
+  g.addColorStop(1.00,'#881100');
+  ctx.beginPath(); ctx.arc(bx,by,br,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+
+  // seams
+  ctx.save();
+  ctx.beginPath(); ctx.arc(bx,by,br,0,Math.PI*2); ctx.clip();
+  ctx.strokeStyle='#992200'; ctx.lineWidth=1.6;
+  ctx.beginPath();
+  ctx.moveTo(bx,by-br);
+  ctx.bezierCurveTo(bx+br*0.48,by-br*0.35,bx+br*0.48,by+br*0.35,bx,by+br);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(bx,by-br);
+  ctx.bezierCurveTo(bx-br*0.48,by-br*0.35,bx-br*0.48,by+br*0.35,bx,by+br);
+  ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(bx,by,br*0.96,br*0.22,0,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // specular
+  ctx.beginPath();
+  ctx.ellipse(bx-br*0.22,by-br*0.28,br*0.25,br*0.13,-0.5,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.fill();
+
+  // aim guide
+  if (drag.on) drawAimGuide();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Aim / trajectory preview
+// ════════════════════════════════════════════════════════════
+function drawAimGuide() {
+  // Flick-forward: guide follows the same direction as the flick (current - start)
+  const dx=drag.cx-drag.sx, dy=drag.cy-drag.sy;
+  const dist=Math.hypot(dx,dy);
+  if (dist<8||dy>0) return; // only show guide when flicking upward
+
+  const maxPower=H*0.021;
+  const power=Math.min(dist*0.40,maxPower);
+  const ratio=power/dist;
+  let pvx=dx*ratio, pvy=dy*ratio;
+  let px=BALL_HOME_X, py=BALL_HOME_Y;
+
+  ctx.save();
+  ctx.setLineDash([7,6]);
+  ctx.strokeStyle='rgba(255,230,50,0.42)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(px,py);
+  for(let i=0;i<28;i++){
+    pvx*=0.998; pvy+=GRAVITY; px+=pvx; py+=pvy;
+    ctx.lineTo(px,py);
+    if(py>FLOOR_Y) break;
+  }
+  ctx.stroke();
+  // flick direction line from ball to current pointer
+  ctx.setLineDash([4,5]);
+  ctx.strokeStyle='rgba(255,160,30,0.32)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(BALL_HOME_X,BALL_HOME_Y);
+  ctx.lineTo(drag.cx,drag.cy); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+//  DRAWING — Idle hint arrows
+// ════════════════════════════════════════════════════════════
+function drawIdleHint() {
+  if (ball.flying || drag.on) return;
+  const pulse=Math.sin(Date.now()*0.004)*0.5+0.5;
+  ctx.save();
+  ctx.globalAlpha=0.22+pulse*0.38;
+  ctx.fillStyle='#ffcc00';
+  ctx.font=`${Math.floor(W*0.048)}px 'Courier New',monospace`;
+  ctx.textAlign='center';
+  const offsets=[-W*0.06,0,W*0.06];
+  offsets.forEach(ox=>{
+    ctx.fillText('↑', BALL_HOME_X+ox, BALL_HOME_Y-ball.r-8-(pulse*9));
+  });
+  ctx.textAlign='left'; ctx.globalAlpha=1; ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+//  MAIN RENDER
+// ════════════════════════════════════════════════════════════
+function render() {
+  ctx.clearRect(0,0,W,H);
+  drawScene();
+  drawCageWalls();
+  drawReturnRamp();
+  drawBackboard();
+  drawHoop();
+  drawScoreboard();
+  if (gamePhase==='playing') drawIdleHint();
+  drawBall();
+}
+
+// ════════════════════════════════════════════════════════════
+//  GAME LOOP
+// ════════════════════════════════════════════════════════════
+function loop() {
+  if (gamePhase==='playing') updateBall();
+  render();
+  rafId = requestAnimationFrame(loop);
+}
+
+// ════════════════════════════════════════════════════════════
+//  GAME START / RESTART
+// ════════════════════════════════════════════════════════════
+function startGame() {
+  score=0; timeLeft=30; gamePhase='playing';
+  resetBall();
+  startScreen.classList.add('hidden');
+  gameOverScreen.classList.add('hidden');
+  clearInterval(timerId);
+  if (rafId) cancelAnimationFrame(rafId);
+  startTimer();
+  loop();
+}
+
+startBtn.addEventListener('click',   ()=>{ sndCoin(); setTimeout(startGame,220); });
+restartBtn.addEventListener('click', ()=>{ sndCoin(); setTimeout(startGame,220); });
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+window.addEventListener('resize', ()=>{
+  resizeCanvas();
+  if (!ball.flying) resetBall();
+});
+
+resizeCanvas();
+resetBall();   // properly position ball after layout
+render();      // paint court visible behind start overlay
+</script>
+</body>
+</html>
