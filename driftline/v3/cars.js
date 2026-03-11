@@ -1,16 +1,8 @@
 // ════════════════════════════════════════════════
 //  cars.js — Car definitions, preview renders, top-down renders
-//
-//  SVG sprites are used for the Vacation Wagon only (test implementation).
-//  The truck and muscle car still use the original canvas drawing code.
-//  To add SVG sprites to the other cars later, follow the same pattern:
-//    1. Add an entry to CAR_SPRITES with the car's name as key.
-//    2. Provide `preview` and `inGame` image paths.
-//    3. Replace drawPreview<n> and drawTop<n> with the SVG draw helpers.
 // ════════════════════════════════════════════════
 
 // ── Car definitions ────────────────────────────
-// NOTE: w/h are physics collision dimensions — do not change them.
 const CAR_DEFS = [
   { name:'wagon',  color:'#d4b882', accent:'#b8956a', roof:'#c8a870',
     w:28, h:50, steerSpeed:0.028, steerReturn:0.055,
@@ -24,38 +16,33 @@ const CAR_DEFS = [
 ];
 
 // ════════════════════════════════════════════════
-//  SVG Sprite Preloader
+//  SVG sprite preloader — wagon only (test implementation)
 //
-//  Loads SVG assets once at startup into Image objects.
-//  drawTopWagon / drawPreviewWagon check .complete before using them
-//  and silently fall back to canvas drawing if not yet ready.
+//  Two Image objects are loaded once at startup.  Every draw function
+//  that uses them checks _imgReady() first, and silently falls back to
+//  the original canvas drawing if the image hasn't decoded yet.
 //
-//  To add sprites for other cars later, un-comment the truck/muscle
-//  entries below and supply the correct file paths.
+//  To extend this system to the truck and muscle car later, follow
+//  the same pattern used here for the wagon:
+//    1. Declare two new Image objects and set their .src.
+//    2. Add a fallback-guarded drawImage call at the top of
+//       drawTopTruck / drawTopMuscle and drawPreviewTruck /
+//       drawPreviewMuscle, preserving the originals as _fallback fns.
 // ════════════════════════════════════════════════
 
-// SVG source paths — relative to index.html
-const CAR_SPRITES = {
-  wagon: {
-    // Top-down in-game sprite (76×136 viewBox — portrait, matches def.w/def.h aspect 0.56)
-    inGame:  'assets/vacation_wagon_in_game.svg',
-    // Side-view preview sprite (50×28 viewBox — landscape)
-    preview: 'assets/vacation_wagon_preview.svg',
-  },
-  // truck:  { inGame: 'assets/ice_cream_truck_in_game.svg',  preview: 'assets/ice_cream_truck_preview.svg'  },
-  // muscle: { inGame: 'assets/pure_muscle_in_game.svg',      preview: 'assets/pure_muscle_preview.svg'      },
-};
+// File paths are relative to index.html.
+// Keep the SVG files at  assets/vacation_wagon_in_game.svg
+//                    and  assets/vacation_wagon_preview.svg
+// (or update these strings if you place them elsewhere).
+const _wagonImgInGame  = new Image();
+const _wagonImgPreview = new Image();
+_wagonImgInGame.src    = 'assets/vacation_wagon_in_game.svg';
+_wagonImgPreview.src   = 'assets/vacation_wagon_preview.svg';
 
-// Loaded Image objects, keyed by car name
-const _sprites = {};
-
-(function preloadSprites() {
-  for (const [name, paths] of Object.entries(CAR_SPRITES)) {
-    _sprites[name] = { inGame: new Image(), preview: new Image() };
-    _sprites[name].inGame.src  = paths.inGame;
-    _sprites[name].preview.src = paths.preview;
-  }
-})();
+/** Returns true only once an Image has fully decoded. */
+function _imgReady(img) {
+  return img.complete && img.naturalWidth > 0;
+}
 
 // ── Shared rounded-rect helper for preview canvases ──
 function pRR(cx, x, y, w, h, r) {
@@ -79,84 +66,80 @@ function drawPreviewCar(id, idx) {
 }
 
 // ════════════════════════════════════════════════
-//  WAGON — SVG-based rendering
+//  Vacation Wagon — SVG-based rendering
 // ════════════════════════════════════════════════
 
-// ── Vacation Wagon preview (side view, SVG) ─────
+// ── Wagon preview (car-select screen, side view) ──
 //
-//  Preview canvas size: 110×130 px (set in index.html).
-//  vacation_wagon_preview.svg viewBox: 50×28 (landscape side view).
+//  SVG used:  assets/vacation_wagon_preview.svg
+//  viewBox:   0 0 50 28  (landscape — side view of the car)
 //
-//  We scale the SVG to fill ~90% of canvas width, centred horizontally,
-//  and positioned in the upper-centre of the canvas — matching the
-//  visual weight of the original canvas-drawn version.
+//  Sizing mirrors the original canvas version's visual weight:
+//    old code drew body at W=88, H=34 inside a canvas typically
+//    110 px wide → body occupied ~80 % of canvas width.
+//  We replicate that proportion: drawW = pw * 0.80.
+//  The SVG aspect is 50:28, so drawH scales proportionally ≈ 34 px.
+//  Vertical anchor: centre the image at oy = ph*0.62 (same as before).
 //
 function drawPreviewWagon(cx, pw, ph) {
-  const img = _sprites.wagon && _sprites.wagon.preview;
-
-  if (!img || !img.complete || img.naturalWidth === 0) {
-    // Fallback: original canvas drawing while image loads
+  if (_imgReady(_wagonImgPreview)) {
+    const drawW = pw * 0.80;              // ~88 px when canvas is 110 px wide
+    const drawH = drawW * (28 / 50);     // preserve SVG aspect ratio  → ~49 px
+    const dx    = (pw - drawW) / 2;      // horizontally centred
+    const dy    = ph * 0.62 - drawH / 2; // vertical centre at ~62 % down
+    cx.drawImage(_wagonImgPreview, dx, dy, drawW, drawH);
+  } else {
     _drawPreviewWagonCanvas(cx, pw, ph);
-    return;
   }
-
-  // SVG natural aspect: 50 × 28 (landscape)
-  const SVG_W = 50, SVG_H = 28;
-  const scale = (pw * 0.88) / SVG_W;    // fill ~88% of canvas width
-  const drawW = SVG_W * scale;
-  const drawH = SVG_H * scale;
-  const dx    = (pw - drawW) / 2;       // horizontally centred
-  const dy    = ph * 0.22;              // upper-middle, matching original positioning
-
-  cx.drawImage(img, dx, dy, drawW, drawH);
 }
 
-// ── Vacation Wagon top-down in-game (SVG) ───────
+// ── Wagon top-down in-game ──────────────────────
 //
-//  Called from render.js → drawCar(), which has already applied:
+//  SVG used:  assets/vacation_wagon_in_game.svg
+//  viewBox:   0 0 76 136  (portrait — top-down overhead view)
+//
+//  render.js → drawCar() has already applied, before this call:
 //    ctx.translate(screenX, screenY)
-//    ctx.rotate(va + la)
+//    ctx.rotate(va + la)          ← rotation + drift lean included
 //    ctx.scale(1.35, 1.35)
+//  So we draw in local space with the car centred on the origin.
 //
-//  We draw in local space, centred at the origin (0, 0).
+//  Sizing:  draw at exactly def.w × def.h (pre-scale local coords).
+//    def.w = 28, def.h = 50  →  aspect = 0.560
+//    SVG viewBox 76 × 136    →  aspect = 0.559   ✓ virtually identical
+//  The sprite therefore fills the physics collision box without
+//  distortion.  def.w and def.h — and all collision logic — are
+//  completely unchanged.
 //
-//  vacation_wagon_in_game.svg viewBox: 76 × 136.
-//  def.w = 28, def.h = 50 (physics box, pre-scale local coords).
-//  Aspect ratios: SVG = 76/136 = 0.559, def = 28/50 = 0.560 — near-identical.
-//  Drawing at def.w × def.h fills the physics box with zero distortion.
-//
-//  Orientation: the SVG top edge is the car's FRONT (headlights visible there).
-//  In game-space, negative-Y is forward, which matches canvas top = forward.
-//  No additional rotation needed.
+//  Orientation:  The SVG was authored with the car's FRONT at the
+//  top (y = 0).  In this game the car also faces up (negative-Y)
+//  before camera rotation is applied, so no extra rotation needed.
 //
 function drawTopWagon(def) {
-  const img = _sprites.wagon && _sprites.wagon.inGame;
+  if (_imgReady(_wagonImgInGame)) {
+    const cw = def.w;  // 28 — physics width  (local, before 1.35 scale)
+    const ch = def.h;  // 50 — physics height
 
-  if (!img || !img.complete || img.naturalWidth === 0) {
-    // Fallback: original canvas drawing while image loads
+    // Drop-shadow kept from original so the car still looks grounded.
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(1, 3, cw * 0.52, ch * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // SVG sprite, centred on origin, sized to the physics bounding box.
+    ctx.drawImage(_wagonImgInGame, -cw / 2, -ch / 2, cw, ch);
+  } else {
     _drawTopWagonCanvas(def);
-    return;
   }
-
-  const cw = def.w;  // 28 — physics collision width  (local coords, before 1.35 scale)
-  const ch = def.h;  // 50 — physics collision height
-
-  // Drop shadow (same as original drawTopWagon)
-  ctx.save();
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(1, 3, cw * 0.52, ch * 0.38, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // Draw SVG sprite centred at origin, sized to match physics box exactly
-  ctx.drawImage(img, -cw / 2, -ch / 2, cw, ch);
 }
 
 // ════════════════════════════════════════════════
-//  WAGON — Original canvas fallback drawings
-//  Kept verbatim. Used automatically if the SVG hasn't loaded yet.
+//  Vacation Wagon — original canvas fallback drawings
+//  Called automatically while the SVG images are still loading,
+//  and kept here so the wagon always renders even if assets fail.
 // ════════════════════════════════════════════════
 
 function _drawPreviewWagonCanvas(cx, pw, ph) {
@@ -286,8 +269,19 @@ function _drawTopWagonCanvas(def) {
 }
 
 // ════════════════════════════════════════════════
-//  TRUCK & MUSCLE — unchanged canvas rendering
+//  Top-down in-game car rendering
 // ════════════════════════════════════════════════
+
+// Shared top-down wheel helper (uses global ctx & car)
+function drawWheel(x, y, w, h, steer) {
+  ctx.save(); ctx.translate(x, y);
+  if (steer) ctx.rotate(car.steerInput * 0.35);
+  ctx.fillStyle = '#1a1a18';
+  roundRect(ctx, -w/2, -h/2, w, h, 2); ctx.fill();
+  ctx.fillStyle = '#2e2e2c';
+  ctx.fillRect(-w/2+1, -h/2+2, w-2, h-4);
+  ctx.restore();
+}
 
 // ── Ice Cream Truck preview (side view) ─────────
 function drawPreviewTruck(cx, pw, ph) {
@@ -445,21 +439,6 @@ function drawPreviewMuscle(cx, pw, ph) {
       cx.lineTo(wx+Math.cos(ang)*8, wy+Math.sin(ang)*8); cx.stroke();
     }
   });
-}
-
-// ════════════════════════════════════════════════
-//  Top-down in-game car rendering
-// ════════════════════════════════════════════════
-
-// Shared top-down wheel helper (uses global ctx & car)
-function drawWheel(x, y, w, h, steer) {
-  ctx.save(); ctx.translate(x, y);
-  if (steer) ctx.rotate(car.steerInput * 0.35);
-  ctx.fillStyle = '#1a1a18';
-  roundRect(ctx, -w/2, -h/2, w, h, 2); ctx.fill();
-  ctx.fillStyle = '#2e2e2c';
-  ctx.fillRect(-w/2+1, -h/2+2, w-2, h-4);
-  ctx.restore();
 }
 
 // ── Ice Cream Truck — top-down rear view ─────────
