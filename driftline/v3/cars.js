@@ -16,29 +16,33 @@ const CAR_DEFS = [
 ];
 
 // ════════════════════════════════════════════════
-//  SVG sprite preloader — wagon only (test implementation)
+//  SVG sprite preloader — all three cars
 //
-//  Two Image objects are loaded once at startup.  Every draw function
-//  that uses them checks _imgReady() first, and silently falls back to
-//  the original canvas drawing if the image hasn't decoded yet.
-//
-//  To extend this system to the truck and muscle car later, follow
-//  the same pattern used here for the wagon:
-//    1. Declare two new Image objects and set their .src.
-//    2. Add a fallback-guarded drawImage call at the top of
-//       drawTopTruck / drawTopMuscle and drawPreviewTruck /
-//       drawPreviewMuscle, preserving the originals as _fallback fns.
+//  Two Image objects are loaded once at startup per car.  Every draw
+//  function checks _imgReady() first, and silently falls back to the
+//  original canvas drawing if the image hasn't decoded yet.
+//  The onload callback on each preview image redraws its card once the
+//  SVG is ready, replacing the briefly-shown canvas fallback.
 // ════════════════════════════════════════════════
 
 // File paths are relative to index.html.
-// Keep the SVG files at  assets/vacation_wagon_in_game.svg
-//                    and  assets/vacation_wagon_preview.svg
-// (or update these strings if you place them elsewhere).
 const _wagonImgInGame  = new Image();
 const _wagonImgPreview = new Image();
-_wagonImgInGame.src    = 'assets/vacation_wagon_in_game.svg';
-_wagonImgPreview.src   = 'assets/vacation_wagon_preview.svg';
+_wagonImgInGame.src     = 'assets/vacation_wagon_in_game.svg';
+_wagonImgPreview.src    = 'assets/vacation_wagon_preview.svg';
 _wagonImgPreview.onload = () => drawPreviewCar('preview-0', 0);
+
+const _truckImgInGame  = new Image();
+const _truckImgPreview = new Image();
+_truckImgInGame.src     = 'assets/truck_in_game.svg';
+_truckImgPreview.src    = 'assets/truck_preview.svg';
+_truckImgPreview.onload = () => drawPreviewCar('preview-1', 1);
+
+const _muscleImgInGame  = new Image();
+const _muscleImgPreview = new Image();
+_muscleImgInGame.src     = 'assets/muscle_in_game.svg';
+_muscleImgPreview.src    = 'assets/muscle_preview.svg';
+_muscleImgPreview.onload = () => drawPreviewCar('preview-2', 2);
 
 /** Returns true only once an Image has fully decoded. */
 function _imgReady(img) {
@@ -284,8 +288,27 @@ function drawWheel(x, y, w, h, steer) {
   ctx.restore();
 }
 
-// ── Ice Cream Truck preview (side view) ─────────
+// ── Ice Cream Truck preview (car-select screen, side view) ──
+//
+//  SVG used:  assets/truck_preview.svg  (landscape side view)
+//  Sizing mirrors the original canvas version's visual weight:
+//    old code drew body at W=86, H=38 inside a 110 px wide canvas.
+//  drawW = pw * 0.80 replicates that proportion.
+//  Vertical anchor: centre at oy = ph*0.60 (same as original).
+//
 function drawPreviewTruck(cx, pw, ph) {
+  if (_imgReady(_truckImgPreview)) {
+    const drawW = pw * 0.80;
+    const drawH = drawW * (38 / 86);      // preserve original H:W ratio
+    const dx    = (pw - drawW) / 2;
+    const dy    = ph * 0.60 - drawH / 2;
+    cx.drawImage(_truckImgPreview, dx, dy, drawW, drawH);
+  } else {
+    _drawPreviewTruckCanvas(cx, pw, ph);
+  }
+}
+
+function _drawPreviewTruckCanvas(cx, pw, ph) {
   const ox = pw/2, oy = ph*0.60;
   const W = 86, H = 38;
 
@@ -366,8 +389,27 @@ function drawPreviewTruck(cx, pw, ph) {
   });
 }
 
-// ── Pure Muscle preview (side view) ─────────────
+// ── Pure Muscle preview (car-select screen, side view) ──
+//
+//  SVG used:  assets/muscle_preview.svg  (landscape side view)
+//  Sizing mirrors the original canvas version's visual weight:
+//    old code drew body at W=90, H=28 inside a 110 px wide canvas.
+//  drawW = pw * 0.82 replicates that proportion.
+//  Vertical anchor: centre at oy = ph*0.64 (same as original).
+//
 function drawPreviewMuscle(cx, pw, ph) {
+  if (_imgReady(_muscleImgPreview)) {
+    const drawW = pw * 0.82;
+    const drawH = drawW * (28 / 90);      // preserve original H:W ratio
+    const dx    = (pw - drawW) / 2;
+    const dy    = ph * 0.64 - drawH / 2;
+    cx.drawImage(_muscleImgPreview, dx, dy, drawW, drawH);
+  } else {
+    _drawPreviewMuscleCanvas(cx, pw, ph);
+  }
+}
+
+function _drawPreviewMuscleCanvas(cx, pw, ph) {
   const ox = pw/2, oy = ph*0.64;
   const W = 90, H = 28;
 
@@ -442,8 +484,30 @@ function drawPreviewMuscle(cx, pw, ph) {
   });
 }
 
-// ── Ice Cream Truck — top-down rear view ─────────
+// ── Ice Cream Truck — SVG top-down in-game ──────
+//
+//  SVG used:  assets/truck_in_game.svg  (portrait, top-down overhead)
+//  render.js → drawCar() has already applied translate, rotate, scale(1.35).
+//  Draw at def.w × def.h in local space, centred on origin.
+//  def.w = 30, def.h = 54
+//
 function drawTopTruck(def) {
+  if (_imgReady(_truckImgInGame)) {
+    const cw = def.w, ch = def.h;
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(1, 3, cw * 0.55, ch * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.drawImage(_truckImgInGame, -cw / 2, -ch / 2, cw, ch);
+  } else {
+    _drawTopTruckCanvas(def);
+  }
+}
+
+function _drawTopTruckCanvas(def) {
   const cw = def.w, ch = def.h;
 
   ctx.save(); ctx.globalAlpha = 0.2;
@@ -498,8 +562,30 @@ function drawTopTruck(def) {
   drawWheel( cw/2+2,  ch*0.3, wr, wh, false);
 }
 
-// ── Pure Muscle — top-down rear view ─────────────
+// ── Pure Muscle — SVG top-down in-game ──────────
+//
+//  SVG used:  assets/muscle_in_game.svg  (portrait, top-down overhead)
+//  render.js → drawCar() has already applied translate, rotate, scale(1.35).
+//  Draw at def.w × def.h in local space, centred on origin.
+//  def.w = 32, def.h = 56
+//
 function drawTopMuscle(def) {
+  if (_imgReady(_muscleImgInGame)) {
+    const cw = def.w, ch = def.h;
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(1, 4, cw * 0.58, ch * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.drawImage(_muscleImgInGame, -cw / 2, -ch / 2, cw, ch);
+  } else {
+    _drawTopMuscleCanvas(def);
+  }
+}
+
+function _drawTopMuscleCanvas(def) {
   const cw = def.w, ch = def.h;
 
   ctx.save(); ctx.globalAlpha = 0.22;
