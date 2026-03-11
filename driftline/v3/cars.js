@@ -38,6 +38,7 @@ const _wagonImgInGame  = new Image();
 const _wagonImgPreview = new Image();
 _wagonImgInGame.src    = 'assets/vacation_wagon_in_game.svg';
 _wagonImgPreview.src   = 'assets/vacation_wagon_preview.svg';
+_wagonImgPreview.onload = () => drawPreviewCar('preview-0', 0);
 
 /** Returns true only once an Image has fully decoded. */
 function _imgReady(img) {
