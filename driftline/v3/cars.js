@@ -1,8 +1,16 @@
 // ════════════════════════════════════════════════
 //  cars.js — Car definitions, preview renders, top-down renders
+//
+//  SVG sprites are used for the Vacation Wagon only (test implementation).
+//  The truck and muscle car still use the original canvas drawing code.
+//  To add SVG sprites to the other cars later, follow the same pattern:
+//    1. Add an entry to CAR_SPRITES with the car's name as key.
+//    2. Provide `preview` and `inGame` image paths.
+//    3. Replace drawPreview<n> and drawTop<n> with the SVG draw helpers.
 // ════════════════════════════════════════════════
 
 // ── Car definitions ────────────────────────────
+// NOTE: w/h are physics collision dimensions — do not change them.
 const CAR_DEFS = [
   { name:'wagon',  color:'#d4b882', accent:'#b8956a', roof:'#c8a870',
     w:28, h:50, steerSpeed:0.028, steerReturn:0.055,
@@ -14,6 +22,40 @@ const CAR_DEFS = [
     w:32, h:56, steerSpeed:0.022, steerReturn:0.04,
     driftFactor:0.6,  driftBuild:0.014, maxDrift:32, speed:4.8 },
 ];
+
+// ════════════════════════════════════════════════
+//  SVG Sprite Preloader
+//
+//  Loads SVG assets once at startup into Image objects.
+//  drawTopWagon / drawPreviewWagon check .complete before using them
+//  and silently fall back to canvas drawing if not yet ready.
+//
+//  To add sprites for other cars later, un-comment the truck/muscle
+//  entries below and supply the correct file paths.
+// ════════════════════════════════════════════════
+
+// SVG source paths — relative to index.html
+const CAR_SPRITES = {
+  wagon: {
+    // Top-down in-game sprite (76×136 viewBox — portrait, matches def.w/def.h aspect 0.56)
+    inGame:  'assets/vacation_wagon_in_game.svg',
+    // Side-view preview sprite (50×28 viewBox — landscape)
+    preview: 'assets/vacation_wagon_preview.svg',
+  },
+  // truck:  { inGame: 'assets/ice_cream_truck_in_game.svg',  preview: 'assets/ice_cream_truck_preview.svg'  },
+  // muscle: { inGame: 'assets/pure_muscle_in_game.svg',      preview: 'assets/pure_muscle_preview.svg'      },
+};
+
+// Loaded Image objects, keyed by car name
+const _sprites = {};
+
+(function preloadSprites() {
+  for (const [name, paths] of Object.entries(CAR_SPRITES)) {
+    _sprites[name] = { inGame: new Image(), preview: new Image() };
+    _sprites[name].inGame.src  = paths.inGame;
+    _sprites[name].preview.src = paths.preview;
+  }
+})();
 
 // ── Shared rounded-rect helper for preview canvases ──
 function pRR(cx, x, y, w, h, r) {
@@ -36,8 +78,88 @@ function drawPreviewCar(id, idx) {
   else                drawPreviewMuscle(cx, pw, ph);
 }
 
-// ── Vacation Wagon preview (side view) ──────────
+// ════════════════════════════════════════════════
+//  WAGON — SVG-based rendering
+// ════════════════════════════════════════════════
+
+// ── Vacation Wagon preview (side view, SVG) ─────
+//
+//  Preview canvas size: 110×130 px (set in index.html).
+//  vacation_wagon_preview.svg viewBox: 50×28 (landscape side view).
+//
+//  We scale the SVG to fill ~90% of canvas width, centred horizontally,
+//  and positioned in the upper-centre of the canvas — matching the
+//  visual weight of the original canvas-drawn version.
+//
 function drawPreviewWagon(cx, pw, ph) {
+  const img = _sprites.wagon && _sprites.wagon.preview;
+
+  if (!img || !img.complete || img.naturalWidth === 0) {
+    // Fallback: original canvas drawing while image loads
+    _drawPreviewWagonCanvas(cx, pw, ph);
+    return;
+  }
+
+  // SVG natural aspect: 50 × 28 (landscape)
+  const SVG_W = 50, SVG_H = 28;
+  const scale = (pw * 0.88) / SVG_W;    // fill ~88% of canvas width
+  const drawW = SVG_W * scale;
+  const drawH = SVG_H * scale;
+  const dx    = (pw - drawW) / 2;       // horizontally centred
+  const dy    = ph * 0.22;              // upper-middle, matching original positioning
+
+  cx.drawImage(img, dx, dy, drawW, drawH);
+}
+
+// ── Vacation Wagon top-down in-game (SVG) ───────
+//
+//  Called from render.js → drawCar(), which has already applied:
+//    ctx.translate(screenX, screenY)
+//    ctx.rotate(va + la)
+//    ctx.scale(1.35, 1.35)
+//
+//  We draw in local space, centred at the origin (0, 0).
+//
+//  vacation_wagon_in_game.svg viewBox: 76 × 136.
+//  def.w = 28, def.h = 50 (physics box, pre-scale local coords).
+//  Aspect ratios: SVG = 76/136 = 0.559, def = 28/50 = 0.560 — near-identical.
+//  Drawing at def.w × def.h fills the physics box with zero distortion.
+//
+//  Orientation: the SVG top edge is the car's FRONT (headlights visible there).
+//  In game-space, negative-Y is forward, which matches canvas top = forward.
+//  No additional rotation needed.
+//
+function drawTopWagon(def) {
+  const img = _sprites.wagon && _sprites.wagon.inGame;
+
+  if (!img || !img.complete || img.naturalWidth === 0) {
+    // Fallback: original canvas drawing while image loads
+    _drawTopWagonCanvas(def);
+    return;
+  }
+
+  const cw = def.w;  // 28 — physics collision width  (local coords, before 1.35 scale)
+  const ch = def.h;  // 50 — physics collision height
+
+  // Drop shadow (same as original drawTopWagon)
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(1, 3, cw * 0.52, ch * 0.38, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Draw SVG sprite centred at origin, sized to match physics box exactly
+  ctx.drawImage(img, -cw / 2, -ch / 2, cw, ch);
+}
+
+// ════════════════════════════════════════════════
+//  WAGON — Original canvas fallback drawings
+//  Kept verbatim. Used automatically if the SVG hasn't loaded yet.
+// ════════════════════════════════════════════════
+
+function _drawPreviewWagonCanvas(cx, pw, ph) {
   const ox = pw/2, oy = ph*0.62;
   const W = 88, H = 34;
 
@@ -106,6 +228,66 @@ function drawPreviewWagon(cx, pw, ph) {
     }
   });
 }
+
+function _drawTopWagonCanvas(def) {
+  const cw = def.w, ch = def.h;
+
+  ctx.save(); ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(1, 3, cw*0.52, ch*0.38, 0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = '#d4b882';
+  roundRect(ctx, -cw/2, -ch/2, cw, ch, 5); ctx.fill();
+
+  ctx.strokeStyle = '#b89860'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-cw/2+3, 0); ctx.lineTo(cw/2-3, 0); ctx.stroke();
+
+  ctx.fillStyle = '#c8a870';
+  roundRect(ctx, -cw/2+3, -ch/2+6, cw-6, ch*0.56, 3); ctx.fill();
+
+  ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+8); ctx.lineTo(cw/2-5, -ch/2+8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+14); ctx.lineTo(cw/2-5, -ch/2+14); ctx.stroke();
+  ctx.strokeStyle = '#786040'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+8); ctx.lineTo(-cw/2+5, -ch/2+14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cw/2-5, -ch/2+8); ctx.lineTo(cw/2-5, -ch/2+14); ctx.stroke();
+
+  ctx.fillStyle = '#8B4513';
+  roundRect(ctx, -cw/2+6, -ch/2+9, cw*0.38, ch*0.12, 1); ctx.fill();
+  ctx.fillStyle = '#6B3010';
+  ctx.fillRect(-cw/2+6+cw*0.15, -ch/2+9, 2, ch*0.12);
+  ctx.fillStyle = '#d4602a';
+  roundRect(ctx, cw*0.04, -ch/2+9, cw*0.32, ch*0.1, 1); ctx.fill();
+
+  ctx.fillStyle = 'rgba(160,210,230,0.55)';
+  roundRect(ctx, -cw/2+5, -ch/2+20, cw-10, ch*0.13, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,240,255,0.3)'; ctx.lineWidth = 0.8;
+  roundRect(ctx, -cw/2+5, -ch/2+20, cw-10, ch*0.13, 2); ctx.stroke();
+
+  ctx.fillStyle = '#b89060';
+  roundRect(ctx, -cw/2, -ch/2+ch*0.86, cw, ch*0.14, 3); ctx.fill();
+
+  ctx.fillStyle = 'rgba(220,50,40,0.95)';
+  roundRect(ctx, -cw/2+2, ch/2-7, cw*0.28, 5, 1); ctx.fill();
+  roundRect(ctx, cw/2-2-cw*0.28, ch/2-7, cw*0.28, 5, 1); ctx.fill();
+  ctx.fillStyle = 'rgba(255,140,40,0.7)';
+  ctx.fillRect(-cw/2+3, ch/2-6, cw*0.14, 3);
+  ctx.fillRect(cw/2-3-cw*0.14, ch/2-6, cw*0.14, 3);
+
+  ctx.fillStyle = 'rgba(255,245,200,0.8)';
+  roundRect(ctx, -cw/2+3, -ch/2+2, cw*0.28, 4, 1); ctx.fill();
+  roundRect(ctx, cw/2-3-cw*0.28, -ch/2+2, cw*0.28, 4, 1); ctx.fill();
+
+  const wr = 5.5, wh = 10;
+  drawWheel(-cw/2-2, -ch*0.3, wr, wh, true);
+  drawWheel( cw/2+2, -ch*0.3, wr, wh, true);
+  drawWheel(-cw/2-2,  ch*0.3, wr, wh, false);
+  drawWheel( cw/2+2,  ch*0.3, wr, wh, false);
+}
+
+// ════════════════════════════════════════════════
+//  TRUCK & MUSCLE — unchanged canvas rendering
+// ════════════════════════════════════════════════
 
 // ── Ice Cream Truck preview (side view) ─────────
 function drawPreviewTruck(cx, pw, ph) {
@@ -278,63 +460,6 @@ function drawWheel(x, y, w, h, steer) {
   ctx.fillStyle = '#2e2e2c';
   ctx.fillRect(-w/2+1, -h/2+2, w-2, h-4);
   ctx.restore();
-}
-
-// ── Vacation Wagon — top-down rear view ──────────
-function drawTopWagon(def) {
-  const cw = def.w, ch = def.h;
-
-  ctx.save(); ctx.globalAlpha = 0.22;
-  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(1, 3, cw*0.52, ch*0.38, 0, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = '#d4b882';
-  roundRect(ctx, -cw/2, -ch/2, cw, ch, 5); ctx.fill();
-
-  ctx.strokeStyle = '#b89860'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(-cw/2+3, 0); ctx.lineTo(cw/2-3, 0); ctx.stroke();
-
-  ctx.fillStyle = '#c8a870';
-  roundRect(ctx, -cw/2+3, -ch/2+6, cw-6, ch*0.56, 3); ctx.fill();
-
-  ctx.strokeStyle = '#8a7050'; ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+8); ctx.lineTo(cw/2-5, -ch/2+8); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+14); ctx.lineTo(cw/2-5, -ch/2+14); ctx.stroke();
-  ctx.strokeStyle = '#786040'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(-cw/2+5, -ch/2+8); ctx.lineTo(-cw/2+5, -ch/2+14); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cw/2-5, -ch/2+8); ctx.lineTo(cw/2-5, -ch/2+14); ctx.stroke();
-
-  ctx.fillStyle = '#8B4513';
-  roundRect(ctx, -cw/2+6, -ch/2+9, cw*0.38, ch*0.12, 1); ctx.fill();
-  ctx.fillStyle = '#6B3010';
-  ctx.fillRect(-cw/2+6+cw*0.15, -ch/2+9, 2, ch*0.12);
-  ctx.fillStyle = '#d4602a';
-  roundRect(ctx, cw*0.04, -ch/2+9, cw*0.32, ch*0.1, 1); ctx.fill();
-
-  ctx.fillStyle = 'rgba(160,210,230,0.55)';
-  roundRect(ctx, -cw/2+5, -ch/2+20, cw-10, ch*0.13, 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(200,240,255,0.3)'; ctx.lineWidth = 0.8;
-  roundRect(ctx, -cw/2+5, -ch/2+20, cw-10, ch*0.13, 2); ctx.stroke();
-
-  ctx.fillStyle = '#b89060';
-  roundRect(ctx, -cw/2, -ch/2+ch*0.86, cw, ch*0.14, 3); ctx.fill();
-
-  ctx.fillStyle = 'rgba(220,50,40,0.95)';
-  roundRect(ctx, -cw/2+2, ch/2-7, cw*0.28, 5, 1); ctx.fill();
-  roundRect(ctx, cw/2-2-cw*0.28, ch/2-7, cw*0.28, 5, 1); ctx.fill();
-  ctx.fillStyle = 'rgba(255,140,40,0.7)';
-  ctx.fillRect(-cw/2+3, ch/2-6, cw*0.14, 3);
-  ctx.fillRect(cw/2-3-cw*0.14, ch/2-6, cw*0.14, 3);
-
-  ctx.fillStyle = 'rgba(255,245,200,0.8)';
-  roundRect(ctx, -cw/2+3, -ch/2+2, cw*0.28, 4, 1); ctx.fill();
-  roundRect(ctx, cw/2-3-cw*0.28, -ch/2+2, cw*0.28, 4, 1); ctx.fill();
-
-  const wr = 5.5, wh = 10;
-  drawWheel(-cw/2-2, -ch*0.3, wr, wh, true);
-  drawWheel( cw/2+2, -ch*0.3, wr, wh, true);
-  drawWheel(-cw/2-2,  ch*0.3, wr, wh, false);
-  drawWheel( cw/2+2,  ch*0.3, wr, wh, false);
 }
 
 // ── Ice Cream Truck — top-down rear view ─────────
