@@ -287,33 +287,55 @@ body {
 .round-pip.loss { background:#cc2828; border-color:#a01818; box-shadow:0 0 5px #cc2828; }
 .round-pip.draw { background:#c8a018; border-color:#a08010; box-shadow:0 0 5px #c8a018; }
 
-/* Board wrapper — centers and constrains the board */
+/* Board wrapper — fixed pixel footprint, never flexes */
 .lcd-board-wrap {
-  width: 100%;
+  width: 192px;
+  height: 192px;
+  flex-shrink: 0;
+  flex-grow: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  flex: 1 1 auto;        /* takes remaining vertical space */
-  padding: 6px 0;
-  min-height: 0;         /* allows flex child to shrink */
+  margin: 6px auto 0;
 }
 
-/* Board — always square, never overflows */
+/* Board — hard 192x192px:
+   3 cells × 60px  = 180px
+   2 gaps  × 3px   =   6px
+   2 borders × 3px =   6px
+   total           = 192px                              */
 .board {
+  width: 192px;
+  height: 192px;
+  flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 60px 60px 60px;
+  grid-template-rows:    60px 60px 60px;
   gap: 3px;
   background: var(--lcd-dark);
   border: 3px solid var(--lcd-dark);
   border-radius: 4px;
-  /* Fit within available space; capped at 190px */
-  width: min(190px, 100%);
-  aspect-ratio: 1 / 1;
-  flex-shrink: 0;
+  contain: strict;
 }
 
+/* Cells — fixed 60×60, mark rendered via ::after pseudo so
+   content insertion cannot affect the cell's own box model  */
 .cell {
+  width: 60px;
+  height: 60px;
   background: var(--lcd-bg);
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s;
+}
+
+/* Mark lives entirely in a pseudo — zero layout impact */
+.cell::after {
+  content: attr(data-mark);
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,13 +343,13 @@ body {
   font-size: 46px;
   line-height: 1;
   color: var(--lcd-dark);
-  cursor: pointer;
-  transition: background .1s;
-  -webkit-tap-highlight-color: transparent;
-  /* Ensure cell is always square via aspect-ratio on the grid */
+  pointer-events: none;
 }
-.cell.o { color: var(--lcd-mid); }
+.cell[data-mark="O"]::after { color: var(--lcd-mid); }
+
+/* Tap highlight — background only, no geometry change */
 .cell:active { background: var(--lcd-light); }
+
 .cell.win-cell {
   animation: winFlash .45s ease-in-out 3;
 }
@@ -511,30 +533,48 @@ body {
 
 /* ============================================================
    RESPONSIVE ADJUSTMENTS
+   Board uses hard pixel values at every breakpoint so it
+   never reflows. Cell font-size changes are safe because the
+   mark is in a ::after pseudo with position:absolute.
    ============================================================ */
 
-/* Slightly larger screens — give the screen a touch more height */
+/* Slightly taller screens — more breathing room */
 @media (min-height: 700px) {
   .lcd-screen { height: 300px; }
-  .board { width: min(210px, 100%); }
-  .cell { font-size: 50px; }
 }
 
-/* Narrow / small phones */
+/* Narrow phones (< 340px wide) —
+   shrink board: 3×52px cells + 2×3px gaps + 2×3px borders = 168px */
 @media (max-width: 340px) {
   #device { padding: 10px 10px 16px; }
   .lcd-screen { height: 256px; }
-  .board { width: min(168px, 100%); }
-  .cell { font-size: 38px; }
-  .score-num { font-size: 26px; }
+
+  .lcd-board-wrap { width: 168px; height: 168px; }
+  .board {
+    width: 168px; height: 168px;
+    grid-template-columns: 52px 52px 52px;
+    grid-template-rows:    52px 52px 52px;
+  }
+  .cell { width: 52px; height: 52px; }
+  .cell::after { font-size: 38px; }
+
+  .score-num    { font-size: 26px; }
   .screen-title { font-size: 44px; }
   .match-result { font-size: 32px; }
 }
 
-/* Very short viewports (landscape mobile) */
+/* Very short viewports (landscape mobile) —
+   shrink board: 3×48px cells + 2×3px gaps + 2×3px borders = 156px */
 @media (max-height: 540px) {
   body { padding: 8px; align-items: flex-start; }
   .lcd-screen { height: 240px; }
-  .board { width: min(155px, 100%); }
-  .cell { font-size: 34px; }
+
+  .lcd-board-wrap { width: 156px; height: 156px; }
+  .board {
+    width: 156px; height: 156px;
+    grid-template-columns: 48px 48px 48px;
+    grid-template-rows:    48px 48px 48px;
+  }
+  .cell { width: 48px; height: 48px; }
+  .cell::after { font-size: 34px; }
 }
