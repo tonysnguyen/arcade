@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Sneaky Snake — Low-Poly Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   CSS CUSTOM PROPERTIES — Edit colors, sizes, and transitions here
+   ============================================================ */
+:root {
+  /* === PALETTE === */
+  --bg:            #0d0f1a;           /* Page background */
+  --panel-bg:      #13172a;           /* HUD / panel background */
+  --border:        #1e2540;           /* Border / divider color */
+  --accent1:       #00e5a0;           /* Primary accent — snake head glow, buttons */
+  --accent2:       #ff5470;           /* Secondary accent — food, danger */
+  --accent3:       #ffd166;           /* Tertiary accent — score highlight */
+  --text-primary:  #e8eaf6;           /* Main text */
+  --text-muted:    #5c6394;           /* Muted / label text */
+
+  /* Snake segment colors (gradient from head → tail) */
+  --snake-head:    #00e5a0;
+  --snake-mid:     #00b8d9;
+  --snake-tail:    #5c6aff;
+
+  /* Food colors */
+  --food-color:    #ff5470;
+  --food-glow:     rgba(255, 84, 112, 0.6);
+
+  /* Board */
+  --board-bg:      #0a0c18;
+  --grid-line:     rgba(255,255,255,0.025);
+
+  /* === TYPOGRAPHY === */
+  --font-display:  'Exo 2', sans-serif;
+  --font-mono:     'Space Mono', monospace;
+
+  /* === SIZES (edit board / cell sizes here) === */
+  --cell-size:     20px;              /* Grid cell size in px */
+  --board-cols:    20;                /* Number of columns */
+  --board-rows:    20;                /* Number of rows */
+
+  /* === SPEED (ms per tick — lower = faster) === */
+  --base-speed:    130;               /* Starting tick interval in ms */
+
+  /* === TRANSITIONS === */
+  --popup-ease:    cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100dvh;
+  padding: 8px 8px 0;
+  gap: 0;
+}
+
+/* ============================================================
+   BOTTOM AREA — fixed-height zone below canvas, controls centered inside
+   ============================================================ */
+#bottom-area {
+  flex-shrink: 0;            /* Never grow — canvas owns all the flex space */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 440px;
+  padding: 10px 0 100px;     /* Extra bottom padding lifts controls up from device edge */
+}
+
+/* ============================================================
+   TOP HUD — Score bar
+   ============================================================ */
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 18px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 8px;    /* Space between HUD and canvas */
+}
+#hud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0,229,160,0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hud-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.hud-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hud-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  transition: color 0.15s, transform 0.15s;
+}
+.hud-value.pulse {
+  color: var(--accent3);
+  transform: scale(1.15);
+}
+#hud-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--accent1);
+  text-shadow: 0 0 18px rgba(0,229,160,0.5);
+  white-space: nowrap;
+}
+/* Right cluster: length + mute toggle */
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#btn-mute {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+#btn-mute:hover { background: rgba(255,255,255,0.1); border-color: var(--accent1); }
+#btn-mute:active { transform: scale(0.9); }
+#btn-mute.muted { opacity: 0.45; }
+
+/* ============================================================
+   GAME CANVAS WRAPPER — fills all space between HUD and bottom-area
+   ============================================================ */
+#canvas-wrap {
+  position: relative;
+  flex: 1 1 auto;            /* Grow to fill remaining height — same as original */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 440px;
+  min-height: 0;
+}
+#game-canvas {
+  display: block;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 0 40px rgba(0,229,160,0.06), 0 8px 32px rgba(0,0,0,0.5);
+  background: var(--board-bg);
+  image-rendering: pixelated;
+}
+
+/* ============================================================
+   MOBILE CONTROLS — centered vertically in bottom-area
+   ============================================================ */
+#controls {
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 7px;
+  padding: 0 8px;
+}
+
+/* === ADJUST CONTROL BUTTON SIZE HERE === */
+.ctrl-btn {
+  height: 56px;            /* Thumb-friendly height */
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.1s, transform 0.08s, box-shadow 0.1s;
+  -webkit-touch-callout: none;
+}
+.ctrl-btn:active,
+.ctrl-btn.pressed {
+  background: rgba(0,229,160,0.15);
+  border-color: var(--accent1);
+  box-shadow: 0 0 14px rgba(0,229,160,0.3);
+  transform: scale(0.93);
+}
+/* D-pad grid positions */
+#btn-up    { grid-column: 2; grid-row: 1; }
+#btn-left  { grid-column: 1; grid-row: 2; }
+#btn-down  { grid-column: 2; grid-row: 2; }
+#btn-right { grid-column: 3; grid-row: 2; }
+/* Hide desktop hint on mobile */
+#desktop-hint { grid-column: 3; grid-row: 1; display: flex; align-items: center; justify-content: center; }
+@media (pointer: coarse) { #desktop-hint { display: none; } }
+#desktop-hint span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   POPUP OVERLAY
+   ============================================================ */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 20, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+#overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ============================================================
+   POPUP CARD
+   ============================================================ */
+.popup {
+  background: var(--panel-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 24px;
+  padding: 36px 32px 32px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  transform: scale(1);
+  transition: transform 0.35s var(--popup-ease);
+  position: relative;
+  overflow: hidden;
+}
+.popup::before {
+  content: '';
+  position: absolute;
+  top: -60px; left: 50%; transform: translateX(-50%);
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(0,229,160,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+#overlay.hidden .popup { transform: scale(0.88); }
+
+/* === ADJUST POPUP TEXT HERE === */
+.popup-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 30px;
+  letter-spacing: -0.01em;
+  color: var(--accent1);
+  text-shadow: 0 0 30px rgba(0,229,160,0.5);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.popup-subtitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+.popup-instructions {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 28px;
+  padding: 0 4px;
+}
+.popup-instructions strong { color: var(--text-primary); }
+
+/* Score grid inside game-over popup */
+.score-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.score-cell {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.score-cell-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.score-cell-value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent3);
+}
+
+/* CTA Button */
+.popup-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  background: var(--accent1);
+  color: #0a0c18;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 0 0 24px rgba(0,229,160,0.35);
+}
+.popup-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,229,160,0.45); }
+.popup-btn:active { transform: scale(0.97); }
+
+/* ============================================================
+   FOOD PARTICLE ANIMATIONS (CSS keyframes)
+   ============================================================ */
+@keyframes foodPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(0.82); }
+}
+@keyframes eatFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(0,229,160,0.7); }
+  70%  { box-shadow: 0 0 0 12px rgba(0,229,160,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,229,160,0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   PARTICLE CANVAS (eat feedback)
+   ============================================================ */
+#particle-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 16px;
+}
+
+/* ============================================================
+   COUNTDOWN OVERLAY — displayed on canvas during pre-start delay
+   ============================================================ */
+#countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border-radius: 16px;
+  /* Semi-transparent dark veil so board is still visible */
+  background: rgba(10, 12, 24, 0.55);
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+#countdown.countdown-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#countdown-text {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(64px, 18vw, 120px);
+  color: var(--accent1);
+  text-shadow: 0 0 40px rgba(0,229,160,0.8), 0 0 80px rgba(0,229,160,0.4);
+  line-height: 1;
+  animation: countPop 0.35s var(--popup-ease) both;
+}
+@keyframes countPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ============================================================
+   RESPONSIVE TWEAKS
+   ============================================================ */
+@media (max-height: 680px) {
+  .ctrl-btn  { height: 46px; font-size: 18px; }
+  #hud       { padding: 7px 14px; margin-bottom: 6px; }
+  .hud-value { font-size: 18px; }
+}
+@media (max-height: 580px) {
+  .ctrl-btn  { height: 38px; font-size: 16px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- TOP HUD -->
+  <div id="hud">
+    <div class="hud-cell">
+      <span class="hud-label">Score</span>
+      <span class="hud-value" id="hud-score">0</span>
+    </div>
+    <span id="hud-title">SNEAKY SNAKE</span>
+    <div class="hud-right">
+      <div class="hud-cell">
+        <span class="hud-label">Length</span>
+        <span class="hud-value" id="hud-length">3</span>
+      </div>
+      <button id="btn-mute" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+    </div>
+  </div>
+
+  <!-- GAME CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="game-canvas"></canvas>
+    <canvas id="particle-canvas"></canvas>
+    <!-- COUNTDOWN OVERLAY — shown during pre-game delay -->
+    <div id="countdown" class="countdown-hidden">
+      <span id="countdown-text">3</span>
+    </div>
+  </div>
+
+  <!-- BOTTOM AREA — controls float centered between canvas and screen edge -->
+  <div id="bottom-area">
+    <div id="controls">
+      <button class="ctrl-btn" id="btn-up"    aria-label="Up">▲</button>
+      <button class="ctrl-btn" id="btn-left"  aria-label="Left">◀</button>
+      <button class="ctrl-btn" id="btn-down"  aria-label="Down">▼</button>
+      <button class="ctrl-btn" id="btn-right" aria-label="Right">▶</button>
+      <div id="desktop-hint"><span>Arrow keys<br/>on desktop</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- POPUP OVERLAY -->
+<div id="overlay">
+  <!-- START POPUP -->
+  <div class="popup" id="popup-start">
+    <div class="popup-title">SNEAKY SNAKE</div>
+    <!-- === ADJUST POPUP SUBTITLE HERE === -->
+    <div class="popup-subtitle">Low-poly edition</div>
+    <p class="popup-instructions">
+      Guide the snake to eat <strong>glowing orbs</strong>.<br/>
+      Every bite makes you longer.<br/>
+      Don't hit the walls — or yourself.<br/><br/>
+      <strong>Arrow keys</strong> on desktop.<br/>
+      <strong>D-pad buttons</strong> on mobile.
+    </p>
+    <button class="popup-btn" id="btn-start">START GAME</button>
+  </div>
+
+  <!-- GAME OVER POPUP (hidden initially) -->
+  <div class="popup" id="popup-gameover" style="display:none;">
+    <div class="popup-title" style="color:var(--accent2);text-shadow:0 0 30px rgba(255,84,112,0.5);">DEAD</div>
+    <div class="popup-subtitle">Game Over</div>
+    <div class="score-grid">
+      <div class="score-cell">
+        <span class="score-cell-label">Score</span>
+        <span class="score-cell-value" id="end-score">0</span>
+      </div>
+      <div class="score-cell">
+        <span class="score-cell-label">Eaten</span>
+        <span class="score-cell-value" id="end-eaten">0</span>
+      </div>
+      <div class="score-cell">
+        <span class="score-cell-label">Length</span>
+        <span class="score-cell-value" id="end-length">3</span>
+      </div>
+    </div>
+    <button class="popup-btn" id="btn-restart">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   GAME CONFIG — Easy to tweak values here
+   ============================================================ */
+const CONFIG = {
+  cols:        20,           // Board columns (must match --board-cols if you change)
+  rows:        20,           // Board rows
+  baseSpeed:   130,          // Starting tick ms (lower = faster)
+  speedUp:     2,            // ms to shave per food eaten (increases speed)
+  minSpeed:    60,           // Fastest possible tick ms
+  pointsPerFood: 10,         // Score per food item eaten
+  particleCount: 14,         // Burst particles on eat
+  /* Snake gradient: index 0 = head color, index 1 = tail color */
+  snakeColors: ['#00e5a0', '#00b8d9', '#5c6aff'],
+  foodColor:   '#ff5470',
+  foodGlow:    'rgba(255, 84, 112, 0.55)',
+  boardBg:     '#0a0c18',
+  gridColor:   'rgba(255,255,255,0.025)',
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let snake, dir, nextDir, food, score, eaten, gameLoop, speed, isRunning, isDead;
+let isCountdown = false;   // true while 3-2-1-GO delay is running
+
+/* Particle system */
+let particles = [];
+
+/* ============================================================
+   DOM REFS
+   ============================================================ */
+const canvas       = document.getElementById('game-canvas');
+const ctx          = canvas.getContext('2d');
+const pCanvas      = document.getElementById('particle-canvas');
+const pCtx         = pCanvas.getContext('2d');
+const overlay      = document.getElementById('overlay');
+const popupStart   = document.getElementById('popup-start');
+const popupGameover= document.getElementById('popup-gameover');
+const hudScore     = document.getElementById('hud-score');
+const hudLength    = document.getElementById('hud-length');
+const endScore     = document.getElementById('end-score');
+const endEaten     = document.getElementById('end-eaten');
+const endLength    = document.getElementById('end-length');
+const countdownEl  = document.getElementById('countdown');
+const countdownTxt = document.getElementById('countdown-text');
+
+/* ============================================================
+   CANVAS SIZING — Fits the available space, keeps cells square
+   ============================================================ */
+let cellSize = 20; // will be recalculated
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const maxW = wrap.clientWidth;
+  const maxH = wrap.clientHeight;
+  // Fit the grid exactly into the available canvas-wrap space
+  const fitW = Math.floor(maxW / CONFIG.cols);
+  const fitH = Math.floor(maxH / CONFIG.rows);
+  cellSize = Math.max(8, Math.min(fitW, fitH));
+  const w = cellSize * CONFIG.cols;
+  const h = cellSize * CONFIG.rows;
+  canvas.width  = w; canvas.height = h;
+  pCanvas.width = w; pCanvas.height = h;
+  if (isRunning && !isDead) drawFrame();
+}
+
+window.addEventListener('resize', () => { resizeCanvas(); });
+
+/* ============================================================
+   INIT GAME STATE
+   ============================================================ */
+function initGame() {
+  const midX = Math.floor(CONFIG.cols / 2);
+  const midY = Math.floor(CONFIG.rows / 2);
+  snake   = [
+    { x: midX,     y: midY },
+    { x: midX - 1, y: midY },
+    { x: midX - 2, y: midY },
+  ];
+  dir     = { x: 1, y: 0 };
+  nextDir = { x: 1, y: 0 };
+  score   = 0;
+  eaten   = 0;
+  speed   = CONFIG.baseSpeed;
+  isRunning   = false;   // stays false until countdown finishes
+  isCountdown = true;
+  isDead      = false;
+  particles   = [];
+  placeFood();
+  updateHUD();
+  // Draw the initial frame so board/snake/food are visible immediately
+  drawFrame();
+}
+
+/* ============================================================
+   COUNTDOWN — 3 … 2 … 1 … GO!, then starts the game loop
+   ============================================================ */
+function startCountdown() {
+  const steps   = ['3', '2', '1', 'GO!'];
+  const goColor = 'var(--accent3)';  // Gold flash on GO
+  let   i       = 0;
+
+  function showStep() {
+    const label = steps[i];
+    const isGo  = label === 'GO!';
+
+    // Style the text
+    countdownTxt.textContent = label;
+    countdownTxt.style.color = isGo
+      ? '#ffd166'
+      : 'var(--accent1)';
+    countdownTxt.style.textShadow = isGo
+      ? '0 0 40px rgba(255,209,102,0.9), 0 0 80px rgba(255,209,102,0.4)'
+      : '0 0 40px rgba(0,229,160,0.8), 0 0 80px rgba(0,229,160,0.4)';
+
+    // Restart the pop animation each step
+    countdownTxt.style.animation = 'none';
+    // Force reflow so animation restarts
+    void countdownTxt.offsetWidth;
+    countdownTxt.style.animation = 'countPop 0.35s var(--popup-ease) both';
+
+    // Show overlay
+    countdownEl.classList.remove('countdown-hidden');
+
+    i++;
+    if (i < steps.length) {
+      // Steps 3, 2, 1 each last 1 second
+      setTimeout(showStep, 1000);
+    } else {
+      // "GO!" shown briefly, then hide and launch
+      setTimeout(() => {
+        countdownEl.classList.add('countdown-hidden');
+        isCountdown = false;
+        isRunning   = true;
+        gameLoop    = setInterval(tick, speed);
+      }, 600);
+    }
+  }
+
+  showStep();
+}
+
+/* ============================================================
+   FOOD PLACEMENT — Random empty cell
+   ============================================================ */
+function placeFood() {
+  let pos;
+  do {
+    pos = {
+      x: Math.floor(Math.random() * CONFIG.cols),
+      y: Math.floor(Math.random() * CONFIG.rows),
+    };
+  } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+  food = pos;
+}
+
+/* ============================================================
+   TICK — Core game loop step
+   ============================================================ */
+function tick() {
+  if (!isRunning || isDead || isCountdown) return;
+
+  // Apply buffered direction
+  dir = { ...nextDir };
+
+  // New head position
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  // Wall collision
+  if (head.x < 0 || head.x >= CONFIG.cols || head.y < 0 || head.y >= CONFIG.rows) {
+    endGame(); return;
+  }
+  // Self collision (exclude tail tip which will move)
+  if (snake.slice(0, -1).some(s => s.x === head.x && s.y === head.y)) {
+    endGame(); return;
+  }
+
+  // Move snake
+  snake.unshift(head);
+  const ateFood = head.x === food.x && head.y === food.y;
+  if (ateFood) {
+    score += CONFIG.pointsPerFood;
+    eaten++;
+    speed = Math.max(CONFIG.minSpeed, speed - CONFIG.speedUp);
+    spawnParticles(food.x, food.y);
+    placeFood();
+    flashHUD();
+    playChomp();   // 🎵 Satisfying eat sound
+    // Restart loop with new speed
+    clearInterval(gameLoop);
+    gameLoop = setInterval(tick, speed);
+  } else {
+    snake.pop();
+    playMove();    // 🎵 Very faint movement texture
+  }
+
+  updateHUD();
+  drawFrame();
+}
+
+/* ============================================================
+   DRAW — Full canvas render each tick
+   ============================================================ */
+function drawFrame() {
+  const cw = canvas.width, ch = canvas.height;
+  const cs = cellSize;
+
+  // Clear
+  ctx.fillStyle = CONFIG.boardBg;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // Grid lines
+  ctx.strokeStyle = CONFIG.gridColor;
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= CONFIG.cols; x++) {
+    ctx.beginPath(); ctx.moveTo(x * cs, 0); ctx.lineTo(x * cs, ch); ctx.stroke();
+  }
+  for (let y = 0; y <= CONFIG.rows; y++) {
+    ctx.beginPath(); ctx.moveTo(0, y * cs); ctx.lineTo(cw, y * cs); ctx.stroke();
+  }
+
+  // Food — glowing orb with pulse driven by time
+  const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 220);
+  const fr = (cs * 0.38) * pulse;
+  const fx = food.x * cs + cs / 2;
+  const fy = food.y * cs + cs / 2;
+  // Glow
+  const grad = ctx.createRadialGradient(fx, fy, 0, fx, fy, fr * 2.5);
+  grad.addColorStop(0, CONFIG.foodColor);
+  grad.addColorStop(0.5, CONFIG.foodColor + 'aa');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(fx, fy, fr * 2.5, 0, Math.PI * 2); ctx.fill();
+  // Core
+  ctx.fillStyle = CONFIG.foodColor;
+  ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI * 2); ctx.fill();
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath(); ctx.arc(fx - fr * 0.25, fy - fr * 0.28, fr * 0.3, 0, Math.PI * 2); ctx.fill();
+
+  // Snake segments
+  const len = snake.length;
+  for (let i = len - 1; i >= 0; i--) {
+    const seg = snake[i];
+    const t = i / Math.max(len - 1, 1); // 0 = head, 1 = tail
+    const color = lerpSnakeColor(t);
+    const margin = i === 0 ? 1 : 2;  // head slightly larger
+    const radius = i === 0 ? cs * 0.38 : cs * 0.3;
+    const x = seg.x * cs + margin;
+    const y = seg.y * cs + margin;
+    const w = cs - margin * 2;
+    const h = cs - margin * 2;
+
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, w, h, radius);
+    ctx.fill();
+
+    // Head glow
+    if (i === 0) {
+      ctx.shadowColor = CONFIG.snakeColors[0];
+      ctx.shadowBlur  = cs * 0.9;
+      roundRect(ctx, x, y, w, h, radius);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Eyes
+      drawEyes(seg, dir, cs);
+    }
+  }
+
+  // Particles on particle canvas
+  drawParticles();
+}
+
+/* Draw rounded rectangle helper */
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.arcTo(x + w, y, x + w, y + r, r);
+  c.lineTo(x + w, y + h - r);
+  c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);
+  c.arcTo(x, y + h, x, y + h - r, r);
+  c.lineTo(x, y + r);
+  c.arcTo(x, y, x + r, y, r);
+  c.closePath();
+}
+
+/* Snake color lerp — maps t (0–1) across the snakeColors array */
+function lerpSnakeColor(t) {
+  const colors = CONFIG.snakeColors;
+  const seg = t * (colors.length - 1);
+  const i = Math.floor(seg);
+  const f = seg - i;
+  const c1 = hexToRgb(colors[Math.min(i, colors.length - 1)]);
+  const c2 = hexToRgb(colors[Math.min(i + 1, colors.length - 1)]);
+  const r = Math.round(c1.r + (c2.r - c1.r) * f);
+  const g = Math.round(c1.g + (c2.g - c1.g) * f);
+  const b = Math.round(c1.b + (c2.b - c1.b) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
+function hexToRgb(hex) {
+  const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return res ? { r: parseInt(res[1],16), g: parseInt(res[2],16), b: parseInt(res[3],16) } : {r:0,g:0,b:0};
+}
+
+/* Draw snake eyes facing direction */
+function drawEyes(seg, d, cs) {
+  const cx = seg.x * cs + cs / 2;
+  const cy = seg.y * cs + cs / 2;
+  const eyeR = cs * 0.085;
+  const dist  = cs * 0.18;
+  // Perpendicular to movement
+  const px = -d.y, py = d.x;
+  const [e1x, e1y] = [cx + d.x * dist + px * dist, cy + d.y * dist + py * dist];
+  const [e2x, e2y] = [cx + d.x * dist - px * dist, cy + d.y * dist - py * dist];
+  ctx.fillStyle = '#0a0c18';
+  ctx.beginPath(); ctx.arc(e1x, e1y, eyeR, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(e2x, e2y, eyeR, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(e1x - eyeR*0.2, e1y - eyeR*0.2, eyeR*0.35, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(e2x - eyeR*0.2, e2y - eyeR*0.2, eyeR*0.35, 0, Math.PI*2); ctx.fill();
+}
+
+/* ============================================================
+   PARTICLE SYSTEM — Burst on eat
+   ============================================================ */
+function spawnParticles(gx, gy) {
+  const cx = gx * cellSize + cellSize / 2;
+  const cy = gy * cellSize + cellSize / 2;
+  for (let i = 0; i < CONFIG.particleCount; i++) {
+    const angle = (Math.PI * 2 / CONFIG.particleCount) * i + Math.random() * 0.5;
+    const speed = 1.5 + Math.random() * 3.5;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1,
+      decay: 0.04 + Math.random() * 0.04,
+      radius: 2 + Math.random() * 3,
+      color: CONFIG.foodColor,
+    });
+  }
+}
+
+function drawParticles() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    pCtx.globalAlpha = p.life;
+    pCtx.fillStyle = p.color;
+    pCtx.shadowColor = p.color;
+    pCtx.shadowBlur = 6;
+    pCtx.beginPath();
+    pCtx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+    pCtx.fill();
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.88; p.vy *= 0.88;
+    p.life -= p.decay;
+  }
+  pCtx.globalAlpha = 1;
+  pCtx.shadowBlur = 0;
+}
+
+/* ============================================================
+   HUD UPDATE
+   ============================================================ */
+function updateHUD() {
+  hudScore.textContent  = score;
+  hudLength.textContent = snake.length;
+}
+
+function flashHUD() {
+  [hudScore, hudLength].forEach(el => {
+    el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 200);
+  });
+}
+
+/* ============================================================
+   GAME END
+   ============================================================ */
+function endGame() {
+  isDead = true;
+  isRunning = false;
+  isCountdown = false;
+  countdownEl.classList.add('countdown-hidden');  // safety cleanup
+  clearInterval(gameLoop);
+  playDeath();   // 🎵 Death tone
+
+  // Fill end-screen stats
+  endScore.textContent  = score;
+  endEaten.textContent  = eaten;
+  endLength.textContent = snake.length;
+
+  // Show game-over popup
+  popupStart.style.display   = 'none';
+  popupGameover.style.display = 'block';
+  overlay.classList.remove('hidden');
+
+  // Death flash — briefly tint canvas red
+  ctx.fillStyle = 'rgba(255, 84, 112, 0.18)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ============================================================
+   POPUP CONTROLS
+   ============================================================ */
+function showStartPopup() {
+  popupStart.style.display   = 'block';
+  popupGameover.style.display = 'none';
+  overlay.classList.remove('hidden');
+}
+
+function hideOverlay() {
+  overlay.classList.add('hidden');
+}
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  audioInit();          // Safe: AudioContext created after user gesture
+  hideOverlay();
+  resizeCanvas();
+  initGame();
+  // Start animation loop (renders board + snake during countdown)
+  requestAnimationFrame(animLoop);
+  // Kick off 3-2-1-GO countdown; it launches the game loop when done
+  startCountdown();
+});
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+  audioInit();          // Ensure context alive after possible suspension
+  hideOverlay();
+  clearInterval(gameLoop);
+  particles = [];
+  initGame();
+  requestAnimationFrame(animLoop);
+  startCountdown();
+});
+
+/* ============================================================
+   ANIMATION LOOP — Keeps food pulsing even between ticks
+   ============================================================ */
+let animId;
+function animLoop() {
+  if (!isRunning && !isDead && !isCountdown) return;
+  drawFrame();
+  animId = requestAnimationFrame(animLoop);
+}
+
+/* ============================================================
+   KEYBOARD CONTROLS
+   ============================================================ */
+const KEY_MAP = {
+  ArrowUp:    { x:  0, y: -1 },
+  ArrowDown:  { x:  0, y:  1 },
+  ArrowLeft:  { x: -1, y:  0 },
+  ArrowRight: { x:  1, y:  0 },
+  w:          { x:  0, y: -1 },
+  s:          { x:  0, y:  1 },
+  a:          { x: -1, y:  0 },
+  d:          { x:  1, y:  0 },
+};
+
+document.addEventListener('keydown', (e) => {
+  const d = KEY_MAP[e.key];
+  if (!d) return;
+  e.preventDefault();
+  // Prevent 180° reversal
+  if (d.x === -dir.x && d.y === -dir.y) return;
+  nextDir = d;
+});
+
+/* ============================================================
+   TOUCH / MOBILE BUTTON CONTROLS
+   ============================================================ */
+function bindCtrlBtn(id, dx, dy) {
+  const btn = document.getElementById(id);
+  function press(e) {
+    e.preventDefault();
+    if (dx === -dir.x && dy === -dir.y) return;
+    nextDir = { x: dx, y: dy };
+    btn.classList.add('pressed');
+  }
+  function release() { btn.classList.remove('pressed'); }
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointerleave', release);
+}
+bindCtrlBtn('btn-up',    0, -1);
+bindCtrlBtn('btn-down',  0,  1);
+bindCtrlBtn('btn-left', -1,  0);
+bindCtrlBtn('btn-right', 1,  0);
+
+/* ============================================================
+   SWIPE SUPPORT — drag on canvas
+   ============================================================ */
+let touchStart = null;
+canvas.addEventListener('touchstart', e => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, { passive: true });
+canvas.addEventListener('touchend', e => {
+  if (!touchStart) return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+  let d;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    d = dx > 0 ? { x:1, y:0 } : { x:-1, y:0 };
+  } else {
+    d = dy > 0 ? { x:0, y:1 } : { x:0, y:-1 };
+  }
+  if (d.x === -dir.x && d.y === -dir.y) return;
+  nextDir = d;
+  touchStart = null;
+});
+
+/* ============================================================
+   AUDIO ENGINE — All sounds synthesized via Web Audio API
+   No external files needed. Swap in real audio assets easily
+   by replacing the play* functions with AudioBuffer playback.
+   ============================================================ */
+
+const AUDIO = {
+  /* === VOLUME LEVELS — tweak the mix here === */
+  masterVol:   0.72,   // Master output (0–1)
+  musicVol:    0.18,   // Lo-fi background music
+  padVol:      0.10,   // Chord pad layer
+  hihatVol:    0.055,  // Hi-hat ticks
+  moveVol:     0.028,  // Snake movement texture (very faint)
+  chompVol:    0.38,   // Eat sound (clear but gentle)
+
+  /* === BPM / SEQUENCER === */
+  bpm:         88,     // Lo-fi groove tempo
+  stepMs:      null,   // Calculated below
+
+  /* Internal refs — do not edit */
+  ctx:         null,
+  masterGain:  null,
+  musicGain:   null,
+  noiseBuffer: null,
+  seqTimer:    null,
+  step:        0,
+  muted:       false,
+  started:     false,
+};
+
+/* Lo-fi chord progression — root notes in Hz (Am7 → Dm7 → G7 → CMaj7 feel) */
+const BASS_NOTES = [110, 98.0, 130.8, 123.5]; // A2 D2 C3 B2 (approx)
+const PAD_CHORDS = [
+  [220, 277.2, 329.6, 415.3],   // Am7  (A C# E G#)
+  [196, 246.9, 293.7, 370.0],   // Dm7ish
+  [261.6, 329.6, 392.0, 493.9], // CMaj7
+  [246.9, 311.1, 370.0, 466.2], // Bm7ish
+];
+
+/* Initialize audio context (must be called after user interaction) */
+function audioInit() {
+  if (AUDIO.started) return;
+  AUDIO.started = true;
+  AUDIO.stepMs = (60 / AUDIO.bpm / 4) * 1000; // 16th note duration
+
+  try {
+    AUDIO.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Master gain (mute toggle controls this)
+    AUDIO.masterGain = AUDIO.ctx.createGain();
+    AUDIO.masterGain.gain.setValueAtTime(AUDIO.masterVol, AUDIO.ctx.currentTime);
+    AUDIO.masterGain.connect(AUDIO.ctx.destination);
+
+    // Build a reusable white-noise buffer (2 sec stereo)
+    const bufLen = AUDIO.ctx.sampleRate * 2;
+    AUDIO.noiseBuffer = AUDIO.ctx.createBuffer(1, bufLen, AUDIO.ctx.sampleRate);
+    const data = AUDIO.noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
+
+    // Start the sequencer
+    musicStart();
+  } catch(e) {
+    console.warn('Web Audio not available:', e);
+  }
+}
+
+/* ── LO-FI MUSIC SEQUENCER ───────────────────────────────── */
+function musicStart() {
+  AUDIO.step = 0;
+  AUDIO.seqTimer = setInterval(musicTick, AUDIO.stepMs);
+}
+
+function musicStop() {
+  clearInterval(AUDIO.seqTimer);
+  AUDIO.seqTimer = null;
+}
+
+function musicTick() {
+  if (!AUDIO.ctx || AUDIO.muted) return;
+  const step = AUDIO.step % 16;
+  const bar  = Math.floor(AUDIO.step / 16) % 4;
+  const now  = AUDIO.ctx.currentTime;
+  const beat = AUDIO.stepMs / 1000;
+
+  /* Bass — plays on beat 1 and beat 3 (steps 0, 8) with slight swing feel */
+  if (step === 0 || step === 8) {
+    const freq = BASS_NOTES[bar];
+    playBassNote(freq + (Math.random() * 2 - 1), beat * 3.5, now);
+  }
+  /* Occasional extra bass ghost note for groove */
+  if (step === 10 && Math.random() > 0.55) {
+    playBassNote(BASS_NOTES[bar] * 0.75, beat * 0.8, now);
+  }
+
+  /* Pad chord — attack on bar start, held */
+  if (step === 0) {
+    playPadChord(PAD_CHORDS[bar], beat * 15, now);
+  }
+
+  /* Lo-fi hi-hat pattern — 8th note pulse with human feel */
+  const hihatSteps = [0, 2, 4, 6, 8, 10, 12, 14];
+  if (hihatSteps.includes(step)) {
+    const accent = (step === 0 || step === 8) ? 1.4 : 1.0;
+    // Slight swing delay on offbeats
+    const swingDelay = (step % 4 === 2) ? beat * 0.08 : 0;
+    playHihat(accent, now + swingDelay);
+  }
+
+  /* Occasional soft vinyl crackle texture */
+  if (step === 0 && Math.random() > 0.7) {
+    playCrackle(now);
+  }
+
+  AUDIO.step++;
+}
+
+/* ── INDIVIDUAL SOUND SYNTHS ─────────────────────────────── */
+
+/* Bass — rounded triangle wave, warm and punchy */
+function playBassNote(freq, duration, when) {
+  const ac = AUDIO.ctx;
+  const g  = ac.createGain();
+  g.connect(AUDIO.masterGain);
+
+  const osc = ac.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, when);
+  // Slight pitch drop for lo-fi feel
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.97, when + duration * 0.5);
+
+  // Low-pass to warm it up
+  const lpf = ac.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = 340;
+  lpf.Q.value = 1.2;
+
+  osc.connect(lpf);
+  lpf.connect(g);
+
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(AUDIO.musicVol, when + 0.012);
+  g.gain.setValueAtTime(AUDIO.musicVol, when + duration * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+  osc.start(when);
+  osc.stop(when + duration + 0.05);
+}
+
+/* Pad — 3 detuned sine waves with long soft envelope = dreamy chord */
+function playPadChord(freqs, duration, when) {
+  const ac = AUDIO.ctx;
+  freqs.forEach((freq, i) => {
+    const g = ac.createGain();
+    g.connect(AUDIO.masterGain);
+
+    // Slight detune variation per voice
+    const detune = (i - 1.5) * 4;
+
+    const osc = ac.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.detune.value = detune;
+
+    // Second harmonic for texture
+    const osc2 = ac.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2.001;
+    osc2.detune.value = detune + 7;
+
+    const g2 = ac.createGain();
+    g2.gain.value = 0.18;
+
+    const lpf = ac.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = 900;
+
+    osc.connect(lpf);
+    osc2.connect(g2); g2.connect(lpf);
+    lpf.connect(g);
+
+    // Slow attack / slow release = dreamy pad
+    const vol = AUDIO.padVol * (0.7 + Math.random() * 0.3);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(vol, when + 1.4);
+    g.gain.setValueAtTime(vol, when + duration - 2.0);
+    g.gain.linearRampToValueAtTime(0.0001, when + duration);
+
+    osc.start(when); osc2.start(when);
+    osc.stop(when + duration + 0.1); osc2.stop(when + duration + 0.1);
+  });
+}
+
+/* Hi-hat — filtered noise burst, very short */
+function playHihat(accent, when) {
+  const ac = AUDIO.ctx;
+  const src = ac.createBufferSource();
+  src.buffer = AUDIO.noiseBuffer;
+
+  const hpf = ac.createBiquadFilter();
+  hpf.type = 'highpass';
+  hpf.frequency.value = 8000;
+
+  const g = ac.createGain();
+  g.connect(AUDIO.masterGain);
+  src.connect(hpf); hpf.connect(g);
+
+  const vol = AUDIO.hihatVol * accent;
+  g.gain.setValueAtTime(vol, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.04);
+
+  src.start(when);
+  src.stop(when + 0.05);
+}
+
+/* Vinyl crackle — very subtle noise burst at low freq */
+function playCrackle(when) {
+  const ac = AUDIO.ctx;
+  const src = ac.createBufferSource();
+  src.buffer = AUDIO.noiseBuffer;
+
+  const bpf = ac.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.frequency.value = 1200 + Math.random() * 800;
+  bpf.Q.value = 0.4;
+
+  const g = ac.createGain();
+  g.connect(AUDIO.masterGain);
+  src.connect(bpf); bpf.connect(g);
+
+  g.gain.setValueAtTime(0.018, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + 0.12);
+  src.start(when); src.stop(when + 0.15);
+}
+
+/* Movement texture — very faint filtered swoosh on each tick */
+function playMove() {
+  if (!AUDIO.ctx || AUDIO.muted) return;
+  const ac  = AUDIO.ctx;
+  const now = ac.currentTime;
+
+  const src = ac.createBufferSource();
+  src.buffer = AUDIO.noiseBuffer;
+
+  // Band-pass at mid freq for soft texture
+  const bpf = ac.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.frequency.value = 600 + Math.random() * 200;
+  bpf.Q.value = 2.5;
+
+  const g = ac.createGain();
+  g.connect(AUDIO.masterGain);
+  src.connect(bpf); bpf.connect(g);
+
+  // Very fast attack, quick fade — barely audible
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(AUDIO.moveVol, now + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+  src.start(now); src.stop(now + 0.1);
+}
+
+/* Chomp — short upward pitch sweep, clean and satisfying */
+function playChomp() {
+  if (!AUDIO.ctx || AUDIO.muted) return;
+  const ac  = AUDIO.ctx;
+  const now = ac.currentTime;
+
+  // Main tone — sine sweep up
+  const osc = ac.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(820, now + 0.055);
+  osc.frequency.exponentialRampToValueAtTime(540, now + 0.12);
+
+  // Second harmonic for richness
+  const osc2 = ac.createOscillator();
+  osc2.type = 'triangle';
+  osc2.frequency.setValueAtTime(640, now);
+  osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.055);
+  osc2.frequency.exponentialRampToValueAtTime(800, now + 0.12);
+
+  const g2 = ac.createGain();
+  g2.gain.value = 0.25;
+
+  // Tiny click transient
+  const clickSrc = ac.createBufferSource();
+  clickSrc.buffer = AUDIO.noiseBuffer;
+  const clickHpf = ac.createBiquadFilter();
+  clickHpf.type = 'highpass';
+  clickHpf.frequency.value = 3000;
+  const clickG = ac.createGain();
+  clickG.gain.setValueAtTime(0.12, now);
+  clickG.gain.exponentialRampToValueAtTime(0.0001, now + 0.018);
+  clickSrc.connect(clickHpf); clickHpf.connect(clickG); clickG.connect(AUDIO.masterGain);
+  clickSrc.start(now); clickSrc.stop(now + 0.02);
+
+  // Main envelope
+  const g = ac.createGain();
+  g.connect(AUDIO.masterGain);
+  osc.connect(g); osc2.connect(g2); g2.connect(g);
+
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(AUDIO.chompVol, now + 0.01);
+  g.gain.setValueAtTime(AUDIO.chompVol * 0.7, now + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+  osc.start(now); osc2.start(now);
+  osc.stop(now + 0.25); osc2.stop(now + 0.25);
+}
+
+/* Death sound — descending tone, short */
+function playDeath() {
+  if (!AUDIO.ctx || AUDIO.muted) return;
+  const ac  = AUDIO.ctx;
+  const now = ac.currentTime;
+
+  const osc = ac.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(280, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.45);
+
+  const lpf = ac.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(800, now);
+  lpf.frequency.exponentialRampToValueAtTime(80, now + 0.45);
+
+  const g = ac.createGain();
+  g.connect(AUDIO.masterGain);
+  osc.connect(lpf); lpf.connect(g);
+
+  g.gain.setValueAtTime(0.22, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
+
+  osc.start(now); osc.stop(now + 0.5);
+}
+
+/* ── MUTE TOGGLE ─────────────────────────────────────────── */
+const btnMute = document.getElementById('btn-mute');
+btnMute.addEventListener('click', () => {
+  AUDIO.muted = !AUDIO.muted;
+  if (AUDIO.ctx) {
+    AUDIO.masterGain.gain.setTargetAtTime(
+      AUDIO.muted ? 0 : AUDIO.masterVol,
+      AUDIO.ctx.currentTime, 0.06
+    );
+  }
+  btnMute.textContent = AUDIO.muted ? '🔇' : '🔊';
+  btnMute.classList.toggle('muted', AUDIO.muted);
+});
+
+/* ============================================================
+   INITIAL SETUP
+   ============================================================ */
+resizeCanvas();
+showStartPopup();
+</script>
+</body>
+</html>
