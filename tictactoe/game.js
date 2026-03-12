@@ -215,12 +215,12 @@
   }
 
   // ── Render board ──────────────────────────────────────────
+  // Marks rendered via CSS ::after pseudo using data-mark attribute.
+  // This keeps textContent empty so content insertion never causes layout shift.
   function renderBoard() {
     cells.forEach((cell, i) => {
-      cell.textContent = board[i] || '';
+      cell.dataset.mark = board[i] || '';
       cell.className = 'cell';
-      if (board[i] === 'X') cell.classList.add('x');
-      if (board[i] === 'O') cell.classList.add('o');
     });
   }
 
