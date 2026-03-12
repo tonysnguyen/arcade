@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TIC TAC TOE — Handheld Edition</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="device">
+
+    <!-- ── TOP BAR ── -->
+    <div class="device-top">
+      <div class="brand-label">POCKET<span>PLAY</span></div>
+      <div class="power-area">
+        <div class="power-led"></div>
+        <div class="power-switch"></div>
+      </div>
+    </div>
+
+    <!-- ── LCD FRAME ── -->
+    <div class="lcd-frame">
+      <div class="lcd-screen">
+        <div class="scanlines"></div>
+
+        <!-- START SCREEN -->
+        <div class="game-screen active" id="startScreen">
+          <div class="screen-title">TIC<br/>TAC<br/>TOE</div>
+          <div class="screen-subtitle">POCKET EDITION</div>
+          <div class="flavor-start" id="flavorStart">Think you could beat me?</div>
+          <button class="lcd-btn" id="startBtn">PRESS START</button>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div class="game-screen" id="gameScreen">
+          <div class="lcd-header">
+            <div class="round-label" id="roundLabel">ROUND 1</div>
+            <div class="score-row">
+              <div class="score-block">
+                <div class="score-label">YOU</div>
+                <div class="score-num" id="scorePlayer">0</div>
+              </div>
+              <div class="pips-block">
+                <div class="round-pip" id="pip0"></div>
+                <div class="round-pip" id="pip1"></div>
+                <div class="round-pip" id="pip2"></div>
+              </div>
+              <div class="score-block">
+                <div class="score-label">CPU</div>
+                <div class="score-num" id="scoreCpu">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lcd-board-wrap">
+            <div class="board" id="board">
+              <div class="cell" data-i="0"></div>
+              <div class="cell" data-i="1"></div>
+              <div class="cell" data-i="2"></div>
+              <div class="cell" data-i="3"></div>
+              <div class="cell" data-i="4"></div>
+              <div class="cell" data-i="5"></div>
+              <div class="cell" data-i="6"></div>
+              <div class="cell" data-i="7"></div>
+              <div class="cell" data-i="8"></div>
+            </div>
+          </div>
+
+          <div class="lcd-message" id="statusBar">Your move, genius.</div>
+        </div>
+
+        <!-- ROUND END OVERLAY -->
+        <div class="overlay hidden" id="roundOverlay">
+          <div class="overlay-msg" id="overlayMsg">Nice try.</div>
+          <button class="lcd-btn small" id="nextRoundBtn">NEXT ROUND</button>
+        </div>
+
+        <!-- MATCH END SCREEN -->
+        <div class="game-screen" id="matchScreen">
+          <div class="match-result" id="matchResult">YOU WIN</div>
+          <div class="match-msg" id="matchMsg">Enjoy your tiny victory.</div>
+          <div class="final-score" id="finalScore">2 — 1</div>
+          <button class="lcd-btn" id="replayBtn">PLAY AGAIN</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── BOTTOM CONTROLS ── -->
+    <div class="bottom-controls">
+      <div class="nub-pair">
+        <div class="nub-item">
+          <div class="select-nub"></div>
+          <div class="nub-label">SELECT</div>
+        </div>
+        <div class="nub-item">
+          <div class="select-nub"></div>
+          <div class="nub-label">START</div>
+        </div>
+      </div>
+      <div class="action-cluster">
+        <button class="action-btn btn-sfx" id="soundToggle" title="Toggle sound">♪</button>
+        <div class="btn-label">SFX</div>
+      </div>
+    </div>
+
+    <!-- ── SPEAKER + FOOTER ── -->
+    <div class="speaker-row">
+      <div class="speaker-holes">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="device-footer">© 1997 POCKETPLAY CO.</div>
+    </div>
+
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
