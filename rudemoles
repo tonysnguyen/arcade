@@ -1,1 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Rude Moles</title>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body,html{width:100%;height:100%;overflow:hidden;
+  font-family:'Nunito','Trebuchet MS',sans-serif;
+  user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  background:#0a1628;
+}
 
+/* ========== GAME CONTAINER ========== */
+#game{
+  width:100%;max-width:420px;margin:0 auto;
+  height:100vh;height:100dvh;min-height:560px;
+  display:flex;flex-direction:column;
+  position:relative;overflow:hidden;
+}
+
+/* ========== SKY — rich gradient with depth ========== */
+.sky{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 120% 60% at 50% 0%, #4DA8E8 0%, transparent 70%),
+    linear-gradient(180deg,
+      #163668 0%,
+      #2565B8 15%,
+      #3D8CE0 28%,
+      #62B4F0 36%,
+      #7ECAF5 33%,
+      #4DB848 33.4%,
+      #3DA538 46%,
+      #2E8A25 62%,
+      #1F7018 80%,
+      #165A12 100%
+    );
+  pointer-events:none;
+}
+
+/* ========== SUN GLOW ========== */
+.sun-glow{
+  position:absolute;top:2%;left:50%;transform:translateX(-50%);
+  width:160px;height:80px;
+  background:radial-gradient(ellipse at center, rgba(255,240,180,0.35) 0%, rgba(255,220,100,0.1) 50%, transparent 80%);
+  pointer-events:none;
+}
+
+/* ========== CLOUDS ========== */
+.clouds{position:absolute;top:0;left:0;right:0;height:42%;pointer-events:none;overflow:hidden}
+.cloud{position:absolute;border-radius:50%}
+.cloud,.cloud::before,.cloud::after{background:rgba(255,255,255,0.55)}
+.cloud::before,.cloud::after{content:'';position:absolute;border-radius:50%}
+.c1{width:80px;height:28px;top:8%;left:8%;animation:drift 30s linear infinite}
+.c1::before{width:40px;height:24px;top:-14px;left:14px}
+.c1::after{width:28px;height:18px;top:-8px;left:44px}
+.c2{width:100px;height:32px;top:18%;left:52%;animation:drift 40s linear infinite;animation-delay:-14s}
+.c2::before{width:50px;height:28px;top:-16px;left:20px}
+.c2::after{width:34px;height:20px;top:-10px;left:56px}
+.c3{width:60px;height:22px;top:27%;left:75%;animation:drift 34s linear infinite;animation-delay:-24s}
+.c3::before{width:30px;height:18px;top:-11px;left:10px}
+.c4{width:70px;height:24px;top:14%;left:30%;animation:drift 36s linear infinite;animation-delay:-8s;opacity:0.4}
+.c4::before{width:34px;height:20px;top:-12px;left:16px}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-150vw)}}
+
+/* ========== HEDGEROW — bushy treeline ========== */
+.hedge{
+  position:absolute;
+  top:27%;
+  left:0;
+  right:0;
+  height:14%;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:2;
+}
+.bush{position:absolute;bottom:0;border-radius:50% 50% 20% 20%}
+.b1{width:90px;height:50px;left:-5%;background:radial-gradient(ellipse at 40% 30%,#4CAF50,#2E7D32)}
+.b2{width:110px;height:55px;left:12%;background:radial-gradient(ellipse at 50% 30%,#56B950,#338533)}
+.b3{width:100px;height:48px;left:30%;background:radial-gradient(ellipse at 60% 30%,#4CAF50,#2B7A2F)}
+.b4{width:120px;height:58px;left:48%;background:radial-gradient(ellipse at 40% 30%,#52B84E,#2F832B)}
+.b5{width:95px;height:50px;left:66%;background:radial-gradient(ellipse at 50% 30%,#4CAF50,#2E7D32)}
+.b6{width:100px;height:52px;left:82%;background:radial-gradient(ellipse at 40% 30%,#56B950,#338533)}
+.b7{width:80px;height:45px;left:95%;background:radial-gradient(ellipse at 50% 30%,#4CAF50,#2B7A2F)}
+
+/* Horizon fill — solid green band that seals the gap between hedge and grass-layer */
+/* ========== GRASS TEXTURE — layered patches ========== */
+.grass-layer{
+  position:absolute;
+  top:39%;
+  left:0;
+  right:0;
+  bottom:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:1;
+  background:linear-gradient(180deg,
+    #4DB848 0%,
+    #3DA538 22%,
+    #2E8A25 58%,
+    #1F7018 100%
+  );
+}
+.gtuft{position:absolute;border-radius:50%}
+.gt1{width:200px;height:60px;top:2%;left:-5%;background:radial-gradient(ellipse,rgba(100,200,60,0.2),transparent);transform:rotate(-5deg)}
+.gt2{width:160px;height:50px;top:15%;left:50%;background:radial-gradient(ellipse,rgba(80,180,50,0.18),transparent);transform:rotate(3deg)}
+.gt3{width:180px;height:45px;top:35%;left:10%;background:radial-gradient(ellipse,rgba(60,160,40,0.2),transparent);transform:rotate(-8deg)}
+.gt4{width:140px;height:40px;top:55%;left:60%;background:radial-gradient(ellipse,rgba(90,190,55,0.15),transparent);transform:rotate(6deg)}
+.gt5{width:170px;height:50px;top:70%;left:-10%;background:radial-gradient(ellipse,rgba(50,140,35,0.2),transparent);transform:rotate(-3deg)}
+.gt6{width:120px;height:35px;top:85%;left:45%;background:radial-gradient(ellipse,rgba(70,170,45,0.18),transparent);transform:rotate(4deg)}
+/* dappled light spots */
+.gspot{position:absolute;border-radius:50%;background:rgba(120,220,80,0.12)}
+.gs1{width:40px;height:25px;top:8%;left:20%;transform:rotate(-12deg)}
+.gs2{width:50px;height:30px;top:28%;left:65%;transform:rotate(8deg)}
+.gs3{width:35px;height:20px;top:50%;left:15%;transform:rotate(-5deg)}
+.gs4{width:45px;height:22px;top:68%;left:75%;transform:rotate(15deg)}
+.gs5{width:55px;height:28px;top:45%;left:42%;transform:rotate(-10deg)}
+.gs6{width:30px;height:18px;top:82%;left:30%;transform:rotate(7deg)}
+
+/* ========== HUD ========== */
+.hud{position:relative;z-index:10;padding:max(env(safe-area-inset-top,8px),8px) 12px 0}
+.hud-banner{
+  background:linear-gradient(180deg,#4090E8 0%,#2468C8 50%,#1A4FA0 100%);
+  border-radius:12px;
+  border:2.5px solid rgba(255,255,255,0.3);
+  border-bottom-color:rgba(0,0,0,0.15);
+  padding:6px 16px;display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:0 3px 10px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.hud-star{position:absolute;width:30px;height:30px;top:50%;transform:translateY(-50%)}
+.hud-star.left{left:-8px}
+.hud-star.right{right:-8px}
+.hud-star svg{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35))}
+.hud-level{
+  font-family:'Lilita One',sans-serif;font-size:22px;color:white;
+  text-shadow:0 2px 0 rgba(0,0,0,0.35);
+  letter-spacing:2px;text-transform:uppercase;
+}
+.hud-progress-wrap{
+  margin:4px 12px 0;
+  background:linear-gradient(180deg,#153870,#0D2850);
+  border-radius:10px;border:2px solid rgba(255,255,255,0.18);
+  height:22px;position:relative;overflow:hidden;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.5);
+}
+.hud-progress-bar{
+  height:100%;border-radius:9px;transition:width 0.35s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;
+}
+.hud-progress-bar::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,0.1) 0px,rgba(255,255,255,0.1) 10px,transparent 10px,transparent 20px);
+}
+.progress-green{background:linear-gradient(180deg,#78E868,#3CB830)}
+.progress-yellow{background:linear-gradient(180deg,#FFE050,#E8B000)}
+.progress-orange{background:linear-gradient(180deg,#FFB050,#E07010)}
+.progress-red{background:linear-gradient(180deg,#FF6060,#D02828)}
+.hud-progress-text{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:'Lilita One',sans-serif;font-size:11px;color:white;
+  text-shadow:0 1px 2px rgba(0,0,0,0.7);letter-spacing:1.5px;text-transform:uppercase;
+}
+.hud-stats{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 0}
+.stat-pill{
+  display:flex;align-items:center;gap:4px;
+  background:rgba(0,0,0,0.28);border-radius:16px;padding:2px 12px;
+  border:1.5px solid rgba(255,255,255,0.08);
+}
+.stat-icon{font-size:12px;line-height:1}
+.stat-val{
+  font-family:'Lilita One',sans-serif;font-size:16px;color:white;
+  text-shadow:0 1px 2px rgba(0,0,0,0.5);min-width:28px;text-align:center;
+}
+.stat-pill.timer .stat-val{color:#FFD740}
+.stat-pill.timer.urgent .stat-val{color:#FF5050;animation:timerPulse 0.5s ease infinite}
+@keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+
+/* Combo pill — hidden at 0, visible at 2+ */
+.combo-pill{
+  display:flex;align-items:center;gap:3px;
+  background:rgba(0,0,0,0.28);border-radius:16px;padding:2px 10px;
+  border:1.5px solid rgba(255,255,255,0.08);
+  opacity:0;transition:opacity 0.2s,background 0.2s;
+  min-width:64px;justify-content:center;
+}
+.combo-pill.active{opacity:1}
+.combo-pill.hot{background:rgba(255,120,0,0.45);border-color:rgba(255,180,0,0.4)}
+.combo-pill.fire{background:rgba(220,30,0,0.55);border-color:rgba(255,80,0,0.5);animation:comboPulse 0.4s ease infinite}
+@keyframes comboPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.combo-icon{font-size:13px;line-height:1}
+.combo-val{
+  font-family:'Lilita One',sans-serif;font-size:16px;color:white;
+  text-shadow:0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Penalty flash — red tint on friendly mole hit */
+.penalty-flash{
+  position:absolute;inset:0;z-index:4;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,rgba(255,0,0,0.18),transparent 60%);
+  opacity:0;transition:opacity 0.18s ease-out;
+}
+.penalty-flash.flash{opacity:1;transition:none}
+
+/* ========== END SCREEN — stars + stats ========== */
+.end-stars{
+  display:flex;justify-content:center;gap:6px;margin:0 0 10px;
+}
+.end-star{
+  width:36px;height:36px;
+  transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  transform:scale(0);
+}
+.end-star.earned{transform:scale(1)}
+.end-star svg{width:100%;height:100%}
+.end-stats-row{
+  display:flex;justify-content:center;gap:16px;margin:-4px 0 12px;
+}
+.end-stat{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+}
+.end-stat-val{font-family:'Lilita One',sans-serif;font-size:17px;color:#555}
+.end-stat-lbl{font-family:'Nunito',sans-serif;font-weight:800;font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.5px}
+/* next level unlock banner */
+.end-next{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;
+  color:#A050C0;letter-spacing:0.5px;text-transform:uppercase;
+  margin-bottom:14px;
+}
+
+/* ========== BOARD ========== */
+.board{
+  flex:1;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:120px 6px 6px;
+  position:relative;
+  z-index:5;
+}
+
+/*
+  Grid is a fixed canvas containing up to 6 hand-placed hole slots.
+  Active holes per level are controlled via JS (visibility + pointer-events).
+  Inactive holes are hidden with visibility:hidden so they don't receive taps.
+  Container is 380×460 — 3 loose rows of 2, fitting comfortably on mobile.
+*/
+.grid{
+  position:relative;
+  width:380px;
+  height:460px;
+  flex-shrink:0;
+}
+
+/* ========== HOLE — rough dirt burrow carved into grass ========== */
+.hole-cell{
+  width:170px;height:145px;
+  position:absolute;cursor:pointer;
+  /* inactive holes are hidden and untappable — toggled by JS */
+  visibility:visible;
+}
+.hole-cell.inactive{
+  visibility:hidden;
+  pointer-events:none;
+}
+
+/*
+  6 hand-placed slot positions within the 380×460 container.
+  Each has a subtle scale + rotation for an organic, non-grid feel.
+  transform-origin:center bottom keeps the hole rim as the anchor point.
+
+  Row 1 (top):    slots 0, 1
+  Row 2 (middle): slots 2, 3
+  Row 3 (bottom): slots 4, 5
+*/
+.h0{top:52px;  left:8px;   transform:scale(1.02) rotate(-1.5deg); transform-origin:center bottom;}
+.h1{top:44px;  left:198px; transform:scale(0.97) rotate(2deg);    transform-origin:center bottom;}
+.h2{top:162px; left:4px;   transform:scale(1.04) rotate(-1deg);   transform-origin:center bottom;}
+.h3{top:155px; left:194px; transform:scale(0.96) rotate(2.5deg);  transform-origin:center bottom;}
+.h4{top:310px; left:10px;  transform:scale(1.03) rotate(-2deg);   transform-origin:center bottom;}
+.h5{top:308px; left:192px; transform:scale(0.95) rotate(1.5deg);  transform-origin:center bottom;}
+
+/* Back SVG — the burrow carved into ground */
+.hole-svg{
+  position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+  width:170px;height:117px;z-index:1;pointer-events:none;
+}
+
+/* Mole container — sits in the hole opening, clips mole inside */
+.mole-container{
+  position:absolute;
+  bottom:10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:100px;
+  height:92px;
+  z-index:2;
+  overflow:hidden;
+  pointer-events:none;
+}
+.mole-clipper{
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  clip-path:inset(0 0 22px 0);
+}
+.mole{
+  position:absolute;
+  bottom:-98px;
+  left:50%;
+  transform:translateX(-50%);
+  width:90px;
+  height:90px;
+  transition:bottom 0.12s cubic-bezier(0.22,1,0.36,1);
+}
+.mole.dip{
+  bottom:-110px;
+  transition:bottom 0.1s ease-in;
+}
+.mole.up{
+  bottom:2px;
+  transition:bottom 0.08s cubic-bezier(0.1,1,0.3,1);
+}
+.mole.hiding{
+  bottom:-98px;
+  transition:bottom 0.22s cubic-bezier(0.4,0,1,1);
+}
+.mole.bonked{
+  bottom:2px;
+  animation:bonkShake 0.3s ease-out;
+}
+@keyframes bonkShake{
+  0%{transform:translateX(-50%) rotate(0) scale(1)}
+  10%{transform:translateX(-50%) rotate(-20deg) scaleX(1.28) scaleY(0.62)}
+  25%{transform:translateX(-50%) rotate(14deg) scaleX(0.85) scaleY(1.12)}
+  42%{transform:translateX(-50%) rotate(-6deg) scaleX(1.06) scaleY(0.94)}
+  60%{transform:translateX(-50%) rotate(2deg) scale(1.01)}
+  100%{transform:translateX(-50%) rotate(0) scale(1)}
+}
+
+/* Screen shake on hit */
+@keyframes screenShake{
+  0%{transform:translate(0,0)}
+  15%{transform:translate(-3px,2px)}
+  30%{transform:translate(4px,-2px)}
+  45%{transform:translate(-2px,3px)}
+  60%{transform:translate(2px,-1px)}
+  75%{transform:translate(-1px,1px)}
+  100%{transform:translate(0,0)}
+}
+#game.shake{animation:screenShake 0.25s ease-out}
+
+/* Impact particles */
+.impact-particle{
+  position:absolute;
+  width:12px;height:12px;
+  border-radius:50%;
+  pointer-events:none;
+  z-index:24;
+  opacity:0;
+}
+.impact-particle.burst{animation:particleBurst 0.5s ease-out forwards}
+@keyframes particleBurst{
+  0%{opacity:0.9;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:var(--burst-dir) scale(0.3)}
+}
+
+/* Front rim SVG overlay — rough dirt edge covers mole lower body */
+.hole-rim-front{
+  position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+  width:170px;height:117px;z-index:3;pointer-events:none;
+}
+.mole-svg{width:100%;height:100%;display:block}
+
+/* ========== SPEECH BUBBLE ========== */
+.speech-bubble{
+  position:absolute;top:-28px;left:50%;transform:translateX(-50%) scale(0);
+  font-family:'Lilita One',sans-serif;font-size:19px;
+  color:#D02020;
+  background:#FFF;
+  border:3px solid #333;
+  border-radius:14px;
+  padding:3px 12px;
+  white-space:nowrap;
+  pointer-events:none;z-index:25;
+  box-shadow:0 3px 8px rgba(0,0,0,0.25);
+  transform-origin:center bottom;
+  opacity:0;
+}
+.speech-bubble::after{
+  content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
+  width:0;height:0;
+  border-left:7px solid transparent;border-right:7px solid transparent;
+  border-top:10px solid #333;
+}
+.speech-bubble::before{
+  content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+  width:0;height:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;
+  border-top:7px solid #FFF;
+  z-index:1;
+}
+.speech-bubble.pop{
+  animation:bubblePop 0.75s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+@keyframes bubblePop{
+  0%{transform:translateX(-50%) scale(0);opacity:0}
+  12%{transform:translateX(-50%) scale(1.2);opacity:1}
+  22%{transform:translateX(-50%) scale(0.92);opacity:1}
+  32%{transform:translateX(-50%) scale(1);opacity:1}
+  70%{transform:translateX(-50%) scale(1) translateY(-3px);opacity:1}
+  100%{transform:translateX(-50%) scale(0.5) translateY(-20px);opacity:0}
+}
+/* bonk bubble — different color/style */
+.speech-bubble.bonk-bubble{
+  background:#FFE040;border-color:#C08000;color:#8B4000;
+  font-size:16px;
+}
+.speech-bubble.bonk-bubble::after{border-top-color:#C08000}
+.speech-bubble.bonk-bubble::before{border-top-color:#FFE040}
+
+/* ========== SCORE POPUP ========== */
+.score-popup{
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  font-family:'Lilita One',sans-serif;font-size:34px;color:#FFD740;
+  text-shadow:0 2px 0 #8B6000,0 0 12px rgba(255,210,0,0.55);
+  pointer-events:none;z-index:22;opacity:0;
+}
+.score-popup.show{animation:popScore 0.6s ease-out forwards}
+@keyframes popScore{
+  0%{opacity:1;transform:translateX(-50%) translateY(0) scale(0.2)}
+  12%{opacity:1;transform:translateX(-50%) translateY(-32px) translateX(3px) scale(1.5)}
+  30%{opacity:1;transform:translateX(-50%) translateY(-44px) translateX(-1px) scale(1.1)}
+  55%{opacity:0.7;transform:translateX(-50%) translateY(-56px) scale(0.85)}
+  100%{opacity:0;transform:translateX(-50%) translateY(-72px) scale(0.45)}
+}
+
+/* ========== SCREEN FLASH on hit ========== */
+.hit-flash{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 55%, rgba(255,255,200,0.07), transparent 35%);
+  opacity:0;
+  transition:opacity 0.16s ease-out;
+}
+.hit-flash.flash{
+  opacity:1;
+  transition:none;
+}
+
+/* ========== START SCREEN ========== */
+.start-overlay{
+  position:absolute;inset:0;z-index:100;
+  background:linear-gradient(180deg,#38B6FF 0%,#2AA0F0 40%,#E05898 72%,#C83878 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity 0.5s ease,transform 0.5s ease;
+}
+.start-overlay.hidden{opacity:0;pointer-events:none;transform:scale(1.08)}
+.start-bg-mountains{position:absolute;bottom:22%;left:0;right:0;height:30%;pointer-events:none;overflow:hidden}
+.mountain{position:absolute;bottom:0}
+.mtn1{left:-8%;width:55%;height:100%;background:#50B8E8;clip-path:polygon(0 100%,50% 12%,100% 100%)}
+.mtn2{right:-8%;width:55%;height:88%;background:#50B8E8;clip-path:polygon(0 100%,50% 18%,100% 100%)}
+.mtn3{left:22%;width:45%;height:68%;background:#60C8F0;clip-path:polygon(0 100%,50% 8%,100% 100%)}
+.start-bg-hills{position:absolute;bottom:0;left:0;right:0;height:26%;pointer-events:none}
+.hill{position:absolute;bottom:0;border-radius:50% 50% 0 0}
+.hill1{left:-12%;width:58%;height:92%;background:linear-gradient(180deg,#F07AAE,#E060A0)}
+.hill2{right:-12%;width:58%;height:84%;background:linear-gradient(180deg,#E868A0,#D85090)}
+.hill3{left:18%;width:52%;height:68%;background:linear-gradient(180deg,#F898C0,#F080B0)}
+.start-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:-20px}
+.game-title{
+  font-family:'Lilita One',sans-serif;font-size:54px;color:white;
+  text-shadow:0 4px 0 rgba(0,0,0,0.12),0 8px 24px rgba(0,0,0,0.18);
+  letter-spacing:-1px;text-align:center;line-height:0.9;
+  position:relative;
+}
+.game-title .sub{
+  display:block;font-size:66px;
+  color:#FFD740;
+  text-shadow:0 3px 0 #B89010,0 6px 18px rgba(0,0,0,0.2);
+  margin-top:-2px;
+}
+.title-star{
+  position:absolute;pointer-events:none;
+  animation:titleStarSpin 3s linear infinite;
+}
+.title-star.ts1{top:-8px;left:-18px;width:22px;height:22px;animation-delay:0s}
+.title-star.ts2{top:0px;right:-14px;width:16px;height:16px;animation-delay:-1s;animation-duration:2.4s}
+.title-star.ts3{bottom:4px;right:-22px;width:20px;height:20px;animation-delay:-0.6s;animation-duration:3.6s}
+@keyframes titleStarSpin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(0.7)}100%{transform:rotate(360deg) scale(1)}}
+/* ========== START SCREEN — mascot pop-up stage ========== */
+/*
+  Layout: flex column — title → tagline → level → [mole-stage]
+  mole-stage is a single container that holds both the mole and the play button.
+  The stage has overflow:hidden so the mole is clipped when below the stage floor.
+  The button sits at z-index:2 (foreground), the mole at z-index:1 (behind).
+  On load the mole slides up from fully hidden, then idles with a gentle bob.
+*/
+.mole-stage{
+  position:relative;
+  width:200px;
+  height:150px;
+  margin-top:8px;
+  overflow:visible; /* let button shadow breathe */
+}
+.mascot-mask{
+  position:absolute;
+  left:50%;
+  bottom:28px;              /* aligns masking to top of button area */
+  transform:translateX(-50%);
+  width:140px;
+  height:122px;
+  overflow:hidden;          /* only the mole gets clipped */
+  pointer-events:none;
+  z-index:1;
+}
+/* The mole inside mascot-mask — slides up from below the mask */
+.mascot-body{
+  position:absolute;
+  bottom:0;
+  left:50%;
+  width:130px;
+  height:122px;
+  /* start fully below the mask floor — hidden by mascot-mask overflow:hidden */
+  transform:translateX(-50%) translateY(122px);
+  pointer-events:none;
+}
+/* Reveal animation: slides up on load, then idles */
+@keyframes mascotReveal{
+  0%  {transform:translateX(-50%) translateY(122px)}
+  100%{transform:translateX(-50%) translateY(0px)}
+}
+@keyframes mascotIdle{
+  0%,100%{transform:translateX(-50%) translateY(0px)}
+  50%    {transform:translateX(-50%) translateY(-6px)}
+}
+.mascot-body.revealed{
+  animation:
+    mascotReveal 0.55s cubic-bezier(0.22,1,0.36,1) forwards,
+    mascotIdle   2.4s  ease-in-out 0.55s infinite;
+}
+/* The play button sits in front of the mole */
+.play-btn{
+  position:absolute;
+  bottom:0;left:0;right:0;
+  z-index:2;
+  background:linear-gradient(180deg,#FFE868 0%,#FFD030 50%,#E8B800 100%);
+  color:#6B4000;border:none;border-radius:32px;padding:14px 0;width:100%;
+  font-family:'Lilita One',sans-serif;font-size:26px;letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;
+  box-shadow:0 5px 0 #B89000,0 8px 22px rgba(0,0,0,0.3);
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+.play-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #B89000,0 4px 10px rgba(0,0,0,0.2)}
+.start-tagline{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;
+  color:rgba(255,255,255,0.72);letter-spacing:1px;text-transform:uppercase;
+  text-shadow:0 1px 4px rgba(0,0,0,0.2);
+}
+.start-level{font-family:'Lilita One',sans-serif;font-size:18px;color:rgba(255,255,255,0.65);text-shadow:0 1px 4px rgba(0,0,0,0.2)}
+
+/* sound toggle */
+.sound-toggle{
+  position:absolute;top:max(env(safe-area-inset-top,12px),12px);right:14px;z-index:110;
+  width:40px;height:40px;border-radius:50%;border:none;cursor:pointer;
+  background:rgba(0,0,0,0.2);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.1s;
+}
+.sound-toggle:active{transform:scale(0.88)}
+.sound-toggle svg{width:22px;height:22px}
+
+/* ========== END SCREEN ========== */
+.end-overlay{
+  position:absolute;inset:0;z-index:100;background:rgba(0,0,0,0.6);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.35s ease;
+}
+.end-overlay.show{opacity:1;pointer-events:auto}
+.end-card{
+  background:white;border-radius:26px;width:285px;overflow:hidden;
+  transform:scale(0.7) translateY(40px);
+  transition:transform 0.45s cubic-bezier(0.34,1.56,0.64,1);
+}
+.end-overlay.show .end-card{transform:scale(1) translateY(0)}
+.end-header{
+  background:linear-gradient(180deg,#FF4080,#D02868);
+  padding:16px 20px 14px;display:flex;align-items:center;gap:12px;position:relative;
+}
+.end-header::after{
+  content:'';position:absolute;bottom:-9px;left:0;right:0;height:11px;
+  background:inherit;
+  clip-path:polygon(0 0,2.5% 100%,5% 0,7.5% 100%,10% 0,12.5% 100%,15% 0,17.5% 100%,20% 0,22.5% 100%,25% 0,27.5% 100%,30% 0,32.5% 100%,35% 0,37.5% 100%,40% 0,42.5% 100%,45% 0,47.5% 100%,50% 0,52.5% 100%,55% 0,57.5% 100%,60% 0,62.5% 100%,65% 0,67.5% 100%,70% 0,72.5% 100%,75% 0,77.5% 100%,80% 0,82.5% 100%,85% 0,87.5% 100%,90% 0,92.5% 100%,95% 0,97.5% 100%,100% 0);
+}
+.end-skull{
+  width:46px;height:46px;border-radius:13px;background:white;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.end-skull svg{width:30px;height:30px}
+.end-title{font-family:'Lilita One',sans-serif;font-size:30px;color:white;text-shadow:0 2px 0 rgba(0,0,0,0.18)}
+.end-body{padding:30px 24px 22px;text-align:center}
+.end-mascot{
+  width:105px;height:105px;border-radius:50%;
+  background:linear-gradient(135deg,#9040B0,#E04888);
+  margin:0 auto 16px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,0.18);overflow:hidden;
+}
+.end-mascot svg{width:72px;height:72px}
+.end-progress-track{height:8px;background:#eee;border-radius:4px;margin:0 8px 6px;overflow:hidden}
+.end-progress-fill{height:100%;border-radius:4px;background:#FF4080;transition:width 0.5s ease}
+.end-progress-markers{display:flex;justify-content:space-between;margin:0 6px 10px}
+.end-marker-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+.end-score-text{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#999;margin-bottom:18px}
+.end-btns{display:flex;gap:18px;justify-content:center}
+.end-btn{
+  width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.12s;
+  box-shadow:0 4px 0 rgba(0,0,0,0.15),0 4px 12px rgba(0,0,0,0.12);
+}
+.end-btn:active{transform:scale(0.86) translateY(2px)}
+.end-btn.home{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
+.end-btn.retry{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
+.end-btn.continue{background:linear-gradient(180deg,#50D080,#28A050);border:3px solid rgba(255,255,255,0.2)}
+.end-btn.playagain{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
+.end-btn svg{width:24px;height:24px}
+.end-header.win{background:linear-gradient(180deg,#50E080,#28B858)}
+.end-header.win::after{background:linear-gradient(180deg,#50E080,#28B858)}
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="sky"></div>
+  <div class="sun-glow"></div>
+  <div class="clouds"><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="cloud c4"></div></div>
+  <div class="hedge"><div class="bush b1"></div><div class="bush b2"></div><div class="bush b3"></div><div class="bush b4"></div><div class="bush b5"></div><div class="bush b6"></div><div class="bush b7"></div></div>
+  <div class="grass-layer">
+    <div class="gtuft gt1"></div><div class="gtuft gt2"></div><div class="gtuft gt3"></div>
+    <div class="gtuft gt4"></div><div class="gtuft gt5"></div><div class="gtuft gt6"></div>
+    <div class="gspot gs1"></div><div class="gspot gs2"></div><div class="gspot gs3"></div>
+    <div class="gspot gs4"></div><div class="gspot gs5"></div><div class="gspot gs6"></div>
+  </div>
+  <div class="hit-flash" id="hitFlash"></div>
+  <div class="penalty-flash" id="penaltyFlash"></div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="hud-banner">
+      <div class="hud-star left"><svg viewBox="0 0 30 30"><polygon points="15,1 18.5,11 29,11.5 21,18 23.5,28.5 15,23 6.5,28.5 9,18 1,11.5 11.5,11" fill="#FFD740" stroke="#C8A010" stroke-width="1.2"/></svg></div>
+      <div class="hud-level" id="hudLevel">Level 1</div>
+      <div class="hud-star right"><svg viewBox="0 0 30 30"><polygon points="15,1 18.5,11 29,11.5 21,18 23.5,28.5 15,23 6.5,28.5 9,18 1,11.5 11.5,11" fill="#FFD740" stroke="#C8A010" stroke-width="1.2"/></svg></div>
+    </div>
+    <div class="hud-progress-wrap">
+      <div class="hud-progress-bar progress-green" id="progressBar" style="width:0%"></div>
+      <div class="hud-progress-text" id="progressText">0 / 10 Moles</div>
+    </div>
+    <div class="hud-stats">
+      <div class="stat-pill"><span class="stat-icon">&#11088;</span><span class="stat-val" id="scoreVal">0</span></div>
+      <div class="combo-pill" id="comboPill"><span class="combo-icon">🔥</span><span class="combo-val" id="comboVal">x2</span></div>
+      <div class="stat-pill timer"><span class="stat-icon">&#9200;</span><span class="stat-val" id="timerVal">30</span></div>
+    </div>
+  </div>
+
+  <!-- BOARD -->
+  <div class="board"><div class="grid" id="grid"></div></div>
+
+  <!-- START -->
+  <div class="start-overlay" id="startOverlay">
+    <button class="sound-toggle" id="soundToggle"><svg viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.49 4.49 0 002.5-3.5zM14 3.23v2.06a6.5 6.5 0 010 13.42v2.06A8.5 8.5 0 0014 3.23z"/></svg></button>
+    <div class="start-bg-mountains"><div class="mountain mtn1"></div><div class="mountain mtn2"></div><div class="mountain mtn3"></div></div>
+    <div class="start-bg-hills"><div class="hill hill1"></div><div class="hill hill2"></div><div class="hill hill3"></div></div>
+    <div class="start-content">
+      <div class="game-title">Rude<span class="sub">Moles</span>
+        <svg class="title-star ts1" viewBox="0 0 22 22"><polygon points="11,1 13.5,8 21,8.5 15,13 17,21 11,16.5 5,21 7,13 1,8.5 8.5,8" fill="#FFD740" stroke="#C8A010" stroke-width="1"/></svg>
+        <svg class="title-star ts2" viewBox="0 0 16 16"><polygon points="8,1 9.5,6 15,6.4 10.5,9.5 12,15 8,12 4,15 5.5,9.5 1,6.4 6.5,6" fill="white" opacity="0.9"/></svg>
+        <svg class="title-star ts3" viewBox="0 0 20 20"><polygon points="10,1 12,7.5 19,8 13.5,12 15.5,19 10,15 4.5,19 6.5,12 1,8 8,7.5" fill="#FFD740" stroke="#C8A010" stroke-width="0.8"/></svg>
+      </div>
+      <div class="start-tagline">Tap the rude ones!</div>
+      <div class="start-level" id="startLevelLabel">Level 1</div>
+      <!-- mole-stage: mole slides up from behind the play button -->
+      <div class="mole-stage">
+        <div class="mascot-mask">
+        <div class="mascot-body" id="mascotBody">
+          <svg viewBox="0 0 94 94" style="width:100%;height:100%">
+            <path d="M10,94 Q10,58 20,38 Q30,18 47,16 Q64,18 74,38 Q84,58 84,94Z" fill="#7A5228"/>
+            <ellipse cx="47" cy="72" rx="22" ry="16" fill="#D4A464"/>
+            <ellipse cx="27" cy="20" rx="9" ry="8" fill="#7A5228"/>
+            <ellipse cx="67" cy="20" rx="9" ry="8" fill="#7A5228"/>
+            <ellipse cx="47" cy="58" rx="21" ry="17" fill="#C09050"/>
+            <ellipse cx="47" cy="50" rx="10" ry="7" fill="#1A0800"/>
+            <circle cx="34" cy="43" r="5" fill="#1A0800"/>
+            <circle cx="60" cy="43" r="5" fill="#1A0800"/>
+            <circle cx="35.5" cy="41.5" r="2" fill="white"/>
+            <circle cx="61.5" cy="41.5" r="2" fill="white"/>
+            <rect x="41" y="59" width="6" height="9" rx="2" fill="white"/>
+            <rect x="49" y="59" width="6" height="9" rx="2" fill="white"/>
+            <ellipse cx="24" cy="91" rx="11" ry="6" fill="#5E3D18"/>
+            <ellipse cx="70" cy="91" rx="11" ry="6" fill="#5E3D18"/>
+          </svg>
+        </div>
+        </div>
+        <button class="play-btn" id="playBtn">Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div class="end-overlay" id="endOverlay">
+    <div class="end-card">
+      <div class="end-header" id="endHeader">
+        <div class="end-skull"><svg viewBox="0 0 28 28" id="endHeaderIcon"><rect x="2" y="2" width="24" height="24" rx="6" fill="#FF3D7F"/><circle cx="10" cy="12" r="3" fill="white"/><circle cx="18" cy="12" r="3" fill="white"/><path d="M9 20L11 18L13 20L15 18L17 20L19 18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="end-title" id="endTitle">You Lose</div>
+      </div>
+      <div class="end-body">
+        <div class="end-mascot" id="endMascot">
+          <svg viewBox="0 0 72 72"><path d="M7,72 Q7,44 16,27 Q24,13 36,11 Q48,13 56,27 Q65,44 65,72Z" fill="#7A5228"/><ellipse cx="36" cy="54" rx="16" ry="12" fill="#D4A464"/><ellipse cx="21" cy="15" rx="7" ry="6" fill="#7A5228"/><ellipse cx="51" cy="15" rx="7" ry="6" fill="#7A5228"/><ellipse cx="36" cy="44" rx="15" ry="12" fill="#C09050"/><ellipse cx="36" cy="38" rx="7.5" ry="5" fill="#1A0800"/><line x1="22" y1="28" x2="30" y2="36" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="28" x2="22" y2="36" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/><line x1="42" y1="28" x2="50" y2="36" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/><line x1="50" y1="28" x2="42" y2="36" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/><rect x="31" y="45" width="4.5" height="6" rx="1.5" fill="white" transform="rotate(-4 33 48)"/><rect x="36.5" y="45" width="4.5" height="6" rx="1.5" fill="white" transform="rotate(4 38 48)"/><line x1="13" y1="9" x2="8" y2="2" stroke="#FFD740" stroke-width="3" stroke-linecap="round"/><line x1="36" y1="7" x2="36" y2="0" stroke="#FFD740" stroke-width="3" stroke-linecap="round"/><line x1="59" y1="9" x2="64" y2="2" stroke="#FFD740" stroke-width="3" stroke-linecap="round"/></svg>
+        </div>
+        <!-- Star rating -->
+        <div class="end-stars" id="endStars">
+          <div class="end-star" id="endStar0"><svg viewBox="0 0 36 36"><polygon points="18,2 22,13 34,13.5 25,20.5 28,32 18,25.5 8,32 11,20.5 2,13.5 14,13" fill="#FFD740" stroke="#C8A010" stroke-width="1.5"/></svg></div>
+          <div class="end-star" id="endStar1"><svg viewBox="0 0 36 36"><polygon points="18,2 22,13 34,13.5 25,20.5 28,32 18,25.5 8,32 11,20.5 2,13.5 14,13" fill="#FFD740" stroke="#C8A010" stroke-width="1.5"/></svg></div>
+          <div class="end-star" id="endStar2"><svg viewBox="0 0 36 36"><polygon points="18,2 22,13 34,13.5 25,20.5 28,32 18,25.5 8,32 11,20.5 2,13.5 14,13" fill="#FFD740" stroke="#C8A010" stroke-width="1.5"/></svg></div>
+        </div>
+        <!-- Stats summary -->
+        <div class="end-stats-row" id="endStatsRow">
+          <div class="end-stat"><span class="end-stat-val" id="endStatScore">0</span><span class="end-stat-lbl">Score</span></div>
+          <div class="end-stat"><span class="end-stat-val" id="endStatCombo">x0</span><span class="end-stat-lbl">Best Combo</span></div>
+          <div class="end-stat"><span class="end-stat-val" id="endStatAcc">0%</span><span class="end-stat-lbl">Accuracy</span></div>
+        </div>
+        <div class="end-next" id="endNext"></div>
+        <div class="end-progress-track"><div class="end-progress-fill" id="endProgressFill" style="width:0%"></div></div>
+        <div class="end-progress-markers">
+          <div class="end-marker-icon"><svg viewBox="0 0 20 20" width="18" height="18"><circle cx="10" cy="10" r="8" fill="#FF4080"/><path d="M7 7L13 13M13 7L7 13" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="end-marker-icon"><svg viewBox="0 0 20 20" width="18" height="18"><polygon points="10,2 12,8 18,8 13,12 15,18 10,14 5,18 7,12 2,8 8,8" fill="#ccc"/></svg></div>
+        </div>
+        <div class="end-score-text" id="endScore">Score: 0 (0/10 moles)</div>
+        <div class="end-btns">
+          <button class="end-btn home" id="homeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg></button>
+          <button class="end-btn retry" id="actionBtn" data-action="retry"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== AUDIO ENGINE ========== */
+const AudioEngine=(()=>{
+  let ctx=null, muted=false, inited=false;
+  function init(){
+    if(inited)return;
+    ctx=new(window.AudioContext||window.webkitAudioContext)();
+    inited=true;
+  }
+  function play(freq,type,dur,vol=0.15,detune=0){
+    if(!ctx||muted)return;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type;o.frequency.value=freq;o.detune.value=detune;
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    o.connect(g);g.connect(ctx.destination);
+    o.start();o.stop(ctx.currentTime+dur);
+  }
+  function noise(dur,vol=0.08){
+    if(!ctx||muted)return;
+    const buf=ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1);
+    const s=ctx.createBufferSource(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+    s.buffer=buf;f.type='bandpass';f.frequency.value=800;f.Q.value=1;
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    s.connect(f);f.connect(g);g.connect(ctx.destination);
+    s.start();s.stop(ctx.currentTime+dur);
+  }
+  return{
+    init,
+    toggle(){muted=!muted;return!muted},
+    isMuted(){return muted},
+    pop(){play(600,'sine',0.08,0.12);setTimeout(()=>play(900,'sine',0.06,0.1),40)},
+    bonk(){noise(0.12,0.15);play(200,'square',0.1,0.1);setTimeout(()=>play(150,'square',0.08,0.08),60)},
+    btn(){play(800,'sine',0.05,0.08);setTimeout(()=>play(1000,'sine',0.04,0.06),30)},
+    win(){[0,100,200,300,400].forEach((d,i)=>setTimeout(()=>play(500+i*100,'sine',0.2,0.1),d))},
+    lose(){play(300,'sawtooth',0.3,0.08);setTimeout(()=>play(200,'sawtooth',0.4,0.06),200)},
+    tick(){play(1200,'sine',0.03,0.04)},
+    combo(){play(800,'sine',0.06,0.1);setTimeout(()=>play(1100,'sine',0.04,0.09),50)},
+    bonus(){[0,60,120].forEach((d,i)=>setTimeout(()=>play(700+i*150,'sine',0.1,0.1),d))},
+    penalty(){play(180,'sawtooth',0.15,0.12);noise(0.08,0.06)},
+  }
+})();
+
+/* =======================================================================
+   RUDE MOLES — IMPROVED CORE LOOP (Phase 6)
+   -----------------------------------------------------------------------
+   LOOP:
+     spawn moles → player taps rude/bonus/fast moles → avoid friendly moles
+     → build combo streak → earn multiplied points → reach level goal
+     → earn 1-3 stars based on accuracy + best combo → advance level
+
+   MOLE TYPES:
+     normal   — standard rude mole, tap it
+     bonus    — gold mole, rare, worth more, disappears faster
+     friendly — green happy mole, DO NOT tap (penalty)
+     fast     — orange, quick popup, worth slightly more
+
+   COMBO:
+     consecutive correct hits build combo
+     missing a rude/bonus/fast mole OR tapping friendly = combo reset
+     combo 1-4  → 1x  (normal)
+     combo 5-9  → 1.5x (hot)
+     combo 10+  → 2x  (fire)
+
+   STARS (end of level):
+     1 star  → completed goal (any)
+     2 stars → accuracy ≥ 60% AND best combo ≥ 3
+     3 stars → accuracy ≥ 80% AND best combo ≥ 7
+   ======================================================================= */
+
+/* ========== MOLE TYPE CONFIGS ========== */
+const MOLE_TYPES={
+  normal: {
+    points:10, comboEffect:'hit',
+    stayMult:1.0, popSpeed:'normal',
+    bubbleChance:0.25, bubbles:['#%@!','*&#!','@!%?','!@$#','%#@!','$#@!'],
+    bonkBubbles:['OOF!','OW!!','RUDE!','HEY!','ACK!','UGH!'],
+  },
+  bonus: {
+    points:25, comboEffect:'hit',
+    stayMult:0.55, popSpeed:'normal',
+    bubbleChance:0.5,  bubbles:['💰','CASH!','MINE!','$$$!'],
+    bonkBubbles:['NO!!','RATS!','MINE!'],
+  },
+  friendly: {
+    points:-15, comboEffect:'penalty',
+    stayMult:1.2, popSpeed:'normal',
+    bubbleChance:0.5,  bubbles:['HI! :)','HIYA!','HEY! :)','HELLO!'],
+    bonkBubbles:['OW!!','RUDE!','MEAN!','WHY?!'],
+  },
+  fast: {
+    points:15, comboEffect:'hit',
+    stayMult:0.45, popSpeed:'fast',
+    bubbleChance:0.2,  bubbles:['#%@!','*&#!','ZOOM!'],
+    bonkBubbles:['GOT ME','FAST!','OOF!'],
+  },
+};
+
+/* ========== MOLE SVGs ========== */
+const MOLE_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#7A5228"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#D4A464"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#7A5228"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#7A5228"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#C09050"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#1A0800"/>
+  <circle cx="27" cy="34" r="4" fill="#1A0800"/>
+  <circle cx="47" cy="34" r="4" fill="#1A0800"/>
+  <circle cx="28.5" cy="32.5" r="1.5" fill="white"/>
+  <circle cx="48.5" cy="32.5" r="1.5" fill="white"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#5E3D18"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#5E3D18"/>
+</svg>`;
+
+const BONKED_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#7A5228"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#D4A464"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#7A5228"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#7A5228"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#C09050"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#1A0800"/>
+  <line x1="22" y1="29" x2="31" y2="38" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="31" y1="29" x2="22" y2="38" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="43" y1="29" x2="52" y2="38" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="52" y1="29" x2="43" y2="38" stroke="#1A0800" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white" transform="rotate(-4 34 50)"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white" transform="rotate(4 40 50)"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#5E3D18"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#5E3D18"/>
+  <line x1="14" y1="10" x2="8" y2="2" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="37" y1="8" x2="37" y2="0" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="60" y1="10" x2="66" y2="2" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+</svg>`;
+
+/* BONUS — gold body, sparkle eyes, coin belly */
+const BONUS_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#C89020"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#FFE080"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#C89020"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#C89020"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#E0A830"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#2A1800"/>
+  <circle cx="27" cy="34" r="4" fill="#2A1800"/>
+  <circle cx="47" cy="34" r="4" fill="#2A1800"/>
+  <circle cx="28" cy="33" r="2" fill="#FFD740"/>
+  <circle cx="48" cy="33" r="2" fill="#FFD740"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#A87010"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#A87010"/>
+  <polygon points="37,19 38.5,23.5 43,23.7 39.5,26.5 40.8,31 37,28.5 33.2,31 34.5,26.5 31,23.7 35.5,23.5" fill="#FFD740" opacity="0.9"/>
+</svg>`;
+
+const BONUS_BONKED_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#C89020"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#FFE080"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#C89020"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#C89020"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#E0A830"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#2A1800"/>
+  <line x1="22" y1="29" x2="31" y2="38" stroke="#2A1800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="31" y1="29" x2="22" y2="38" stroke="#2A1800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="43" y1="29" x2="52" y2="38" stroke="#2A1800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="52" y1="29" x2="43" y2="38" stroke="#2A1800" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#A87010"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#A87010"/>
+  <line x1="10" y1="8" x2="4" y2="1" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="37" y1="6" x2="37" y2="0" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="64" y1="8" x2="70" y2="1" stroke="#FFD740" stroke-width="3.5" stroke-linecap="round"/>
+</svg>`;
+
+/* FRIENDLY — green body, big smile, heart eyes */
+const FRIENDLY_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#3A9040"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#A0D880"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#3A9040"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#3A9040"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#60B860"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#1A3010"/>
+  <path d="M23,33 Q27,28 31,33" fill="#E04060" stroke="none"/>
+  <path d="M23,33 Q27,28 31,33" fill="none" stroke="#1A3010" stroke-width="0.5"/>
+  <path d="M43,33 Q47,28 51,33" fill="#E04060" stroke="none"/>
+  <path d="M43,33 Q47,28 51,33" fill="none" stroke="#1A3010" stroke-width="0.5"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <path d="M27,52 Q37,62 47,52" stroke="#1A3010" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#287030"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#287030"/>
+</svg>`;
+
+/* FAST — orange-red body, motion lines */
+const FAST_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#C04818"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#F0A070"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#C04818"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#C04818"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#D86030"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#180800"/>
+  <circle cx="27" cy="34" r="4" fill="#180800"/>
+  <circle cx="47" cy="34" r="4" fill="#180800"/>
+  <circle cx="28.5" cy="32.5" r="1.5" fill="white"/>
+  <circle cx="48.5" cy="32.5" r="1.5" fill="white"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#901808"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#901808"/>
+  <line x1="2" y1="30" x2="11" y2="30" stroke="#FF8040" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="1" y1="38" x2="9"  y2="38" stroke="#FF8040" stroke-width="2"   stroke-linecap="round" opacity="0.5"/>
+  <line x1="2" y1="46" x2="10" y2="46" stroke="#FF8040" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+</svg>`;
+
+const FAST_BONKED_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#C04818"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#F0A070"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#C04818"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#C04818"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#D86030"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#180800"/>
+  <line x1="22" y1="29" x2="31" y2="38" stroke="#180800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="31" y1="29" x2="22" y2="38" stroke="#180800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="43" y1="29" x2="52" y2="38" stroke="#180800" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="52" y1="29" x2="43" y2="38" stroke="#180800" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="32" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <rect x="38" y="47" width="5" height="7" rx="1.5" fill="white"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#901808"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#901808"/>
+  <line x1="12" y1="9" x2="6"  y2="2" stroke="#FF8040" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="37" y1="7" x2="37" y2="0" stroke="#FF8040" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="62" y1="9" x2="68" y2="2" stroke="#FF8040" stroke-width="3.5" stroke-linecap="round"/>
+</svg>`;
+
+/* Friendly bonked — caught! sad face */
+const FRIENDLY_BONKED_SVG=`<svg viewBox="0 0 74 74" class="mole-svg">
+  <path d="M8,74 Q8,44 16,28 Q24,14 37,12 Q50,14 58,28 Q66,44 66,74Z" fill="#3A9040"/>
+  <ellipse cx="37" cy="56" rx="17" ry="13" fill="#A0D880"/>
+  <ellipse cx="22" cy="16" rx="7" ry="6" fill="#3A9040"/>
+  <ellipse cx="52" cy="16" rx="7" ry="6" fill="#3A9040"/>
+  <ellipse cx="37" cy="46" rx="16" ry="13" fill="#60B860"/>
+  <ellipse cx="37" cy="40" rx="8" ry="5.5" fill="#1A3010"/>
+  <line x1="22" y1="29" x2="31" y2="38" stroke="#1A3010" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="31" y1="29" x2="22" y2="38" stroke="#1A3010" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="43" y1="29" x2="52" y2="38" stroke="#1A3010" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="52" y1="29" x2="43" y2="38" stroke="#1A3010" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M27,53 Q37,47 47,53" stroke="#1A3010" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="20" cy="72" rx="9" ry="5" fill="#287030"/>
+  <ellipse cx="54" cy="72" rx="9" ry="5" fill="#287030"/>
+</svg>`;
+
+/* Helper: pick SVG by type + bonked state */
+function getMoleSVG(type,bonked){
+  if(bonked){
+    if(type==='bonus')   return BONUS_BONKED_SVG;
+    if(type==='friendly')return FRIENDLY_BONKED_SVG;
+    if(type==='fast')    return FAST_BONKED_SVG;
+    return BONKED_SVG;
+  }
+  if(type==='bonus')   return BONUS_SVG;
+  if(type==='friendly')return FRIENDLY_SVG;
+  if(type==='fast')    return FAST_SVG;
+  return MOLE_SVG;
+}
+
+/* ========== LEVEL CONFIGS ========== */
+/*
+  moleWeights: [normal, bonus, friendly, fast] — relative probability weights.
+  activeHoles: which of the 6 slot indices are enabled for this level.
+    Slots 0-1 = top row, 2-3 = middle row, 4-5 = bottom row.
+    Chosen so each count feels intentional and visually balanced:
+      2 holes → middle row only (vertically centred, easy intro)
+      3 holes → top-left + middle row (triangular, reads clearly)
+      4 holes → top + middle 2×2 (familiar density)
+      5 holes → top + middle + bottom-left (asymmetric, playful)
+      6 holes → full 3×2 field
+  Level 1:  normal moles only, gentle intro
+  Level 2:  slightly faster spawns
+  Level 3:  combo system introduced (fast moles appear)
+  Level 4:  bonus moles introduced
+  Level 5:  friendly moles introduced
+  Level 6+: faster + full mix
+*/
+const LEVELS=[
+  {label:'Level 1', goal:8,  timer:30, spawnMin:600, spawnMax:700, stayMin:1000,stayMax:500, moleWeights:[10,0,0,0], activeHoles:[2,3]},
+  {label:'Level 2', goal:10, timer:30, spawnMin:480, spawnMax:600, stayMin:850, stayMax:450, moleWeights:[10,0,0,0], activeHoles:[0,2,3]},
+  {label:'Level 3', goal:12, timer:30, spawnMin:420, spawnMax:550, stayMin:800, stayMax:400, moleWeights:[8,0,0,3],  activeHoles:[0,1,2,3]},
+  {label:'Level 4', goal:14, timer:30, spawnMin:380, spawnMax:480, stayMin:750, stayMax:380, moleWeights:[7,2,0,3],  activeHoles:[0,1,2,3]},
+  {label:'Level 5', goal:15, timer:28, spawnMin:340, spawnMax:440, stayMin:700, stayMax:350, moleWeights:[6,2,2,3],  activeHoles:[0,1,2,3,4]},
+  {label:'Level 6', goal:16, timer:28, spawnMin:300, spawnMax:400, stayMin:640, stayMax:320, moleWeights:[5,2,3,4],  activeHoles:[0,1,2,3,4]},
+  {label:'Level 7', goal:18, timer:26, spawnMin:270, spawnMax:370, stayMin:580, stayMax:300, moleWeights:[5,2,3,5],  activeHoles:[0,1,2,3,4,5]},
+  {label:'Level 8', goal:20, timer:25, spawnMin:240, spawnMax:340, stayMin:520, stayMax:280, moleWeights:[4,3,3,6],  activeHoles:[0,1,2,3,4,5]},
+];
+
+/* ========== COMBO CONFIG ========== */
+const COMBO={
+  hotThreshold:5,   // combo ≥ 5 → 1.5x
+  fireThreshold:10, // combo ≥ 10 → 2x
+  hotMult:1.5,
+  fireMult:2.0,
+};
+
+/* ========== GAME LOGIC ========== */
+const grid=document.getElementById('grid');
+const state={
+  score:0, hits:0, goal:10, timer:30,
+  running:false, interval:null, timerInterval:null,
+  level:0,
+  combo:0, maxCombo:0,
+  totalSpawned:0, totalMissed:0, // for accuracy (excludes friendly)
+};
+const holes=[];
+
+for(let i=0;i<6;i++){
+  const cell=document.createElement('div');
+  cell.className=`hole-cell h${i}`;
+  cell.innerHTML=`
+    <svg class="hole-svg" viewBox="0 0 140 96" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="pit${i}" cx="50%" cy="38%" r="52%">
+          <stop offset="0%" stop-color="#140800"/>
+          <stop offset="60%" stop-color="#080200"/>
+          <stop offset="100%" stop-color="#020100"/>
+        </radialGradient>
+        <radialGradient id="dirtG${i}" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stop-color="#6B4C18"/>
+          <stop offset="50%" stop-color="#5A3E12"/>
+          <stop offset="100%" stop-color="#3A280C"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="70" cy="60" rx="58" ry="26" fill="rgba(10,30,5,0.18)"/>
+      <path d="M18,52 C20,42 28,35 35,33 C38,32 42,34 46,31 C50,28 54,30 58,28 C63,26 67,27 72,28 C78,29 82,27 88,29 C93,31 97,30 102,33 C108,36 115,40 120,48 C124,54 122,62 118,67 C114,72 108,74 102,76 C96,78 90,76 84,77 C78,78 72,79 66,78 C60,77 54,78 48,76 C42,74 36,75 30,72 C24,69 18,64 16,58 C15,55 16,53 18,52Z" fill="#3D7A20" stroke="#2D6018" stroke-width="1"/>
+      <path d="M26,52 C28,44 34,39 40,37 C44,36 47,38 52,36 C56,34 60,35 65,34 C70,33 74,34 79,35 C84,36 88,34 93,37 C98,39 104,43 108,48 C112,53 111,60 108,64 C104,68 99,70 94,71 C88,72 82,70 76,71 C70,72 64,72 58,71 C52,70 46,71 40,69 C34,67 28,63 26,58 C24,55 25,53 26,52Z" fill="url(#dirtG${i})" stroke="#2A1A08" stroke-width="1"/>
+      <ellipse cx="32" cy="55" rx="5" ry="3" fill="#7A5820" opacity="0.4" transform="rotate(-15 32 55)"/>
+      <ellipse cx="95" cy="38" rx="5" ry="2.5" fill="#7A5820" opacity="0.35" transform="rotate(-8 95 38)"/>
+      <ellipse cx="108" cy="56" rx="4" ry="3" fill="#6B4818" opacity="0.35" transform="rotate(12 108 56)"/>
+      <ellipse cx="70" cy="50" rx="36" ry="20" fill="#1E0E04"/>
+      <ellipse cx="70" cy="48" rx="33" ry="18" fill="url(#pit${i})"/>
+      <path d="M42,42 Q56,34 70,33 Q84,34 98,42" fill="none" stroke="rgba(120,80,30,0.2)" stroke-width="1.5"/>
+      <path d="M22,50 L19,44 L24,48" fill="#4A9028" opacity="0.5"/>
+      <path d="M118,52 L121,46 L119,50" fill="#4A9028" opacity="0.5"/>
+    </svg>
+    <div class="mole-container"><div class="mole-clipper"><div class="mole" id="mole${i}">${MOLE_SVG}</div></div></div>
+    <svg class="hole-rim-front" viewBox="0 0 140 96" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="fc${i}"><rect x="0" y="52" width="140" height="50"/></clipPath>
+        <linearGradient id="fDirt${i}" x1="0" y1="0.3" x2="0" y2="1">
+          <stop offset="0%" stop-color="#6B4C18"/>
+          <stop offset="40%" stop-color="#5A3A10"/>
+          <stop offset="100%" stop-color="#382208"/>
+        </linearGradient>
+      </defs>
+      <path d="M26,52 C28,44 34,39 40,37 C44,36 47,38 52,36 C56,34 60,35 65,34 C70,33 74,34 79,35 C84,36 88,34 93,37 C98,39 104,43 108,48 C112,53 111,60 108,64 C104,68 99,70 94,71 C88,72 82,70 76,71 C70,72 64,72 58,71 C52,70 46,71 40,69 C34,67 28,63 26,58 C24,55 25,53 26,52Z" fill="url(#fDirt${i})" stroke="#2A1A08" stroke-width="1" clip-path="url(#fc${i})"/>
+      <ellipse cx="52" cy="68" rx="6" ry="2.5" fill="#7A5820" opacity="0.3" transform="rotate(-5 52 68)" clip-path="url(#fc${i})"/>
+      <ellipse cx="90" cy="67" rx="5" ry="2.5" fill="#7A5820" opacity="0.3" transform="rotate(6 90 67)" clip-path="url(#fc${i})"/>
+      <path d="M34,69 L31,64 L36,68" fill="#3D7A20" opacity="0.45" clip-path="url(#fc${i})"/>
+      <path d="M106,67 L109,62 L107,66" fill="#3D7A20" opacity="0.45" clip-path="url(#fc${i})"/>
+      <ellipse cx="70" cy="76" rx="40" ry="5" fill="rgba(0,0,0,0.07)" clip-path="url(#fc${i})"/>
+    </svg>
+    <div class="speech-bubble" id="bubble${i}"></div>
+    <div class="score-popup" id="popup${i}">+10</div>`;
+  cell.addEventListener('pointerdown',(e)=>{e.preventDefault();whack(i)});
+  grid.appendChild(cell);
+  holes.push({el:cell, moleEl:null, active:false, enabled:false, timeout:null, moleType:'normal'});
+}
+holes.forEach((h,i)=>{h.moleEl=document.getElementById(`mole${i}`)});
+
+/* ---- Helpers ---- */
+function getProgressColor(pct){
+  if(pct<30)return'progress-green';
+  if(pct<60)return'progress-yellow';
+  if(pct<85)return'progress-orange';
+  return'progress-red';
+}
+
+function getComboMult(){
+  if(state.combo>=COMBO.fireThreshold)return COMBO.fireMult;
+  if(state.combo>=COMBO.hotThreshold) return COMBO.hotMult;
+  return 1;
+}
+
+function pickMoleType(){
+  const lv=LEVELS[state.level];
+  const w=lv.moleWeights; // [normal,bonus,friendly,fast]
+  const total=w.reduce((a,b)=>a+b,0);
+  let r=Math.random()*total;
+  const types=['normal','bonus','friendly','fast'];
+  for(let i=0;i<types.length;i++){r-=w[i];if(r<=0)return types[i];}
+  return'normal';
+}
+
+/* ---- Activate/deactivate holes for the current level ---- */
+function setActiveHoles(){
+  const active=LEVELS[state.level].activeHoles;
+  holes.forEach((h,i)=>{
+    const on=active.includes(i);
+    h.enabled=on;
+    if(on){
+      h.el.classList.remove('inactive');
+    } else {
+      // hide and ensure any in-progress mole is fully cleared
+      h.el.classList.add('inactive');
+      h.active=false;
+      if(h.moleEl)h.moleEl.className='mole';
+      clearTimeout(h.timeout);
+    }
+  });
+}
+
+/* ---- HUD ---- */
+function updateHUD(){
+  document.getElementById('scoreVal').textContent=state.score;
+  document.getElementById('timerVal').textContent=state.timer;
+  const timerPill=document.querySelector('.stat-pill.timer');
+  if(state.timer<=5&&state.timer>0)timerPill.classList.add('urgent');
+  else timerPill.classList.remove('urgent');
+  const pct=Math.min(100,(state.hits/state.goal)*100);
+  const bar=document.getElementById('progressBar');
+  bar.style.width=pct+'%';
+  bar.className='hud-progress-bar '+getProgressColor(pct);
+  document.getElementById('progressText').textContent=`${state.hits} / ${state.goal} Moles`;
+  // combo pill
+  const cp=document.getElementById('comboPill');
+  const cv=document.getElementById('comboVal');
+  if(state.combo>=2){
+    const mult=getComboMult();
+    cv.textContent=`x${state.combo}${mult>1?' '+mult+'×':''}`;
+    cp.className='combo-pill active'+(state.combo>=COMBO.fireThreshold?' fire':state.combo>=COMBO.hotThreshold?' hot':'');
+  } else {
+    cp.className='combo-pill';
+  }
+}
+
+/* ---- Speech bubble ---- */
+function showBubble(idx,text,cls=''){
+  const b=document.getElementById(`bubble${idx}`);
+  b.textContent=text;
+  b.className='speech-bubble'+(cls?' '+cls:'');
+  void b.offsetWidth;
+  b.classList.add('pop');
+}
+
+/* ---- Score popup with custom text ---- */
+function showPopup(idx,text){
+  const popup=document.getElementById(`popup${idx}`);
+  popup.textContent=text;
+  popup.className='score-popup';
+  void popup.offsetWidth;
+  popup.className='score-popup show';
+}
+
+/* ---- Combo management ---- */
+function incrementCombo(){
+  state.combo++;
+  if(state.combo>state.maxCombo)state.maxCombo=state.combo;
+  if(state.combo===COMBO.hotThreshold||state.combo===COMBO.fireThreshold){
+    AudioEngine.combo();
+  }
+}
+function resetCombo(){
+  state.combo=0;
+  updateHUD();
+}
+
+/* ---- Show mole ---- */
+function showMole(idx){
+  if(!state.running||holes[idx].active)return;
+  const h=holes[idx];
+  h.active=true;
+  const type=pickMoleType();
+  h.moleType=type;
+  const cfg=MOLE_TYPES[type];
+  // count hittable moles for accuracy
+  if(type!=='friendly')state.totalSpawned++;
+
+  h.moleEl.innerHTML=getMoleSVG(type,false);
+  h.moleEl.className='mole dip';
+
+  const lv=LEVELS[state.level];
+  const popDelay=cfg.popSpeed==='fast'?60:100;
+  setTimeout(()=>{
+    if(!h.active)return;
+    h.moleEl.className='mole up';
+    AudioEngine.pop();
+  },popDelay);
+
+  if(Math.random()<cfg.bubbleChance){
+    setTimeout(()=>{
+      if(h.active)showBubble(idx,cfg.bubbles[Math.floor(Math.random()*cfg.bubbles.length)]);
+    },popDelay+100);
+  }
+
+  const stayTime=(lv.stayMin+Math.random()*lv.stayMax)*cfg.stayMult;
+  h.timeout=setTimeout(()=>{
+    if(!state.running)return;
+    // mole escaped: reset combo for hittable types
+    if(type!=='friendly'){
+      state.totalMissed++;
+      resetCombo();
+    }
+    hideMole(idx);
+  },stayTime);
+}
+
+function hideMole(idx){
+  holes[idx].moleEl.className='mole hiding';
+  setTimeout(()=>{holes[idx].active=false},200);
+}
+
+/* ---- Whack ---- */
+function whack(idx){
+  if(!state.running||!holes[idx].active)return;
+  const h=holes[idx];
+  h.active=false;
+  clearTimeout(h.timeout);
+  const type=h.moleType;
+  const cfg=MOLE_TYPES[type];
+
+  if(type==='friendly'){
+    // PENALTY: deduct points, reset combo, red flash
+    state.score=Math.max(0,state.score+cfg.points);
+    h.moleEl.innerHTML=getMoleSVG(type,true);
+    h.moleEl.className='mole bonked';
+    AudioEngine.penalty();
+    const pf=document.getElementById('penaltyFlash');
+    pf.classList.add('flash');
+    setTimeout(()=>pf.classList.remove('flash'),120);
+    resetCombo();
+    if(Math.random()<0.8)showBubble(idx,cfg.bonkBubbles[Math.floor(Math.random()*cfg.bonkBubbles.length)],'bonk-bubble');
+    showPopup(idx,`${cfg.points}`);
+    updateHUD();
+    setTimeout(()=>{h.moleEl.className='mole hiding'},380);
+    return;
+  }
+
+  // NORMAL HIT
+  const mult=getComboMult();
+  const pts=Math.round(cfg.points*mult);
+  state.score+=pts;
+  state.hits++;
+  incrementCombo();
+
+  h.moleEl.innerHTML=getMoleSVG(type,true);
+  h.moleEl.className='mole bonked';
+
+  if(type==='bonus')AudioEngine.bonus();
+  else AudioEngine.bonk();
+
+  // screen shake
+  const game=document.getElementById('game');
+  game.classList.remove('shake');void game.offsetWidth;game.classList.add('shake');
+  setTimeout(()=>game.classList.remove('shake'),260);
+
+  // hit flash
+  const flash=document.getElementById('hitFlash');
+  flash.classList.add('flash');
+  setTimeout(()=>flash.classList.remove('flash'),100);
+
+  // dirt burst particles
+  const cell=h.el;
+  const colors=type==='bonus'?['#FFD740','#FFB800','#FFF080','#C89020','#FFE040']
+              :type==='fast' ?['#FF8040','#C04818','#FF6020','#8B3010','#FF9050']
+              :['#8B6030','#A07838','#6B4C18','#C4A060','#8B6030'];
+  for(let p=0;p<5;p++){
+    const dot=document.createElement('div');
+    dot.className='impact-particle';
+    const angle=(p/5)*Math.PI*2+Math.random()*0.6;
+    const dist=22+Math.random()*18;
+    const dx=Math.cos(angle)*dist,dy=Math.sin(angle)*dist-10;
+    dot.style.cssText=`left:${50+dx*0.25}%;top:${36+dy*0.25}%;background:${colors[p]};width:${7+Math.random()*6}px;height:${6+Math.random()*5}px;--burst-dir:translate(${dx}px,${dy}px)`;
+    cell.appendChild(dot);
+    void dot.offsetWidth;
+    dot.classList.add('burst');
+    setTimeout(()=>dot.remove(),500);
+  }
+
+  if(Math.random()<0.5)showBubble(idx,cfg.bonkBubbles[Math.floor(Math.random()*cfg.bonkBubbles.length)],'bonk-bubble');
+
+  // popup text: show multiplier if active
+  const popText=mult>1?`+${pts} ${mult}×`:`+${pts}`;
+  showPopup(idx,popText);
+
+  updateHUD();
+  setTimeout(()=>{h.moleEl.className='mole hiding'},380);
+  if(state.hits>=state.goal)endGame(true);
+}
+
+/* ---- Spawn loop ---- */
+function spawnLoop(){
+  if(!state.running)return;
+  // only consider holes that are both enabled for this level and not currently occupied
+  const avail=holes.map((h,i)=>(h.enabled&&!h.active?i:-1)).filter(i=>i>=0);
+  if(avail.length>0)showMole(avail[Math.floor(Math.random()*avail.length)]);
+  const lv=LEVELS[state.level];
+  state.interval=setTimeout(spawnLoop,lv.spawnMin+Math.random()*lv.spawnMax);
+}
+
+/* ---- Star calculation ---- */
+function calcStars(won){
+  if(!won)return 0;
+  const hittable=state.totalSpawned;
+  const acc=hittable>0?((hittable-state.totalMissed)/hittable):1;
+  if(acc>=0.80&&state.maxCombo>=7)return 3;
+  if(acc>=0.60&&state.maxCombo>=3)return 2;
+  return 1;
+}
+
+/* ---- Start / End ---- */
+function startGame(){
+  AudioEngine.init();AudioEngine.btn();
+  const lv=LEVELS[state.level];
+  state.score=0;state.hits=0;state.goal=lv.goal;state.timer=lv.timer;state.running=true;
+  state.combo=0;state.maxCombo=0;state.totalSpawned=0;state.totalMissed=0;
+  // reset all holes first, then activate the correct set for this level
+  holes.forEach(h=>{h.active=false;h.enabled=false;h.moleEl.className='mole';h.moleType='normal';clearTimeout(h.timeout)});
+  setActiveHoles();
+  document.getElementById('hudLevel').textContent=lv.label;
+  document.getElementById('comboPill').className='combo-pill';
+  updateHUD();
+  document.getElementById('startOverlay').classList.add('hidden');
+  document.getElementById('endOverlay').classList.remove('show');
+  spawnLoop();
+  state.timerInterval=setInterval(()=>{
+    state.timer--;
+    if(state.timer<=5&&state.timer>0)AudioEngine.tick();
+    updateHUD();
+    if(state.timer<=0)endGame(false);
+  },1000);
+}
+
+function endGame(won){
+  state.running=false;clearTimeout(state.interval);clearInterval(state.timerInterval);
+  holes.forEach(h=>{clearTimeout(h.timeout);h.moleEl.className='mole';h.active=false});
+  if(won)AudioEngine.win();else AudioEngine.lose();
+
+  const header=document.getElementById('endHeader');
+  const title=document.getElementById('endTitle');
+  const pct=Math.min(100,(state.hits/state.goal)*100);
+  const lv=LEVELS[state.level];
+  const isLastLevel=state.level>=LEVELS.length-1;
+  const stars=calcStars(won);
+
+  if(won){
+    header.className='end-header win';
+    title.textContent=isLastLevel?'Complete!':`${lv.label} Clear!`;
+    document.getElementById('endHeaderIcon').innerHTML='<rect x="2" y="2" width="24" height="24" rx="6" fill="#28B858"/><polygon points="14,4 16.5,10 23,10.5 18,15 19.5,22 14,18 8.5,22 10,15 5,10.5 11.5,10" fill="white"/>';
+  }else{
+    header.className='end-header';
+    title.textContent='You Lose';
+    document.getElementById('endHeaderIcon').innerHTML='<rect x="2" y="2" width="24" height="24" rx="6" fill="#FF3D7F"/><circle cx="10" cy="12" r="3" fill="white"/><circle cx="18" cy="12" r="3" fill="white"/><path d="M9 20L11 18L13 20L15 18L17 20L19 18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  // Stars — animate in with stagger
+  for(let s=0;s<3;s++){
+    const el=document.getElementById(`endStar${s}`);
+    el.className='end-star';
+    if(s<stars){
+      setTimeout(()=>el.classList.add('earned'),200+s*150);
+    }
+  }
+
+  // Stats
+  const hittable=state.totalSpawned;
+  const acc=hittable>0?Math.round(((hittable-state.totalMissed)/hittable)*100):100;
+  document.getElementById('endStatScore').textContent=state.score;
+  document.getElementById('endStatCombo').textContent=`x${state.maxCombo}`;
+  document.getElementById('endStatAcc').textContent=`${acc}%`;
+
+  // Next level hint
+  const nextEl=document.getElementById('endNext');
+  if(won&&!isLastLevel){
+    const nextLv=LEVELS[state.level+1];
+    const introduces=nextLv.moleWeights[3]>0&&lv.moleWeights[3]===0?'⚡ Fast moles incoming!'
+                    :nextLv.moleWeights[2]>0&&lv.moleWeights[2]===0?'💚 Friendly moles incoming!'
+                    :nextLv.moleWeights[1]>0&&lv.moleWeights[1]===0?'💰 Bonus moles incoming!'
+                    :`Next: ${nextLv.label}`;
+    nextEl.textContent=introduces;
+  } else {
+    nextEl.textContent='';
+  }
+
+  document.getElementById('endScore').textContent=`Score: ${state.score} (${state.hits}/${state.goal} moles)`;
+  document.getElementById('endProgressFill').style.width=pct+'%';
+
+  // Configure the action button based on outcome
+  const actionBtn=document.getElementById('actionBtn');
+  if(!won){
+    // Loss → Retry (same level, level not advanced)
+    actionBtn.className='end-btn retry';
+    actionBtn.dataset.action='retry';
+    actionBtn.innerHTML=ICON_RETRY;
+  } else if(isLastLevel){
+    // Final level win → Play Again (resets to level 1)
+    actionBtn.className='end-btn playagain';
+    actionBtn.dataset.action='playagain';
+    actionBtn.innerHTML=ICON_PLAYAGAIN;
+  } else {
+    // Mid-game win → Continue (advances to next level)
+    actionBtn.className='end-btn continue';
+    actionBtn.dataset.action='continue';
+    actionBtn.innerHTML=ICON_CONTINUE;
+  }
+
+  // Advance level on win now (after button is configured)
+  if(won&&!isLastLevel)state.level=Math.min(state.level+1,LEVELS.length-1);
+  const retryLv=LEVELS[state.level];
+  document.getElementById('hudLevel').textContent=retryLv.label;
+  document.getElementById('endOverlay').classList.add('show');
+}
+
+document.getElementById('playBtn').addEventListener('click',startGame);
+
+/* ---- Action button icons ---- */
+const ICON_RETRY    =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
+const ICON_CONTINUE =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`;
+const ICON_PLAYAGAIN=`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
+
+/* ---- Action button handler ---- */
+document.getElementById('actionBtn').addEventListener('click',()=>{
+  AudioEngine.btn();
+  const action=document.getElementById('actionBtn').dataset.action;
+  if(action==='continue'){
+    // level was already advanced in endGame — just start
+    startGame();
+  } else if(action==='playagain'){
+    // final level cleared — reset to level 1
+    state.level=0;
+    startGame();
+  } else {
+    // retry — startGame uses current state.level (unchanged on loss)
+    startGame();
+  }
+});
+
+function triggerMascotReveal(){
+  const mb=document.getElementById('mascotBody');
+  if(!mb)return;
+  // reset by removing and re-adding the class, forcing animation restart
+  mb.classList.remove('revealed');
+  void mb.offsetWidth; // reflow
+  mb.classList.add('revealed');
+}
+
+document.getElementById('homeBtn').addEventListener('click',()=>{
+  AudioEngine.btn();
+  state.level=0;
+  document.getElementById('startLevelLabel').textContent=LEVELS[0].label;
+  document.getElementById('endOverlay').classList.remove('show');
+  document.getElementById('startOverlay').classList.remove('hidden');
+  // small delay so overlay is visible before animation fires
+  setTimeout(triggerMascotReveal,80);
+});
+
+// Sound toggle
+const soundBtn=document.getElementById('soundToggle');
+soundBtn.addEventListener('click',()=>{
+  AudioEngine.init();
+  const on=AudioEngine.toggle();
+  soundBtn.innerHTML=on
+    ?'<svg viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.49 4.49 0 002.5-3.5zM14 3.23v2.06a6.5 6.5 0 010 13.42v2.06A8.5 8.5 0 0014 3.23z"/></svg>'
+    :'<svg viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16.5 12l3-3m0 6l-3-3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>';
+});
+
+updateHUD();
+// trigger reveal on first load
+setTimeout(triggerMascotReveal,200);
+</script>
+</body>
+</html>
