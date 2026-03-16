@@ -600,6 +600,113 @@ html, body {
 }
 
 /* ============================================================
+   TOP SNAKE — compact champion display on start screen
+   ============================================================ */
+.top-snake-card {
+  background: rgba(255,209,102,0.05);
+  border: 1px solid rgba(255,209,102,0.15);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.top-snake-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent3);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.top-snake-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+.top-snake-value .ts-score {
+  color: var(--accent3);
+}
+.top-snake-muted {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  padding: 6px 0;
+}
+
+/* ============================================================
+   HIGH SCORE POPUP — rank placement + top snake context
+   ============================================================ */
+.hs-rank-display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--accent1);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+  text-shadow: 0 0 18px rgba(0,229,160,0.4);
+}
+.hs-top-snake-line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.hs-top-snake-line strong {
+  color: var(--accent3);
+  font-weight: 700;
+}
+.hs-claim-line {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 8px 0 2px;
+  opacity: 0.7;
+}
+
+/* ============================================================
+   POPUP CLOSE BUTTON — X in top-right corner
+   ============================================================ */
+.popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+.popup-close:hover {
+  background: rgba(255,84,112,0.12);
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+.popup-close:active {
+  transform: scale(0.9);
+}
+
+/* ============================================================
    RESPONSIVE TWEAKS
    ============================================================ */
 @media (max-height: 680px) {
@@ -665,7 +772,12 @@ html, body {
       <strong>Arrow keys</strong> on desktop.<br/>
       <strong>D-pad buttons</strong> on mobile.
     </p>
-    <div id="start-lb-container"></div>
+    <div id="start-lb-container">
+      <div class="top-snake-card" id="top-snake-card">
+        <div class="top-snake-label">👑 TOP SNAKE</div>
+        <div id="top-snake-display" class="top-snake-muted">Loading…</div>
+      </div>
+    </div>
     <button class="popup-btn" id="btn-start">START GAME</button>
   </div>
 
@@ -695,9 +807,11 @@ html, body {
 
   <!-- HIGH SCORE POPUP (hidden initially) -->
   <div class="popup" id="popup-highscore" style="display:none;">
+    <button class="popup-close" id="hs-close-btn" aria-label="Close" title="Skip">✕</button>
     <div class="popup-highscore-badge">★ NEW HIGH SCORE ★</div>
     <div class="popup-title" style="color:var(--accent3);text-shadow:0 0 30px rgba(255,209,102,0.5);">YOU MADE<br>THE BOARD</div>
-    <div class="popup-subtitle">Enter your name, legend</div>
+    <div class="hs-rank-display" id="hs-rank-display">YOU PLACED #1</div>
+    <div class="hs-top-snake-line" id="hs-top-snake-line">Top Snake: <strong>—</strong></div>
     <div class="score-grid">
       <div class="score-cell">
         <span class="score-cell-label">Score</span>
@@ -712,6 +826,7 @@ html, body {
         <span class="score-cell-value" id="hs-length">3</span>
       </div>
     </div>
+    <div class="hs-claim-line">Enter your name to claim your spot</div>
     <div class="highscore-input-wrap">
       <input type="text" class="highscore-input" id="hs-name-input" placeholder="Your name" maxlength="10" autocomplete="off" spellcheck="false" />
       <button class="highscore-submit" id="hs-submit-btn">SAVE</button>
@@ -935,6 +1050,40 @@ function renderLeaderboardLoading(container) {
   container.innerHTML = '<div class="lb-loading">Loading leaderboard…</div>';
 }
 
+/** getTopSnake — return the #1 entry from cache, or null */
+function getTopSnake() {
+  if (lbCache && lbCache.length > 0) return lbCache[0];
+  return null;
+}
+
+/** calculateQualifyingRank — determine where the score would place (1-indexed) */
+function calculateQualifyingRank(newScore, board) {
+  if (!board || board.length === 0) return 1;
+  for (let i = 0; i < board.length; i++) {
+    if (newScore > board[i].score) return i + 1;
+  }
+  return board.length + 1; // placed after all existing entries
+}
+
+/** renderTopSnakeDisplay — update the start popup top snake card */
+function renderTopSnakeDisplay(entries) {
+  const display = document.getElementById('top-snake-display');
+  if (!display) return;
+  if (entries === null) {
+    display.className = 'top-snake-muted';
+    display.textContent = 'Leaderboard unavailable';
+    return;
+  }
+  if (!entries || entries.length === 0) {
+    display.className = 'top-snake-muted';
+    display.textContent = 'No champion yet';
+    return;
+  }
+  const top = entries[0];
+  display.className = 'top-snake-value';
+  display.innerHTML = `${top.name} — <span class="ts-score">${top.score}</span>`;
+}
+
 /* ============================================================
    HIGH SCORE POPUP — shown when player qualifies for top 5
    ============================================================ */
@@ -943,17 +1092,34 @@ function showHighScorePopup() {
   document.getElementById('hs-eaten').textContent  = eaten;
   document.getElementById('hs-length').textContent = snake.length;
 
+  // Calculate rank placement
+  const rank = calculateQualifyingRank(score, lbCache);
+  document.getElementById('hs-rank-display').textContent = `YOU PLACED #${rank}`;
+
+  // Show current top snake
+  const topSnake = getTopSnake();
+  const topLine = document.getElementById('hs-top-snake-line');
+  if (topSnake) {
+    topLine.innerHTML = `Top Snake: <strong>${topSnake.name} — ${topSnake.score}</strong>`;
+    topLine.style.display = '';
+  } else {
+    topLine.style.display = 'none';
+  }
+
   // Reset input state
   const nameInput  = document.getElementById('hs-name-input');
   const submitBtn  = document.getElementById('hs-submit-btn');
   const continueBtn = document.getElementById('btn-hs-continue');
   const errorMsg   = document.getElementById('hs-error-msg');
+  const claimLine  = document.querySelector('.hs-claim-line');
   nameInput.value = '';
   nameInput.disabled = false;
   submitBtn.disabled = false;
   submitBtn.textContent = 'SAVE';
   continueBtn.style.display = 'none';
   errorMsg.textContent = '';
+  if (claimLine) claimLine.style.display = '';
+  document.querySelector('.highscore-input-wrap').style.display = '';
 
   // Show current leaderboard
   renderLeaderboard(document.getElementById('hs-lb-container'), lbCache, null, null);
@@ -969,6 +1135,12 @@ function showHighScorePopup() {
 
 function hideHighScorePopup() {
   popupHighscore.style.display = 'none';
+}
+
+/** closeHighScorePopup — dismiss without saving, go to game-over screen */
+function closeHighScorePopup() {
+  hideHighScorePopup();
+  showGameOverPopup(lbCache);
 }
 
 /* ============================================================
@@ -1353,17 +1525,14 @@ function showStartPopup() {
   popupHighscore.style.display = 'none';
   overlay.classList.remove('hidden');
 
-  // Load leaderboard into start screen
-  const container = document.getElementById('start-lb-container');
-  renderLeaderboardLoading(container);
+  // Load leaderboard and show top snake on start screen
+  const display = document.getElementById('top-snake-display');
+  if (display) {
+    display.className = 'top-snake-muted';
+    display.textContent = 'Loading…';
+  }
   loadLeaderboard().then(entries => {
-    if (entries && entries.length > 0) {
-      renderLeaderboard(container, entries, null, null);
-    } else if (entries !== null) {
-      container.innerHTML = ''; // empty — don't clutter start screen
-    } else {
-      container.innerHTML = ''; // error — silently hide
-    }
+    renderTopSnakeDisplay(entries);
   });
 }
 
@@ -1450,6 +1619,11 @@ document.getElementById('hs-name-input').addEventListener('keydown', (e) => {
 document.getElementById('btn-hs-continue').addEventListener('click', () => {
   audioInit();
   startNewGame();
+});
+
+/* High score popup — close / skip without saving */
+document.getElementById('hs-close-btn').addEventListener('click', () => {
+  closeHighScorePopup();
 });
 
 /* ============================================================
