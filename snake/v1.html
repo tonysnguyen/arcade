@@ -436,6 +436,135 @@ html, body {
 }
 
 /* ============================================================
+   LEADERBOARD POPUP
+   ============================================================ */
+.popup-highscore-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent3);
+  border: 1px solid rgba(255,209,102,0.3);
+  background: rgba(255,209,102,0.08);
+  border-radius: 20px;
+  padding: 4px 14px;
+  margin-bottom: 12px;
+  animation: badgePulse 1.5s ease-in-out infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,209,102,0.3); }
+  50%      { box-shadow: 0 0 16px 4px rgba(255,209,102,0.15); }
+}
+
+.highscore-input-wrap {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+.highscore-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  caret-color: var(--accent1);
+}
+.highscore-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+.highscore-input:focus {
+  border-color: var(--accent1);
+  box-shadow: 0 0 12px rgba(0,229,160,0.2);
+}
+.highscore-submit {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent3);
+  color: #0a0c18;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  box-shadow: 0 0 16px rgba(255,209,102,0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.highscore-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,209,102,0.4); }
+.highscore-submit:active { transform: scale(0.96); }
+.highscore-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* Leaderboard table */
+.leaderboard-table {
+  width: 100%;
+  margin: 16px 0 22px;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+}
+.leaderboard-table th {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 8px 8px;
+  text-align: left;
+}
+.leaderboard-table th:last-child { text-align: right; }
+.leaderboard-table td {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 8px 8px;
+  background: rgba(255,255,255,0.03);
+  border-top: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.leaderboard-table td:first-child { border-radius: 8px 0 0 8px; border-left: 1px solid rgba(255,255,255,0.03); }
+.leaderboard-table td:last-child  { border-radius: 0 8px 8px 0; border-right: 1px solid rgba(255,255,255,0.03); text-align: right; color: var(--accent3); font-weight: 700; }
+.leaderboard-table tr.highlight td {
+  background: rgba(0,229,160,0.08);
+  border-color: rgba(0,229,160,0.15);
+  color: var(--accent1);
+}
+.leaderboard-table tr.highlight td:last-child { color: var(--accent3); }
+
+.lb-rank { color: var(--text-muted); font-size: 11px; }
+.lb-rank-gold { color: var(--accent3); }
+.lb-rank-silver { color: #b0b8d0; }
+.lb-rank-bronze { color: #cd7f32; }
+
+.leaderboard-empty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 20px 0;
+  letter-spacing: 0.06em;
+}
+
+.popup-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* Leaderboard section in game-over popup */
+.gameover-leaderboard-section {
+  margin-top: 16px;
+}
+.gameover-leaderboard-section .popup-subtitle {
+  margin-bottom: 8px;
+  font-size: 10px;
+}
+
+/* ============================================================
    RESPONSIVE TWEAKS
    ============================================================ */
 @media (max-height: 680px) {
@@ -523,7 +652,39 @@ html, body {
         <span class="score-cell-value" id="end-length">3</span>
       </div>
     </div>
+    <div class="gameover-leaderboard-section">
+      <hr class="popup-divider" />
+      <div class="popup-subtitle">Top Scores</div>
+      <div id="gameover-lb-container"></div>
+    </div>
     <button class="popup-btn" id="btn-restart">PLAY AGAIN</button>
+  </div>
+
+  <!-- HIGH SCORE POPUP (hidden initially) -->
+  <div class="popup" id="popup-highscore" style="display:none;">
+    <div class="popup-highscore-badge">★ NEW HIGH SCORE ★</div>
+    <div class="popup-title" style="color:var(--accent3);text-shadow:0 0 30px rgba(255,209,102,0.5);">YOU MADE<br>THE BOARD</div>
+    <div class="popup-subtitle">Enter your name, legend</div>
+    <div class="score-grid">
+      <div class="score-cell">
+        <span class="score-cell-label">Score</span>
+        <span class="score-cell-value" id="hs-score">0</span>
+      </div>
+      <div class="score-cell">
+        <span class="score-cell-label">Eaten</span>
+        <span class="score-cell-value" id="hs-eaten">0</span>
+      </div>
+      <div class="score-cell">
+        <span class="score-cell-label">Length</span>
+        <span class="score-cell-value" id="hs-length">3</span>
+      </div>
+    </div>
+    <div class="highscore-input-wrap">
+      <input type="text" class="highscore-input" id="hs-name-input" placeholder="Your name" maxlength="12" autocomplete="off" spellcheck="false" />
+      <button class="highscore-submit" id="hs-submit-btn">SAVE</button>
+    </div>
+    <div id="hs-lb-container" style="margin-top:8px;"></div>
+    <button class="popup-btn" id="btn-hs-continue" style="margin-top:12px;">PLAY AGAIN</button>
   </div>
 </div>
 
@@ -909,6 +1070,89 @@ function flashHUD() {
 }
 
 /* ============================================================
+   LEADERBOARD SYSTEM
+   ============================================================ */
+const LEADERBOARD = {
+  maxEntries: 10,
+  storageKey: 'sneakysnake_leaderboard',
+};
+
+// Basic profanity filter
+const PROFANITY_LIST = ['fuck','shit','ass','dick','cock','pussy','bitch','cunt','damn','bastard','nigger','nigga','fag','faggot','whore','slut','penis','vagina','anus','tits','boob'];
+
+function sanitizeName(name) {
+  // Trim, strip HTML, limit length
+  let clean = name.replace(/<[^>]*>/g, '').replace(/[^\w\s\-!?.]/g, '').trim();
+  if (clean.length > 12) clean = clean.slice(0, 12);
+  if (clean.length === 0) clean = 'ANON';
+  return clean;
+}
+
+function containsProfanity(name) {
+  const lower = name.toLowerCase().replace(/[^a-z]/g, '');
+  return PROFANITY_LIST.some(word => lower.includes(word));
+}
+
+function getLeaderboard() {
+  try {
+    const data = localStorage.getItem(LEADERBOARD.storageKey);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.slice(0, LEADERBOARD.maxEntries);
+  } catch { return []; }
+}
+
+function saveLeaderboard(board) {
+  board.sort((a, b) => b.score - a.score);
+  board = board.slice(0, LEADERBOARD.maxEntries);
+  try { localStorage.setItem(LEADERBOARD.storageKey, JSON.stringify(board)); } catch {}
+  return board;
+}
+
+function qualifiesForLeaderboard(newScore) {
+  if (newScore <= 0) return false;
+  const board = getLeaderboard();
+  if (board.length < LEADERBOARD.maxEntries) return true;
+  return newScore > board[board.length - 1].score;
+}
+
+function addToLeaderboard(name, newScore, newEaten, newLength) {
+  const board = getLeaderboard();
+  const entry = {
+    name: name,
+    score: newScore,
+    eaten: newEaten,
+    length: newLength,
+    date: Date.now(),
+  };
+  board.push(entry);
+  return saveLeaderboard(board);
+}
+
+function renderLeaderboardHTML(container, highlightScore, highlightName) {
+  const board = getLeaderboard();
+  if (board.length === 0) {
+    container.innerHTML = '<div class="leaderboard-empty">No scores yet — be the first!</div>';
+    return;
+  }
+  const rankClass = (i) => i === 0 ? 'lb-rank lb-rank-gold' : i === 1 ? 'lb-rank lb-rank-silver' : i === 2 ? 'lb-rank lb-rank-bronze' : 'lb-rank';
+  const rankIcon  = (i) => i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+
+  let html = '<table class="leaderboard-table"><thead><tr><th>#</th><th>Name</th><th>Score</th></tr></thead><tbody>';
+  board.forEach((entry, i) => {
+    const isHighlight = highlightName && entry.name === highlightName && entry.score === highlightScore;
+    html += `<tr class="${isHighlight ? 'highlight' : ''}">`;
+    html += `<td><span class="${rankClass(i)}">${rankIcon(i)}</span></td>`;
+    html += `<td>${entry.name}</td>`;
+    html += `<td>${entry.score}</td>`;
+    html += `</tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+/* ============================================================
    GAME END
    ============================================================ */
 function endGame() {
@@ -919,19 +1163,57 @@ function endGame() {
   clearInterval(gameLoop);
   playDeath();   // 🎵 Death tone
 
-  // Fill end-screen stats
+  // Death flash — briefly tint canvas red
+  ctx.fillStyle = 'rgba(255, 84, 112, 0.18)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Check if score qualifies for leaderboard
+  if (qualifiesForLeaderboard(score)) {
+    showHighScorePopup();
+  } else {
+    showGameOverPopup();
+  }
+}
+
+function showHighScorePopup() {
+  const popupHighscore = document.getElementById('popup-highscore');
+  document.getElementById('hs-score').textContent  = score;
+  document.getElementById('hs-eaten').textContent  = eaten;
+  document.getElementById('hs-length').textContent = snake.length;
+
+  // Reset input
+  const nameInput  = document.getElementById('hs-name-input');
+  const submitBtn  = document.getElementById('hs-submit-btn');
+  const continueBtn = document.getElementById('btn-hs-continue');
+  nameInput.value = '';
+  nameInput.disabled = false;
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'SAVE';
+  continueBtn.style.display = 'none';
+
+  // Show leaderboard preview
+  renderLeaderboardHTML(document.getElementById('hs-lb-container'), null, null);
+
+  popupStart.style.display    = 'none';
+  popupGameover.style.display = 'none';
+  popupHighscore.style.display = 'block';
+  overlay.classList.remove('hidden');
+
+  // Focus input after animation
+  setTimeout(() => nameInput.focus(), 400);
+}
+
+function showGameOverPopup() {
   endScore.textContent  = score;
   endEaten.textContent  = eaten;
   endLength.textContent = snake.length;
 
-  // Show game-over popup
-  popupStart.style.display   = 'none';
-  popupGameover.style.display = 'block';
-  overlay.classList.remove('hidden');
+  renderLeaderboardHTML(document.getElementById('gameover-lb-container'), null, null);
 
-  // Death flash — briefly tint canvas red
-  ctx.fillStyle = 'rgba(255, 84, 112, 0.18)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  popupStart.style.display    = 'none';
+  popupGameover.style.display = 'block';
+  document.getElementById('popup-highscore').style.display = 'none';
+  overlay.classList.remove('hidden');
 }
 
 /* ============================================================
@@ -960,6 +1242,59 @@ document.getElementById('btn-start').addEventListener('click', () => {
 
 document.getElementById('btn-restart').addEventListener('click', () => {
   audioInit();          // Ensure context alive after possible suspension
+  hideOverlay();
+  clearInterval(gameLoop);
+  particles = [];
+  initGame();
+  requestAnimationFrame(animLoop);
+  startCountdown();
+});
+
+/* High Score popup — submit name */
+document.getElementById('hs-submit-btn').addEventListener('click', () => {
+  const nameInput   = document.getElementById('hs-name-input');
+  const submitBtn   = document.getElementById('hs-submit-btn');
+  const continueBtn = document.getElementById('btn-hs-continue');
+
+  let name = sanitizeName(nameInput.value);
+  if (containsProfanity(name)) {
+    nameInput.value = '';
+    nameInput.placeholder = 'Nice try...';
+    nameInput.style.borderColor = 'var(--accent2)';
+    setTimeout(() => {
+      nameInput.placeholder = 'Your name';
+      nameInput.style.borderColor = '';
+    }, 1500);
+    return;
+  }
+
+  // Save score
+  const finalScore  = parseInt(document.getElementById('hs-score').textContent);
+  const finalEaten  = parseInt(document.getElementById('hs-eaten').textContent);
+  const finalLength = parseInt(document.getElementById('hs-length').textContent);
+  addToLeaderboard(name, finalScore, finalEaten, finalLength);
+
+  // Update display
+  nameInput.disabled  = true;
+  submitBtn.disabled  = true;
+  submitBtn.textContent = '✓';
+  continueBtn.style.display = 'block';
+
+  // Refresh leaderboard showing the highlight
+  renderLeaderboardHTML(document.getElementById('hs-lb-container'), finalScore, name);
+});
+
+/* High Score popup — allow enter key to submit */
+document.getElementById('hs-name-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('hs-submit-btn').click();
+  }
+});
+
+/* High Score popup — continue to replay */
+document.getElementById('btn-hs-continue').addEventListener('click', () => {
+  audioInit();
   hideOverlay();
   clearInterval(gameLoop);
   particles = [];
