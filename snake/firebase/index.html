@@ -1531,10 +1531,30 @@ function showStartPopup() {
     display.className = 'top-snake-muted';
     display.textContent = 'Loading…';
   }
+  refreshTopSnakeDisplay();
+}
+
+/** refreshTopSnakeDisplay — attempt to load leaderboard and update top snake card */
+function refreshTopSnakeDisplay() {
   loadLeaderboard().then(entries => {
+    // If Firebase module wasn't ready yet, loadLeaderboard returns [].
+    // The onFirebaseReady callback below will retry once Firebase loads.
     renderTopSnakeDisplay(entries);
   });
 }
+
+/* ── FIREBASE READY HOOK ──────────────────────────────────────
+   The Firebase module script (type="module") is deferred and runs
+   AFTER this regular script. So on first page load, fbLoadLeaderboard
+   doesn't exist yet when showStartPopup fires. This hook retries
+   the leaderboard load once Firebase signals it's ready.
+   ──────────────────────────────────────────────────────────── */
+window.onFirebaseReady = function () {
+  // Only refresh if the start popup is currently visible
+  if (popupStart.style.display !== 'none') {
+    refreshTopSnakeDisplay();
+  }
+};
 
 function hideOverlay() {
   overlay.classList.add('hidden');
@@ -1605,6 +1625,9 @@ document.getElementById('hs-submit-btn').addEventListener('click', async () => {
   // Reload leaderboard and show with highlight
   const updated = await loadLeaderboard();
   renderLeaderboard(document.getElementById('hs-lb-container'), updated || lbCache, name, finalScore);
+
+  // Also refresh top snake display so it's current when player returns to start
+  renderTopSnakeDisplay(updated || lbCache);
 });
 
 /* Allow Enter key to submit */
