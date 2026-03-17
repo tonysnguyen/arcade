@@ -2,14 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Rude Moles</title>
 <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html{
+  /* Prevent iOS double-tap zoom and pinch zoom at the CSS level */
+  touch-action:manipulation;
+  -ms-touch-action:manipulation;
+  -webkit-text-size-adjust:100%;
+  -ms-text-size-adjust:100%;
+  overscroll-behavior:none;
+}
 body,html{width:100%;height:100%;overflow:hidden;
   font-family:'Nunito','Trebuchet MS',sans-serif;
-  user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
   background:#0a1628;
 }
 
@@ -19,6 +31,8 @@ body,html{width:100%;height:100%;overflow:hidden;
   height:100vh;height:100dvh;min-height:560px;
   display:flex;flex-direction:column;
   position:relative;overflow:hidden;
+  touch-action:manipulation;
+  overscroll-behavior:none;
 }
 
 /* ========== SKY — rich gradient with depth ========== */
@@ -259,6 +273,7 @@ body,html{width:100%;height:100%;overflow:hidden;
   position:absolute;cursor:pointer;
   /* inactive holes are hidden and untappable — toggled by JS */
   visibility:visible;
+  touch-action:none;
 }
 .hole-cell.inactive{
   visibility:hidden;
@@ -492,43 +507,33 @@ body,html{width:100%;height:100%;overflow:hidden;
 .title-star.ts3{bottom:4px;right:-22px;width:20px;height:20px;animation-delay:-0.6s;animation-duration:3.6s}
 @keyframes titleStarSpin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(0.7)}100%{transform:rotate(360deg) scale(1)}}
 /* ========== START SCREEN — mascot pop-up stage ========== */
-/*
-  Layout: flex column — title → tagline → level → [mole-stage]
-  mole-stage is a single container that holds both the mole and the play button.
-  The stage has overflow:hidden so the mole is clipped when below the stage floor.
-  The button sits at z-index:2 (foreground), the mole at z-index:1 (behind).
-  On load the mole slides up from fully hidden, then idles with a gentle bob.
-*/
 .mole-stage{
   position:relative;
   width:200px;
   height:150px;
   margin-top:8px;
-  overflow:visible; /* let button shadow breathe */
+  overflow:visible;
 }
 .mascot-mask{
   position:absolute;
   left:50%;
-  bottom:28px;              /* aligns masking to top of button area */
+  bottom:28px;
   transform:translateX(-50%);
   width:140px;
   height:122px;
-  overflow:hidden;          /* only the mole gets clipped */
+  overflow:hidden;
   pointer-events:none;
   z-index:1;
 }
-/* The mole inside mascot-mask — slides up from below the mask */
 .mascot-body{
   position:absolute;
   bottom:0;
   left:50%;
   width:130px;
   height:122px;
-  /* start fully below the mask floor — hidden by mascot-mask overflow:hidden */
   transform:translateX(-50%) translateY(122px);
   pointer-events:none;
 }
-/* Reveal animation: slides up on load, then idles */
 @keyframes mascotReveal{
   0%  {transform:translateX(-50%) translateY(122px)}
   100%{transform:translateX(-50%) translateY(0px)}
@@ -542,7 +547,6 @@ body,html{width:100%;height:100%;overflow:hidden;
     mascotReveal 0.55s cubic-bezier(0.22,1,0.36,1) forwards,
     mascotIdle   2.4s  ease-in-out 0.55s infinite;
 }
-/* The play button sits in front of the mole */
 .play-btn{
   position:absolute;
   bottom:0;left:0;right:0;
@@ -553,6 +557,7 @@ body,html{width:100%;height:100%;overflow:hidden;
   cursor:pointer;
   box-shadow:0 5px 0 #B89000,0 8px 22px rgba(0,0,0,0.3);
   transition:transform 0.1s,box-shadow 0.1s;
+  touch-action:manipulation;
 }
 .play-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #B89000,0 4px 10px rgba(0,0,0,0.2)}
 .start-tagline{
@@ -569,6 +574,7 @@ body,html{width:100%;height:100%;overflow:hidden;
   background:rgba(0,0,0,0.2);backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;
   transition:transform 0.1s;
+  touch-action:manipulation;
 }
 .sound-toggle:active{transform:scale(0.88)}
 .sound-toggle svg{width:22px;height:22px}
@@ -614,19 +620,22 @@ body,html{width:100%;height:100%;overflow:hidden;
 .end-progress-markers{display:flex;justify-content:space-between;margin:0 6px 10px}
 .end-marker-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
 .end-score-text{font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#999;margin-bottom:18px}
-.end-btns{display:flex;gap:18px;justify-content:center}
+.end-btns{display:flex;gap:18px;justify-content:center;align-items:center}
 .end-btn{
-  width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+  width:58px;height:58px;min-width:58px;min-height:58px;
+  border-radius:50%;border:3px solid rgba(255,255,255,0.2);cursor:pointer;
   display:flex;align-items:center;justify-content:center;
+  padding:0;flex-shrink:0;
   transition:transform 0.12s;
   box-shadow:0 4px 0 rgba(0,0,0,0.15),0 4px 12px rgba(0,0,0,0.12);
+  touch-action:manipulation;
 }
 .end-btn:active{transform:scale(0.86) translateY(2px)}
-.end-btn.home{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
-.end-btn.retry{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
-.end-btn.continue{background:linear-gradient(180deg,#50D080,#28A050);border:3px solid rgba(255,255,255,0.2)}
-.end-btn.playagain{background:linear-gradient(180deg,#A050C0,#7830A0);border:3px solid rgba(255,255,255,0.2)}
-.end-btn svg{width:24px;height:24px}
+.end-btn.home{background:linear-gradient(180deg,#A050C0,#7830A0)}
+.end-btn.retry{background:linear-gradient(180deg,#A050C0,#7830A0)}
+.end-btn.continue{background:linear-gradient(180deg,#50D080,#28A050)}
+.end-btn.playagain{background:linear-gradient(180deg,#A050C0,#7830A0)}
+.end-btn svg{width:24px;height:24px;flex-shrink:0;display:block}
 .end-header.win{background:linear-gradient(180deg,#50E080,#28B858)}
 .end-header.win::after{background:linear-gradient(180deg,#50E080,#28B858)}
 </style>
@@ -747,6 +756,48 @@ body,html{width:100%;height:100%;overflow:hidden;
 </div>
 
 <script>
+/* ========== MOBILE TOUCH HARDENING ========== */
+(function(){
+  var gameEl=document.getElementById('game');
+
+  // 1. Prevent double-tap zoom via touchend timing
+  var lastTouchEnd=0;
+  document.addEventListener('touchend',function(e){
+    var now=Date.now();
+    if(now-lastTouchEnd<300){
+      e.preventDefault();
+    }
+    lastTouchEnd=now;
+  },{passive:false});
+
+  // 2. Prevent iOS gesture zoom (pinch)
+  document.addEventListener('gesturestart',function(e){e.preventDefault()},{passive:false});
+  document.addEventListener('gesturechange',function(e){e.preventDefault()},{passive:false});
+  document.addEventListener('gestureend',function(e){e.preventDefault()},{passive:false});
+
+  // 3. Prevent multi-touch zoom (touchmove with 2+ fingers)
+  document.addEventListener('touchmove',function(e){
+    if(e.touches.length>1){e.preventDefault()}
+  },{passive:false});
+
+  // 4. Prevent context menu from long-press on mobile
+  document.addEventListener('contextmenu',function(e){e.preventDefault()});
+
+  // 5. Prevent dblclick zoom fallback inside game
+  if(gameEl){gameEl.addEventListener('dblclick',function(e){e.preventDefault()},{passive:false})}
+})();
+
+/* ========== HAPTIC FEEDBACK ========== */
+window.gameHaptics=(function(){
+  var can=typeof navigator!=='undefined'&&typeof navigator.vibrate==='function';
+  function vib(pattern){try{if(can)navigator.vibrate(pattern)}catch(e){}}
+  return{
+    tap:    function(){vib(12)},       // short tap for hits & buttons
+    success:function(){vib([20,40,20,40,30])}, // celebratory win pattern
+    error:  function(){vib([40,30,60])}        // loss / penalty pattern
+  };
+})();
+
 /* ========== AUDIO ENGINE ========== */
 const AudioEngine=(()=>{
   let ctx=null, muted=false, inited=false;
@@ -794,29 +845,6 @@ const AudioEngine=(()=>{
 
 /* =======================================================================
    RUDE MOLES — IMPROVED CORE LOOP (Phase 6)
-   -----------------------------------------------------------------------
-   LOOP:
-     spawn moles → player taps rude/bonus/fast moles → avoid friendly moles
-     → build combo streak → earn multiplied points → reach level goal
-     → earn 1-3 stars based on accuracy + best combo → advance level
-
-   MOLE TYPES:
-     normal   — standard rude mole, tap it
-     bonus    — gold mole, rare, worth more, disappears faster
-     friendly — green happy mole, DO NOT tap (penalty)
-     fast     — orange, quick popup, worth slightly more
-
-   COMBO:
-     consecutive correct hits build combo
-     missing a rude/bonus/fast mole OR tapping friendly = combo reset
-     combo 1-4  → 1x  (normal)
-     combo 5-9  → 1.5x (hot)
-     combo 10+  → 2x  (fire)
-
-   STARS (end of level):
-     1 star  → completed goal (any)
-     2 stars → accuracy ≥ 60% AND best combo ≥ 3
-     3 stars → accuracy ≥ 80% AND best combo ≥ 7
    ======================================================================= */
 
 /* ========== MOLE TYPE CONFIGS ========== */
@@ -1016,23 +1044,6 @@ function getMoleSVG(type,bonked){
 }
 
 /* ========== LEVEL CONFIGS ========== */
-/*
-  moleWeights: [normal, bonus, friendly, fast] — relative probability weights.
-  activeHoles: which of the 6 slot indices are enabled for this level.
-    Slots 0-1 = top row, 2-3 = middle row, 4-5 = bottom row.
-    Chosen so each count feels intentional and visually balanced:
-      2 holes → middle row only (vertically centred, easy intro)
-      3 holes → top-left + middle row (triangular, reads clearly)
-      4 holes → top + middle 2×2 (familiar density)
-      5 holes → top + middle + bottom-left (asymmetric, playful)
-      6 holes → full 3×2 field
-  Level 1:  normal moles only, gentle intro
-  Level 2:  slightly faster spawns
-  Level 3:  combo system introduced (fast moles appear)
-  Level 4:  bonus moles introduced
-  Level 5:  friendly moles introduced
-  Level 6+: faster + full mix
-*/
 const LEVELS=[
   {label:'Level 1', goal:8,  timer:30, spawnMin:600, spawnMax:700, stayMin:1000,stayMax:500, moleWeights:[10,0,0,0], activeHoles:[2,3]},
   {label:'Level 2', goal:10, timer:30, spawnMin:480, spawnMax:600, stayMin:850, stayMax:450, moleWeights:[10,0,0,0], activeHoles:[0,2,3]},
@@ -1046,8 +1057,8 @@ const LEVELS=[
 
 /* ========== COMBO CONFIG ========== */
 const COMBO={
-  hotThreshold:5,   // combo ≥ 5 → 1.5x
-  fireThreshold:10, // combo ≥ 10 → 2x
+  hotThreshold:5,
+  fireThreshold:10,
   hotMult:1.5,
   fireMult:2.0,
 };
@@ -1059,7 +1070,7 @@ const state={
   running:false, interval:null, timerInterval:null,
   level:0,
   combo:0, maxCombo:0,
-  totalSpawned:0, totalMissed:0, // for accuracy (excludes friendly)
+  totalSpawned:0, totalMissed:0,
 };
 const holes=[];
 
@@ -1133,7 +1144,7 @@ function getComboMult(){
 
 function pickMoleType(){
   const lv=LEVELS[state.level];
-  const w=lv.moleWeights; // [normal,bonus,friendly,fast]
+  const w=lv.moleWeights;
   const total=w.reduce((a,b)=>a+b,0);
   let r=Math.random()*total;
   const types=['normal','bonus','friendly','fast'];
@@ -1150,7 +1161,6 @@ function setActiveHoles(){
     if(on){
       h.el.classList.remove('inactive');
     } else {
-      // hide and ensure any in-progress mole is fully cleared
       h.el.classList.add('inactive');
       h.active=false;
       if(h.moleEl)h.moleEl.className='mole';
@@ -1171,7 +1181,6 @@ function updateHUD(){
   bar.style.width=pct+'%';
   bar.className='hud-progress-bar '+getProgressColor(pct);
   document.getElementById('progressText').textContent=`${state.hits} / ${state.goal} Moles`;
-  // combo pill
   const cp=document.getElementById('comboPill');
   const cv=document.getElementById('comboVal');
   if(state.combo>=2){
@@ -1222,7 +1231,6 @@ function showMole(idx){
   const type=pickMoleType();
   h.moleType=type;
   const cfg=MOLE_TYPES[type];
-  // count hittable moles for accuracy
   if(type!=='friendly')state.totalSpawned++;
 
   h.moleEl.innerHTML=getMoleSVG(type,false);
@@ -1245,7 +1253,6 @@ function showMole(idx){
   const stayTime=(lv.stayMin+Math.random()*lv.stayMax)*cfg.stayMult;
   h.timeout=setTimeout(()=>{
     if(!state.running)return;
-    // mole escaped: reset combo for hittable types
     if(type!=='friendly'){
       state.totalMissed++;
       resetCombo();
@@ -1269,11 +1276,11 @@ function whack(idx){
   const cfg=MOLE_TYPES[type];
 
   if(type==='friendly'){
-    // PENALTY: deduct points, reset combo, red flash
     state.score=Math.max(0,state.score+cfg.points);
     h.moleEl.innerHTML=getMoleSVG(type,true);
     h.moleEl.className='mole bonked';
     AudioEngine.penalty();
+    window.gameHaptics.error();
     const pf=document.getElementById('penaltyFlash');
     pf.classList.add('flash');
     setTimeout(()=>pf.classList.remove('flash'),120);
@@ -1285,7 +1292,6 @@ function whack(idx){
     return;
   }
 
-  // NORMAL HIT
   const mult=getComboMult();
   const pts=Math.round(cfg.points*mult);
   state.score+=pts;
@@ -1297,18 +1303,16 @@ function whack(idx){
 
   if(type==='bonus')AudioEngine.bonus();
   else AudioEngine.bonk();
+  window.gameHaptics.tap();
 
-  // screen shake
   const game=document.getElementById('game');
   game.classList.remove('shake');void game.offsetWidth;game.classList.add('shake');
   setTimeout(()=>game.classList.remove('shake'),260);
 
-  // hit flash
   const flash=document.getElementById('hitFlash');
   flash.classList.add('flash');
   setTimeout(()=>flash.classList.remove('flash'),100);
 
-  // dirt burst particles
   const cell=h.el;
   const colors=type==='bonus'?['#FFD740','#FFB800','#FFF080','#C89020','#FFE040']
               :type==='fast' ?['#FF8040','#C04818','#FF6020','#8B3010','#FF9050']
@@ -1328,7 +1332,6 @@ function whack(idx){
 
   if(Math.random()<0.5)showBubble(idx,cfg.bonkBubbles[Math.floor(Math.random()*cfg.bonkBubbles.length)],'bonk-bubble');
 
-  // popup text: show multiplier if active
   const popText=mult>1?`+${pts} ${mult}×`:`+${pts}`;
   showPopup(idx,popText);
 
@@ -1340,7 +1343,6 @@ function whack(idx){
 /* ---- Spawn loop ---- */
 function spawnLoop(){
   if(!state.running)return;
-  // only consider holes that are both enabled for this level and not currently occupied
   const avail=holes.map((h,i)=>(h.enabled&&!h.active?i:-1)).filter(i=>i>=0);
   if(avail.length>0)showMole(avail[Math.floor(Math.random()*avail.length)]);
   const lv=LEVELS[state.level];
@@ -1359,11 +1361,10 @@ function calcStars(won){
 
 /* ---- Start / End ---- */
 function startGame(){
-  AudioEngine.init();AudioEngine.btn();
+  AudioEngine.init();AudioEngine.btn();window.gameHaptics.tap();
   const lv=LEVELS[state.level];
   state.score=0;state.hits=0;state.goal=lv.goal;state.timer=lv.timer;state.running=true;
   state.combo=0;state.maxCombo=0;state.totalSpawned=0;state.totalMissed=0;
-  // reset all holes first, then activate the correct set for this level
   holes.forEach(h=>{h.active=false;h.enabled=false;h.moleEl.className='mole';h.moleType='normal';clearTimeout(h.timeout)});
   setActiveHoles();
   document.getElementById('hudLevel').textContent=lv.label;
@@ -1383,7 +1384,7 @@ function startGame(){
 function endGame(won){
   state.running=false;clearTimeout(state.interval);clearInterval(state.timerInterval);
   holes.forEach(h=>{clearTimeout(h.timeout);h.moleEl.className='mole';h.active=false});
-  if(won)AudioEngine.win();else AudioEngine.lose();
+  if(won){AudioEngine.win();window.gameHaptics.success();}else{AudioEngine.lose();window.gameHaptics.error();}
 
   const header=document.getElementById('endHeader');
   const title=document.getElementById('endTitle');
@@ -1402,7 +1403,6 @@ function endGame(won){
     document.getElementById('endHeaderIcon').innerHTML='<rect x="2" y="2" width="24" height="24" rx="6" fill="#FF3D7F"/><circle cx="10" cy="12" r="3" fill="white"/><circle cx="18" cy="12" r="3" fill="white"/><path d="M9 20L11 18L13 20L15 18L17 20L19 18" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
   }
 
-  // Stars — animate in with stagger
   for(let s=0;s<3;s++){
     const el=document.getElementById(`endStar${s}`);
     el.className='end-star';
@@ -1411,14 +1411,12 @@ function endGame(won){
     }
   }
 
-  // Stats
   const hittable=state.totalSpawned;
   const acc=hittable>0?Math.round(((hittable-state.totalMissed)/hittable)*100):100;
   document.getElementById('endStatScore').textContent=state.score;
   document.getElementById('endStatCombo').textContent=`x${state.maxCombo}`;
   document.getElementById('endStatAcc').textContent=`${acc}%`;
 
-  // Next level hint
   const nextEl=document.getElementById('endNext');
   if(won&&!isLastLevel){
     const nextLv=LEVELS[state.level+1];
@@ -1434,26 +1432,21 @@ function endGame(won){
   document.getElementById('endScore').textContent=`Score: ${state.score} (${state.hits}/${state.goal} moles)`;
   document.getElementById('endProgressFill').style.width=pct+'%';
 
-  // Configure the action button based on outcome
   const actionBtn=document.getElementById('actionBtn');
   if(!won){
-    // Loss → Retry (same level, level not advanced)
     actionBtn.className='end-btn retry';
     actionBtn.dataset.action='retry';
     actionBtn.innerHTML=ICON_RETRY;
   } else if(isLastLevel){
-    // Final level win → Play Again (resets to level 1)
     actionBtn.className='end-btn playagain';
     actionBtn.dataset.action='playagain';
     actionBtn.innerHTML=ICON_PLAYAGAIN;
   } else {
-    // Mid-game win → Continue (advances to next level)
     actionBtn.className='end-btn continue';
     actionBtn.dataset.action='continue';
     actionBtn.innerHTML=ICON_CONTINUE;
   }
 
-  // Advance level on win now (after button is configured)
   if(won&&!isLastLevel)state.level=Math.min(state.level+1,LEVELS.length-1);
   const retryLv=LEVELS[state.level];
   document.getElementById('hudLevel').textContent=retryLv.label;
@@ -1464,22 +1457,19 @@ document.getElementById('playBtn').addEventListener('click',startGame);
 
 /* ---- Action button icons ---- */
 const ICON_RETRY    =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
-const ICON_CONTINUE =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`;
+const ICON_CONTINUE =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14"/><path d="M12 6l6 6-6 6"/></svg>`;
 const ICON_PLAYAGAIN=`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
 
 /* ---- Action button handler ---- */
 document.getElementById('actionBtn').addEventListener('click',()=>{
-  AudioEngine.btn();
+  AudioEngine.btn();window.gameHaptics.tap();
   const action=document.getElementById('actionBtn').dataset.action;
   if(action==='continue'){
-    // level was already advanced in endGame — just start
     startGame();
   } else if(action==='playagain'){
-    // final level cleared — reset to level 1
     state.level=0;
     startGame();
   } else {
-    // retry — startGame uses current state.level (unchanged on loss)
     startGame();
   }
 });
@@ -1487,26 +1477,24 @@ document.getElementById('actionBtn').addEventListener('click',()=>{
 function triggerMascotReveal(){
   const mb=document.getElementById('mascotBody');
   if(!mb)return;
-  // reset by removing and re-adding the class, forcing animation restart
   mb.classList.remove('revealed');
-  void mb.offsetWidth; // reflow
+  void mb.offsetWidth;
   mb.classList.add('revealed');
 }
 
 document.getElementById('homeBtn').addEventListener('click',()=>{
-  AudioEngine.btn();
+  AudioEngine.btn();window.gameHaptics.tap();
   state.level=0;
   document.getElementById('startLevelLabel').textContent=LEVELS[0].label;
   document.getElementById('endOverlay').classList.remove('show');
   document.getElementById('startOverlay').classList.remove('hidden');
-  // small delay so overlay is visible before animation fires
   setTimeout(triggerMascotReveal,80);
 });
 
 // Sound toggle
 const soundBtn=document.getElementById('soundToggle');
 soundBtn.addEventListener('click',()=>{
-  AudioEngine.init();
+  AudioEngine.init();window.gameHaptics.tap();
   const on=AudioEngine.toggle();
   soundBtn.innerHTML=on
     ?'<svg viewBox="0 0 24 24" fill="white"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 8.5v7a4.49 4.49 0 002.5-3.5zM14 3.23v2.06a6.5 6.5 0 010 13.42v2.06A8.5 8.5 0 0014 3.23z"/></svg>'
@@ -1514,7 +1502,6 @@ soundBtn.addEventListener('click',()=>{
 });
 
 updateHUD();
-// trigger reveal on first load
 setTimeout(triggerMascotReveal,200);
 </script>
 </body>
