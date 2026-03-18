@@ -437,6 +437,59 @@ body {
   font-size: 18px;
   letter-spacing: 0.5px;
 }
+
+/* ============================================================
+   AUDIO TOGGLE CONTROLS — used on start screen and in-game HUD
+   ============================================================ */
+.audio-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.audio-toggle {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.audio-toggle:hover { background: rgba(78, 205, 196, 0.1); }
+.audio-toggle .toggle-icon { font-size: 15px; line-height: 1; }
+.audio-toggle .toggle-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.audio-toggle.on { border-color: rgba(78, 205, 196, 0.3); }
+.audio-toggle.on .toggle-label { color: var(--accent); }
+.audio-toggle.off { opacity: 0.5; }
+
+/* In-game HUD audio toggles — compact */
+.hud-audio-controls {
+  display: flex; gap: 6px;
+}
+.hud-audio-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.2s, opacity 0.2s;
+  backdrop-filter: blur(8px);
+  -webkit-tap-highlight-color: transparent;
+}
+.hud-audio-btn:hover { background: rgba(78, 205, 196, 0.15); }
+.hud-audio-btn.off { opacity: 0.4; }
 .btn-play-hero::after {
   content: '';
   position: absolute; inset: -2px;
@@ -494,6 +547,14 @@ body {
 #confetti-canvas {
   position: fixed; inset: 0;
   z-index: 200; pointer-events: none;
+}
+
+/* ============================================================
+   FOREGROUND PARTICLES (parallax motes — above game, below overlays)
+   ============================================================ */
+#fg-canvas {
+  position: fixed; inset: 0;
+  z-index: 2; pointer-events: none;
 }
 
 /* ============================================================
@@ -600,6 +661,8 @@ body {
 <canvas id="bg-canvas"></canvas>
 <!-- Confetti layer -->
 <canvas id="confetti-canvas"></canvas>
+<!-- Foreground particle layer (parallax motes) -->
+<canvas id="fg-canvas"></canvas>
 
 <!-- ============================================================
      GAME CONTAINER
@@ -611,7 +674,10 @@ body {
     <div class="stat-pill score"><span class="icon">♦</span> <span id="dispScore">0</span></div>
     <div class="stat-pill stars"><span class="icon">★</span> <span id="dispStars">5</span></div>
     <div class="top-bar-actions">
-      <div class="icon-btn" id="btnSound" title="Toggle Sound">🔊</div>
+      <div class="hud-audio-controls">
+        <div class="hud-audio-btn" id="hudToggleMusic" title="Toggle Music">🎵</div>
+        <div class="hud-audio-btn" id="hudToggleSfx" title="Toggle SFX">🔊</div>
+      </div>
       <div class="icon-btn" id="btnLeaderboard" title="Leaderboard">🏆</div>
     </div>
   </div>
@@ -648,6 +714,18 @@ body {
         <div class="top-player-label">Global #1</div>
         <div class="top-player-name" id="topPlayerName">—</div>
         <div class="top-player-stats" id="topPlayerStats"></div>
+      </div>
+    </div>
+
+    <!-- Audio Controls -->
+    <div class="audio-controls">
+      <div class="audio-toggle on" id="startToggleMusic">
+        <span class="toggle-icon">🎵</span>
+        <span class="toggle-label">Music</span>
+      </div>
+      <div class="audio-toggle on" id="startToggleSfx">
+        <span class="toggle-icon">🔊</span>
+        <span class="toggle-label">SFX</span>
       </div>
     </div>
 
@@ -834,94 +912,173 @@ function getTopPlayer() {
 
 /* =============================================================
    LEVEL CONFIGURATION
+   =============================================================
+   Pacing philosophy:
+     - Levels 1–4: Confidence-building. Few cards, slow reveals,
+       low-to-zero shuffle. Numbers cluster near each other so
+       the player's eyes stay in one zone.
+     - Levels 5–8: Comfortable growth. Card counts rise gently,
+       shuffle loosens, reveal speed dips subtly. Player starts
+       genuinely memorizing rather than just scanning.
+     - Levels 9–12: Real challenge. Larger grids, faster reveals,
+       full shuffle. This is where practiced players feel engaged.
+     - Levels 13+: Dynamic scaling — always fully random.
    ============================================================= */
 const LEVEL_CONFIG = [
-  // cards          — number of cards on the grid
-  // revealTime     — ms each card stays highlighted during the reveal sequence
-  // starsReward    — stars earned for completing this level
-  // shuffleIntensity — 0 = ordered, 0‑0.35 = light, 0.35‑0.7 = moderate, 0.7‑1 = full
-  //
-  // Design notes:
-  //   Lv 1      : tutorial feel — cards in order, slow reveal
-  //   Lv 2‑3    : same card count, light shuffle so positions drift slightly
-  //   Lv 4‑6    : more cards + moderate shuffle — player must truly memorize
-  //   Lv 7‑9    : larger grids + faster reveal + near‑full shuffle
-  //   Lv 10‑12  : high card count + fast reveal + full shuffle
-  //   Lv 13+    : dynamic scaling — always full shuffle
-
-  { cards: 4,  revealTime: 900,  starsReward: 1, shuffleIntensity: 0    },  // Lv 1  — no shuffle
-  { cards: 4,  revealTime: 800,  starsReward: 1, shuffleIntensity: 0.2  },  // Lv 2  — light
-  { cards: 6,  revealTime: 850,  starsReward: 2, shuffleIntensity: 0.3  },  // Lv 3  — light
-  { cards: 6,  revealTime: 750,  starsReward: 2, shuffleIntensity: 0.45 },  // Lv 4  — moderate
-  { cards: 8,  revealTime: 800,  starsReward: 2, shuffleIntensity: 0.5  },  // Lv 5  — moderate
-  { cards: 8,  revealTime: 700,  starsReward: 3, shuffleIntensity: 0.6  },  // Lv 6  — moderate
-  { cards: 9,  revealTime: 750,  starsReward: 3, shuffleIntensity: 0.75 },  // Lv 7  — full
-  { cards: 10, revealTime: 700,  starsReward: 3, shuffleIntensity: 0.8  },  // Lv 8  — full
-  { cards: 10, revealTime: 600,  starsReward: 3, shuffleIntensity: 0.85 },  // Lv 9  — full
-  { cards: 12, revealTime: 650,  starsReward: 4, shuffleIntensity: 0.9  },  // Lv 10 — full
-  { cards: 12, revealTime: 550,  starsReward: 4, shuffleIntensity: 0.95 },  // Lv 11 — full
-  { cards: 15, revealTime: 600,  starsReward: 5, shuffleIntensity: 1.0  },  // Lv 12 — full
-  { cards: 16, revealTime: 550,  starsReward: 5, shuffleIntensity: 1.0  },  // Lv 13 — full
+  { cards: 4,  revealTime: 1000, starsReward: 1, shuffleIntensity: 0,    clusterAssist: 1.0  },  // Lv 1  — pure tutorial
+  { cards: 4,  revealTime: 900,  starsReward: 1, shuffleIntensity: 0.1,  clusterAssist: 0.9  },  // Lv 2  — barely shuffled
+  { cards: 4,  revealTime: 850,  starsReward: 1, shuffleIntensity: 0.15, clusterAssist: 0.8  },  // Lv 3  — gentle warmup
+  { cards: 6,  revealTime: 900,  starsReward: 1, shuffleIntensity: 0.2,  clusterAssist: 0.7  },  // Lv 4  — first grid expansion
+  { cards: 6,  revealTime: 850,  starsReward: 2, shuffleIntensity: 0.3,  clusterAssist: 0.5  },  // Lv 5  — light shuffle
+  { cards: 6,  revealTime: 800,  starsReward: 2, shuffleIntensity: 0.4,  clusterAssist: 0.3  },  // Lv 6  — moderate
+  { cards: 8,  revealTime: 850,  starsReward: 2, shuffleIntensity: 0.45, clusterAssist: 0.15 },  // Lv 7  — gentle step up
+  { cards: 8,  revealTime: 800,  starsReward: 2, shuffleIntensity: 0.55, clusterAssist: 0.1  },  // Lv 8  — settling in
+  { cards: 9,  revealTime: 780,  starsReward: 3, shuffleIntensity: 0.6,  clusterAssist: 0.05 },  // Lv 9  — slight push
+  { cards: 9,  revealTime: 750,  starsReward: 3, shuffleIntensity: 0.7,  clusterAssist: 0    },  // Lv 10 — committed
+  { cards: 10, revealTime: 720,  starsReward: 3, shuffleIntensity: 0.8,  clusterAssist: 0    },  // Lv 11 — serious
+  { cards: 12, revealTime: 650,  starsReward: 4, shuffleIntensity: 0.9,  clusterAssist: 0    },  // Lv 12 — hard
+  { cards: 12, revealTime: 550,  starsReward: 4, shuffleIntensity: 1.0,  clusterAssist: 0    },  // Lv 13 — full random
+  { cards: 15, revealTime: 550,  starsReward: 5, shuffleIntensity: 1.0,  clusterAssist: 0    },  // Lv 14 — endgame
+  { cards: 16, revealTime: 500,  starsReward: 5, shuffleIntensity: 1.0,  clusterAssist: 0    },  // Lv 15 — endgame
 ];
 
 function getLevelConfig(level) {
   if (level <= LEVEL_CONFIG.length) return { ...LEVEL_CONFIG[level - 1] };
-  // Beyond defined levels: scale dynamically, always full shuffle
   const last = LEVEL_CONFIG[LEVEL_CONFIG.length - 1];
   const extra = level - LEVEL_CONFIG.length;
   return {
     cards: Math.min(20, last.cards + extra),
-    revealTime: Math.max(350, last.revealTime - extra * 20),
+    revealTime: Math.max(350, last.revealTime - extra * 15),
     starsReward: Math.min(8, last.starsReward + Math.floor(extra / 2)),
     shuffleIntensity: 1.0,
+    clusterAssist: 0,
   };
 }
 
 /* =============================================================
-   CONTROLLED SHUFFLE SYSTEM
+   SMART PLACEMENT SYSTEM
    =============================================================
-   Produces an array of numbers [1..count] placed into grid positions.
-   - intensity 0   → [1, 2, 3, 4, ...]  (perfectly ordered)
-   - intensity 0.5 → roughly half the cards swap with a nearby neighbor
-   - intensity 1   → full Fisher‑Yates shuffle (any card anywhere)
+   Generates card positions that feel natural and intentionally
+   designed rather than purely algorithmic.
 
-   The algorithm works in two stages:
-   1. Decide HOW MANY swaps to perform (proportional to intensity × count)
-   2. Decide HOW FAR each swap can reach (low intensity → adjacent only,
-      high intensity → any distance)
-   This keeps early levels feeling "almost ordered with a couple quirks"
-   and later levels genuinely random.
+   Key design: clustered numbers are ANCHORED. The shuffle stage
+   only operates on the remaining (non-anchored) slots. This
+   prevents the randomization pass from scattering the carefully
+   placed early numbers across the board.
+
+   1. CLUSTER ASSIST (early levels): Numbers 1–4 are placed in
+      adjacent grid cells near a randomly chosen corner/edge.
+      These positions are locked — the shuffle cannot move them.
+
+   2. CONTROLLED SHUFFLE (non-anchored slots only): The remaining
+      numbers are randomized within their open slots at an
+      intensity that scales with the level.
+
+   3. MICRO-JITTER (optional): When clusterAssist is active,
+      anchored numbers may swap with an immediate neighbor
+      (1 cell away) with low probability, keeping layouts fresh
+      without breaking the cluster.
    ============================================================= */
-function shufflePositions(count, intensity) {
-  // Start with ordered array [1, 2, 3, ... count]
-  const arr = Array.from({ length: count }, (_, i) => i + 1);
+function generatePositions(count, shuffleIntensity, clusterAssist) {
+  const cols = getGridCols(count);
+  const rows = Math.ceil(count / cols);
 
-  if (intensity <= 0) return arr;
+  // Track which grid indices are anchored (protected from shuffle)
+  const anchored = new Set();
+  const result = new Array(count);
 
-  if (intensity >= 0.95) {
-    // Full Fisher-Yates shuffle for high intensity (most efficient)
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
+  // --- Stage 1: Cluster assist — anchor early numbers ---
+  if (clusterAssist > 0 && count >= 4) {
+    const assistCount = Math.min(4, count);
+
+    // Pick a random corner zone to cluster near
+    const startCol = Math.random() < 0.5 ? 0 : Math.max(0, cols - 2);
+    const startRow = Math.random() < 0.5 ? 0 : Math.max(0, rows - 2);
+
+    // Gather candidate grid indices in that local zone
+    const zone = [];
+    for (let r = startRow; r < rows && zone.length < assistCount + 2; r++) {
+      for (let c = startCol; c < cols && zone.length < assistCount + 2; c++) {
+        const idx = r * cols + c;
+        if (idx < count) zone.push(idx);
+      }
     }
-    return arr;
+
+    // Place numbers 1..assistCount into zone slots (probabilistic)
+    for (let n = 1; n <= assistCount; n++) {
+      if (Math.random() < clusterAssist && zone.length > 0) {
+        const pick = Math.floor(Math.random() * zone.length);
+        const gridIdx = zone[pick];
+        result[gridIdx] = n;
+        anchored.add(gridIdx);
+        zone.splice(pick, 1);
+      }
+    }
   }
 
-  // Partial shuffle: number of swap passes scales with intensity
-  const numSwaps = Math.ceil(count * intensity * 0.8);
-  // Maximum swap distance scales with intensity (1 = adjacent, count = anywhere)
-  const maxDist = Math.max(1, Math.floor(count * intensity));
-
-  for (let s = 0; s < numSwaps; s++) {
-    const i = Math.floor(Math.random() * count);
-    // Pick a swap partner within maxDist positions
-    const minJ = Math.max(0, i - maxDist);
-    const maxJ = Math.min(count - 1, i + maxDist);
-    const j = minJ + Math.floor(Math.random() * (maxJ - minJ + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  // --- Stage 2: Fill remaining slots with unplaced numbers ---
+  const placedNums = new Set(anchored.size > 0
+    ? Array.from(anchored).map(idx => result[idx])
+    : []);
+  const remaining = [];
+  for (let n = 1; n <= count; n++) {
+    if (!placedNums.has(n)) remaining.push(n);
+  }
+  const openSlots = [];
+  for (let i = 0; i < count; i++) {
+    if (!anchored.has(i)) openSlots.push(i);
   }
 
-  return arr;
+  // Shuffle the remaining numbers before placing them
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+
+  // --- Stage 3: Controlled shuffle of open slots only ---
+  // Apply intensity-scaled swaps ONLY among the open slot indices
+  if (shuffleIntensity > 0 && shuffleIntensity < 0.95) {
+    const n = openSlots.length;
+    const numSwaps = Math.ceil(n * shuffleIntensity * 0.7);
+    const maxDist = Math.max(1, Math.floor(n * shuffleIntensity * 0.8));
+    for (let s = 0; s < numSwaps; s++) {
+      const a = Math.floor(Math.random() * n);
+      const lo = Math.max(0, a - maxDist);
+      const hi = Math.min(n - 1, a + maxDist);
+      const b = lo + Math.floor(Math.random() * (hi - lo + 1));
+      [remaining[a], remaining[b]] = [remaining[b], remaining[a]];
+    }
+  }
+  // For very high intensity (no assist active anyway), full shuffle is already done above
+
+  // Place shuffled remaining numbers into open slots
+  openSlots.forEach((slot, i) => { result[slot] = remaining[i]; });
+
+  // --- Stage 4: Micro-jitter for anchored numbers ---
+  // Swap an anchored number with an adjacent anchored neighbor occasionally
+  // so layouts don't feel identical across replays
+  if (anchored.size >= 2 && clusterAssist < 1.0) {
+    const anchoredArr = Array.from(anchored);
+    for (let i = 0; i < anchoredArr.length; i++) {
+      if (Math.random() < 0.25) { // 25% chance per anchored card
+        // Find an adjacent anchored neighbor
+        const idx = anchoredArr[i];
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const neighbors = [];
+        if (col > 0 && anchored.has(idx - 1)) neighbors.push(idx - 1);
+        if (col < cols - 1 && anchored.has(idx + 1)) neighbors.push(idx + 1);
+        if (row > 0 && anchored.has(idx - cols)) neighbors.push(idx - cols);
+        if (row < rows - 1 && anchored.has(idx + cols)) neighbors.push(idx + cols);
+        if (neighbors.length > 0) {
+          const swap = neighbors[Math.floor(Math.random() * neighbors.length)];
+          [result[idx], result[swap]] = [result[swap], result[idx]];
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 /* =============================================================
@@ -939,7 +1096,8 @@ let state = {
   isRevealing: false,
   isPlaying: false,
   levelStartTime: 0,
-  soundOn: true,
+  musicOn: true,      // ambient music toggle (independent)
+  sfxOn: true,        // sound effects toggle (independent)
   cardPositions: [],  // shuffled array — cardPositions[gridIndex] = number shown
 };
 
@@ -953,7 +1111,7 @@ function ensureAudio() {
 }
 
 function playTone(freq, duration, type = 'sine', vol = 0.15, decay = true) {
-  if (!state.soundOn || !audioCtx) return;
+  if (!state.sfxOn || !audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = type;
@@ -986,21 +1144,182 @@ function sfxReveal(i) {
   playTone(400 + i * 30, 0.12, 'triangle', 0.06);
 }
 
-// Ambient background drone (very subtle)
-let bgDrone = null;
+/* =============================================================
+   AMBIENT MUSIC ENGINE — Procedural dreamy background bed
+   =============================================================
+   Generates a soft, evolving ambient soundscape using layered
+   sine-wave pads, a low drone, and gentle shimmer. Designed to
+   feel like a calm mental space — never distracting, always
+   atmospheric. All synthesis is procedural via Web Audio API.
+
+   Architecture:
+     masterBus (GainNode, overall volume + fade control)
+       ├── droneOsc  (very low sine, steady foundation)
+       ├── padVoices (2–3 detuned sines per chord, slow crossfade)
+       └── shimmer   (high filtered noise, barely audible sparkle)
+
+   The engine schedules chord changes on a slow timer so the
+   harmonic content evolves gently over time.
+   ============================================================= */
+let ambientMusic = null;
+
 function startBGMusic() {
-  if (!audioCtx || !state.soundOn || bgDrone) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-  gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  bgDrone = { osc, gain };
+  if (!audioCtx || !state.musicOn || ambientMusic) return;
+
+  const ac = audioCtx;
+  const now = ac.currentTime;
+
+  // Master bus for the entire ambient bed — very quiet
+  const masterBus = ac.createGain();
+  masterBus.gain.setValueAtTime(0, now);
+  masterBus.gain.linearRampToValueAtTime(1.0, now + 2.0); // Fade in over 2s
+  masterBus.connect(ac.destination);
+
+  // --- Layer 1: Sub drone (barely audible low foundation) ---
+  const droneGain = ac.createGain();
+  droneGain.gain.value = 0.012;
+  droneGain.connect(masterBus);
+
+  const droneOsc = ac.createOscillator();
+  droneOsc.type = 'sine';
+  droneOsc.frequency.value = 55; // A1 — deep sub
+  droneOsc.connect(droneGain);
+  droneOsc.start(now);
+
+  // Second drone harmonic, octave + fifth up, very quiet
+  const droneOsc2 = ac.createOscillator();
+  droneOsc2.type = 'sine';
+  droneOsc2.frequency.value = 82.5; // E2
+  const droneGain2 = ac.createGain();
+  droneGain2.gain.value = 0.006;
+  droneOsc2.connect(droneGain2);
+  droneGain2.connect(masterBus);
+  droneOsc2.start(now);
+
+  // --- Layer 2: Evolving pad chords ---
+  // Chord palette — calm, minor/sus voicings in Hz
+  const chords = [
+    [164.81, 246.94, 329.63],  // E3, B3, E4
+    [146.83, 220.00, 329.63],  // D3, A3, E4
+    [130.81, 196.00, 293.66],  // C3, G3, D4
+    [146.83, 220.00, 277.18],  // D3, A3, C#4
+  ];
+
+  const padGain = ac.createGain();
+  padGain.gain.value = 0.018;
+  // Low-pass filter for warmth
+  const padFilter = ac.createBiquadFilter();
+  padFilter.type = 'lowpass';
+  padFilter.frequency.value = 600;
+  padFilter.Q.value = 0.5;
+  padFilter.connect(padGain);
+  padGain.connect(masterBus);
+
+  let padOscs = [];
+  let chordIdx = Math.floor(Math.random() * chords.length);
+
+  function playPadChord() {
+    if (!ambientMusic) return;
+    const ac2 = audioCtx;
+    if (!ac2) return;
+    const t = ac2.currentTime;
+
+    // Fade out old oscillators
+    padOscs.forEach(o => {
+      o.gain.gain.setValueAtTime(o.gain.gain.value, t);
+      o.gain.gain.linearRampToValueAtTime(0, t + 3.0);
+      o.osc.stop(t + 3.5);
+    });
+
+    // Create new voices
+    const chord = chords[chordIdx % chords.length];
+    const newOscs = [];
+    chord.forEach((freq, i) => {
+      const osc = ac2.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = (i - 1) * 3 + (Math.random() - 0.5) * 4; // Subtle detune
+
+      const g = ac2.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.4 + Math.random() * 0.15, t + 3.5); // Slow attack
+
+      osc.connect(g);
+      g.connect(padFilter);
+      osc.start(t);
+      newOscs.push({ osc, gain: g });
+    });
+
+    padOscs = newOscs;
+    chordIdx++;
+  }
+
+  // Play first chord immediately, then schedule changes
+  playPadChord();
+  const chordInterval = setInterval(() => {
+    if (!ambientMusic) { clearInterval(chordInterval); return; }
+    playPadChord();
+  }, 8000); // Change chord every 8 seconds
+
+  // --- Layer 3: Shimmer (filtered noise, barely there) ---
+  const shimmerGain = ac.createGain();
+  shimmerGain.gain.value = 0.004;
+
+  const shimmerFilter = ac.createBiquadFilter();
+  shimmerFilter.type = 'bandpass';
+  shimmerFilter.frequency.value = 3000;
+  shimmerFilter.Q.value = 0.3;
+
+  // Create noise buffer
+  const bufLen = ac.sampleRate * 2;
+  const noiseBuf = ac.createBuffer(1, bufLen, ac.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
+
+  const shimmerSrc = ac.createBufferSource();
+  shimmerSrc.buffer = noiseBuf;
+  shimmerSrc.loop = true;
+  shimmerSrc.connect(shimmerFilter);
+  shimmerFilter.connect(shimmerGain);
+  shimmerGain.connect(masterBus);
+  shimmerSrc.start(now);
+
+  // Store references for cleanup
+  ambientMusic = {
+    masterBus,
+    droneOsc, droneOsc2,
+    padOscs,
+    shimmerSrc,
+    chordInterval,
+    padFilter, padGain, droneGain, droneGain2, shimmerGain, shimmerFilter,
+  };
 }
+
 function stopBGMusic() {
-  if (bgDrone) { bgDrone.osc.stop(); bgDrone = null; }
+  if (!ambientMusic || !audioCtx) { ambientMusic = null; return; }
+
+  const ac = audioCtx;
+  const now = ac.currentTime;
+  const fadeTime = 1.5;
+
+  // Gentle fade out the master bus
+  ambientMusic.masterBus.gain.setValueAtTime(ambientMusic.masterBus.gain.value, now);
+  ambientMusic.masterBus.gain.linearRampToValueAtTime(0, now + fadeTime);
+
+  // Schedule cleanup after fade completes
+  const ref = ambientMusic;
+  ambientMusic = null;
+  clearInterval(ref.chordInterval);
+
+  setTimeout(() => {
+    try {
+      ref.droneOsc.stop();
+      ref.droneOsc2.stop();
+      ref.shimmerSrc.stop();
+      ref.padOscs.forEach(o => { try { o.osc.stop(); } catch(e) {} });
+      ref.masterBus.disconnect();
+    } catch (e) { /* nodes may already be stopped */ }
+  }, (fadeTime + 0.2) * 1000);
 }
 
 /* =============================================================
@@ -1268,8 +1587,8 @@ function startLevel() {
   updateHUD();
   topBar.style.visibility = 'visible';
 
-  // Generate shuffled card positions based on level's shuffle intensity
-  const positions = shufflePositions(cfg.cards, cfg.shuffleIntensity);
+  // Generate card positions using smart placement + controlled shuffle
+  const positions = generatePositions(cfg.cards, cfg.shuffleIntensity, cfg.clusterAssist);
   buildCards(cfg.cards, positions);
 
   // Start reveal — cards shown one at a time in number order
@@ -1304,6 +1623,8 @@ function returnToStart() {
   state.currentStep = 0;
   pendingScore = null;
 
+  // Music continues on the start screen — do NOT stop it here
+
   // Hide all game overlays
   hideOverlay(winOverlay);
   hideOverlay(loseOverlay);
@@ -1317,6 +1638,7 @@ function returnToStart() {
   // Refresh start screen data and show it
   displayRandomQuote();
   renderTopPlayer();
+  syncAudioUI();
   showOverlay(startOverlay);
 }
 
@@ -1430,11 +1752,66 @@ if (window._fbReady) {
 }
 
 /* =============================================================
+   AUDIO TOGGLE HELPERS — sync UI state across start screen + HUD
+   ============================================================= */
+function syncAudioUI() {
+  // Start screen toggles
+  const sm = $('#startToggleMusic');
+  const ss = $('#startToggleSfx');
+  if (sm) {
+    sm.classList.toggle('on', state.musicOn);
+    sm.classList.toggle('off', !state.musicOn);
+    sm.querySelector('.toggle-icon').textContent = state.musicOn ? '🎵' : '🚫';
+  }
+  if (ss) {
+    ss.classList.toggle('on', state.sfxOn);
+    ss.classList.toggle('off', !state.sfxOn);
+    ss.querySelector('.toggle-icon').textContent = state.sfxOn ? '🔊' : '🔇';
+  }
+  // In-game HUD toggles
+  const hm = $('#hudToggleMusic');
+  const hs = $('#hudToggleSfx');
+  if (hm) {
+    hm.textContent = state.musicOn ? '🎵' : '🚫';
+    hm.classList.toggle('off', !state.musicOn);
+  }
+  if (hs) {
+    hs.textContent = state.sfxOn ? '🔊' : '🔇';
+    hs.classList.toggle('off', !state.sfxOn);
+  }
+}
+
+function toggleMusic() {
+  ensureAudio();
+  state.musicOn = !state.musicOn;
+  if (state.musicOn) { startBGMusic(); }
+  else { stopBGMusic(); }
+  syncAudioUI();
+}
+
+function toggleSfx() {
+  state.sfxOn = !state.sfxOn;
+  syncAudioUI();
+}
+
+/* =============================================================
    EVENT LISTENERS
    ============================================================= */
+
+// --- Start screen audio toggles (also triggers audio context) ---
+$('#startToggleMusic').addEventListener('click', () => {
+  toggleMusic();
+});
+$('#startToggleSfx').addEventListener('click', () => {
+  ensureAudio();
+  toggleSfx();
+});
+
+// --- Play button: start game, ensure music continuity ---
 $('#btnPlay').addEventListener('click', () => {
   ensureAudio();
-  startBGMusic();
+  // Start music if enabled and not already playing
+  if (state.musicOn) startBGMusic();
   hideOverlay(startOverlay);
   setTimeout(() => startGame(), 300);
 });
@@ -1450,27 +1827,21 @@ $('#btnLBClose').addEventListener('click', () => { hideOverlay(lbOverlay); });
 $('#btnNickSave').addEventListener('click', async () => {
   if (!pendingScore) return;
   const name = sanitizeNick($('#nickInput').value);
-  // Disable button while saving
   const btn = $('#btnNickSave');
   btn.textContent = 'Saving…';
   btn.style.pointerEvents = 'none';
   await addToLeaderboard(name, pendingScore.score, pendingScore.level);
   btn.textContent = 'Save';
   btn.style.pointerEvents = '';
-  // Return to start screen — refreshes top player and cleans up run state
   returnToStart();
 });
 $('#btnNickSkip').addEventListener('click', () => {
   returnToStart();
 });
 
-// Sound toggle
-$('#btnSound').addEventListener('click', () => {
-  state.soundOn = !state.soundOn;
-  $('#btnSound').textContent = state.soundOn ? '🔊' : '🔇';
-  if (state.soundOn) { ensureAudio(); startBGMusic(); }
-  else { stopBGMusic(); }
-});
+// --- In-game HUD audio toggles ---
+$('#hudToggleMusic').addEventListener('click', toggleMusic);
+$('#hudToggleSfx').addEventListener('click', toggleSfx);
 
 $('#btnLeaderboard').addEventListener('click', async () => {
   showOverlay(lbOverlay);
@@ -1579,6 +1950,67 @@ function animBG() {
   requestAnimationFrame(animBG);
 }
 animBG();
+
+/* =============================================================
+   FOREGROUND PARTICLES — Slow-drifting motes for parallax depth
+   =============================================================
+   Larger, slower, lower-opacity particles that drift across the
+   screen at a different speed than the background layer, creating
+   a subtle sense of depth. They move mostly laterally with a
+   gentle sine-wave vertical drift for organic motion.
+   ============================================================= */
+const fgCanvas = document.getElementById('fg-canvas');
+const fgCtx = fgCanvas.getContext('2d');
+let fgParticles = [];
+
+function resizeFG() {
+  fgCanvas.width = window.innerWidth;
+  fgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeFG);
+resizeFG();
+
+for (let i = 0; i < 10; i++) {
+  fgParticles.push({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    r: 1 + Math.random() * 1.5,
+    vx: 0.06 + Math.random() * 0.1,          // Very slow rightward drift
+    phase: Math.random() * Math.PI * 2,       // Sine wave phase offset
+    waveAmp: 6 + Math.random() * 12,          // Gentle vertical wave
+    waveSpeed: 0.002 + Math.random() * 0.003, // Slow oscillation
+    alpha: 0.025 + Math.random() * 0.035,     // Barely-there opacity
+    baseY: Math.random() * window.innerHeight,
+  });
+}
+
+function animFG() {
+  fgCtx.clearRect(0, 0, fgCanvas.width, fgCanvas.height);
+  fgParticles.forEach(p => {
+    p.x += p.vx;
+    p.phase += p.waveSpeed;
+    p.y = p.baseY + Math.sin(p.phase) * p.waveAmp;
+
+    // Wrap around horizontally
+    if (p.x > fgCanvas.width + 10) {
+      p.x = -10;
+      p.baseY = Math.random() * fgCanvas.height;
+    }
+
+    // Compact soft dot — smaller glow radius to avoid covering cards
+    const glowR = p.r * 2;
+    const grad = fgCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+    grad.addColorStop(0, `rgba(167, 139, 250, ${p.alpha * 1.2})`);
+    grad.addColorStop(0.5, `rgba(78, 205, 196, ${p.alpha * 0.6})`);
+    grad.addColorStop(1, 'transparent');
+    fgCtx.fillStyle = grad;
+    fgCtx.beginPath();
+    fgCtx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
+    fgCtx.fill();
+  });
+  requestAnimationFrame(animFG);
+}
+animFG();
 
 /* =============================================================
    PREVENT DOUBLE-TAP ZOOM & PULL-TO-REFRESH
