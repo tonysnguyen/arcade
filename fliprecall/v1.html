@@ -1293,16 +1293,44 @@ function retryLevel() {
   setTimeout(() => startLevel(), 300);
 }
 
+/**
+ * returnToStart — cleanly end the current run and show the start screen.
+ * Resets all play state so no lingering level/overlay issues remain.
+ */
+function returnToStart() {
+  // Reset game state
+  state.isPlaying = false;
+  state.isRevealing = false;
+  state.currentStep = 0;
+  pendingScore = null;
+
+  // Hide all game overlays
+  hideOverlay(winOverlay);
+  hideOverlay(loseOverlay);
+  hideOverlay(nickOverlay);
+  hideOverlay(lbOverlay);
+
+  // Hide the gameplay HUD and clear the card grid
+  topBar.style.visibility = 'hidden';
+  cardGrid.innerHTML = '';
+
+  // Refresh start screen data and show it
+  displayRandomQuote();
+  renderTopPlayer();
+  showOverlay(startOverlay);
+}
+
 function restartGame() {
   hideOverlay(loseOverlay);
-  // Check leaderboard
+  // Check leaderboard qualification
   if (isLeaderboardWorthy(state.score) && state.score > 0) {
     pendingScore = { score: state.score, level: state.highestLevel };
     showOverlay(nickOverlay);
     $('#nickInput').value = '';
     $('#nickInput').focus();
   } else {
-    setTimeout(() => startGame(), 300);
+    // Return to start screen so the player can choose to play again
+    returnToStart();
   }
 }
 
@@ -1429,15 +1457,11 @@ $('#btnNickSave').addEventListener('click', async () => {
   await addToLeaderboard(name, pendingScore.score, pendingScore.level);
   btn.textContent = 'Save';
   btn.style.pointerEvents = '';
-  pendingScore = null;
-  hideOverlay(nickOverlay);
-  await renderLeaderboard();
-  showOverlay(lbOverlay);
+  // Return to start screen — refreshes top player and cleans up run state
+  returnToStart();
 });
 $('#btnNickSkip').addEventListener('click', () => {
-  pendingScore = null;
-  hideOverlay(nickOverlay);
-  setTimeout(() => startGame(), 300);
+  returnToStart();
 });
 
 // Sound toggle
