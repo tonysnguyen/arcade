@@ -638,6 +638,103 @@ body,html{width:100%;height:100%;overflow:hidden;
 .end-btn svg{width:24px;height:24px;flex-shrink:0;display:block}
 .end-header.win{background:linear-gradient(180deg,#50E080,#28B858)}
 .end-header.win::after{background:linear-gradient(180deg,#50E080,#28B858)}
+/* ========== LEVEL INTRO POPUP ========== */
+.level-intro-overlay{
+  position:absolute;inset:0;z-index:150;
+  background:rgba(0,0,0,0.65);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+.level-intro-overlay.show{opacity:1;pointer-events:auto}
+.level-intro-card{
+  background:white;border-radius:22px;width:300px;max-height:85vh;
+  overflow-y:auto;overflow-x:hidden;
+  transform:scale(0.7) translateY(30px);
+  transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 12px 40px rgba(0,0,0,0.35);
+}
+.level-intro-overlay.show .level-intro-card{transform:scale(1) translateY(0)}
+.li-header{
+  background:linear-gradient(180deg,#4090E8 0%,#2060B0 100%);
+  padding:18px 20px 14px;text-align:center;position:relative;
+  border-radius:22px 22px 0 0;
+}
+.li-header::after{
+  content:'';position:absolute;bottom:-8px;left:0;right:0;height:10px;
+  background:inherit;
+  clip-path:polygon(0 0,3% 100%,6% 0,9% 100%,12% 0,15% 100%,18% 0,21% 100%,24% 0,27% 100%,30% 0,33% 100%,36% 0,39% 100%,42% 0,45% 100%,48% 0,51% 100%,54% 0,57% 100%,60% 0,63% 100%,66% 0,69% 100%,72% 0,75% 100%,78% 0,81% 100%,84% 0,87% 100%,90% 0,93% 100%,96% 0,100% 100%,100% 0);
+}
+.li-level-title{
+  font-family:'Lilita One',sans-serif;font-size:28px;color:white;
+  text-shadow:0 2px 0 rgba(0,0,0,0.2);letter-spacing:1px;
+}
+.li-subtitle{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:12px;
+  color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:1.5px;
+  margin-top:2px;
+}
+.li-body{padding:22px 18px 18px}
+.li-section-label{
+  font-family:'Lilita One',sans-serif;font-size:13px;
+  text-transform:uppercase;letter-spacing:1.5px;
+  margin:0 0 8px;padding:0 2px;
+}
+.li-section-label.hit{color:#2E8A25}
+.li-section-label.avoid{color:#D02020}
+.li-section-label.safe{color:#999;font-family:'Nunito',sans-serif;font-weight:800;font-size:11px;margin-bottom:14px}
+.li-mole-row{
+  display:flex;align-items:center;gap:12px;
+  background:#f5f5f5;border-radius:14px;padding:8px 12px;margin-bottom:8px;
+}
+.li-mole-row.avoid-row{background:#FFF0F0}
+.li-mole-icon{
+  width:44px;height:44px;flex-shrink:0;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.li-mole-icon svg{width:38px;height:38px;display:block;margin-top:8px}
+.li-mole-info{flex:1;min-width:0}
+.li-mole-name{
+  font-family:'Lilita One',sans-serif;font-size:15px;color:#333;
+  line-height:1.1;
+}
+.li-mole-desc{
+  font-family:'Nunito',sans-serif;font-weight:700;font-size:11px;color:#888;
+  line-height:1.2;
+}
+.li-mole-pts{
+  font-family:'Lilita One',sans-serif;font-size:16px;
+  flex-shrink:0;white-space:nowrap;
+}
+.li-mole-pts.positive{color:#2E8A25}
+.li-mole-pts.negative{color:#D02020}
+.li-divider{height:1px;background:#eee;margin:12px 0}
+.li-start-btn{
+  display:block;width:100%;margin-top:14px;
+  background:linear-gradient(180deg,#FFE868 0%,#FFD030 50%,#E8B800 100%);
+  color:#6B4000;border:none;border-radius:28px;padding:14px 0;
+  font-family:'Lilita One',sans-serif;font-size:22px;letter-spacing:2px;text-transform:uppercase;
+  cursor:pointer;
+  box-shadow:0 4px 0 #B89000,0 6px 16px rgba(0,0,0,0.2);
+  transition:transform 0.1s,box-shadow 0.1s;
+  touch-action:manipulation;
+}
+.li-start-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #B89000,0 3px 8px rgba(0,0,0,0.15)}
+.li-goal-row{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-bottom:14px;
+}
+.li-goal-pill{
+  display:inline-flex;align-items:center;gap:4px;
+  background:linear-gradient(180deg,#4090E8,#2060B0);
+  border-radius:20px;padding:4px 14px;
+}
+.li-goal-pill span{
+  font-family:'Lilita One',sans-serif;font-size:13px;color:white;
+  text-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
 </style>
 </head>
 <body>
@@ -750,6 +847,19 @@ body,html{width:100%;height:100%;overflow:hidden;
           <button class="end-btn home" id="homeBtn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg></button>
           <button class="end-btn retry" id="actionBtn" data-action="retry"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg></button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL INTRO POPUP -->
+  <div class="level-intro-overlay" id="levelIntroOverlay">
+    <div class="level-intro-card">
+      <div class="li-header">
+        <div class="li-level-title" id="liLevelTitle">Level 1</div>
+        <div class="li-subtitle">Know your moles!</div>
+      </div>
+      <div class="li-body" id="liBody">
+        <!-- populated dynamically -->
       </div>
     </div>
   </div>
@@ -1359,6 +1469,110 @@ function calcStars(won){
   return 1;
 }
 
+/* ========== LEVEL INTRO POPUP SYSTEM ========== */
+
+/* Mole type metadata for the intro popup */
+const MOLE_INFO=[
+  {key:'normal',  name:'Rude Mole',     desc:'Tap it!',         pts:'+10', svg:()=>MOLE_SVG,     group:'hit'},
+  {key:'bonus',   name:'Bonus Mole',    desc:'Extra points!',   pts:'+25', svg:()=>BONUS_SVG,    group:'hit'},
+  {key:'friendly',name:'Friendly Mole', desc:'Don\'t tap!',     pts:'-15', svg:()=>FRIENDLY_SVG, group:'avoid'},
+  {key:'fast',    name:'Fast Mole',     desc:'Quick — tap it!', pts:'+15', svg:()=>FAST_SVG,     group:'hit'},
+];
+
+/* Build the intro popup content for the current level */
+function buildLevelIntroContent(){
+  const lv=LEVELS[state.level];
+  const w=lv.moleWeights; // [normal, bonus, friendly, fast]
+  document.getElementById('liLevelTitle').textContent=lv.label;
+
+  const body=document.getElementById('liBody');
+  body.innerHTML='';
+
+  // Goal info
+  const goalRow=document.createElement('div');
+  goalRow.className='li-goal-row';
+  goalRow.innerHTML=`<div class="li-goal-pill"><span>🎯 ${lv.goal} moles</span></div><div class="li-goal-pill"><span>⏱ ${lv.timer}s</span></div>`;
+  body.appendChild(goalRow);
+
+  // Collect active mole types into hit/avoid groups
+  const hitMoles=[], avoidMoles=[];
+  const weightIdx={normal:0,bonus:1,friendly:2,fast:3};
+  MOLE_INFO.forEach(m=>{
+    if(w[weightIdx[m.key]]>0){
+      if(m.group==='hit') hitMoles.push(m);
+      else avoidMoles.push(m);
+    }
+  });
+
+  // HIT section
+  if(hitMoles.length>0){
+    const hitLabel=document.createElement('div');
+    hitLabel.className='li-section-label hit';
+    hitLabel.textContent='👊 Hit these';
+    body.appendChild(hitLabel);
+    hitMoles.forEach(m=>body.appendChild(buildMoleRow(m,false)));
+  }
+
+  // Divider + AVOID section
+  if(avoidMoles.length>0){
+    const divider=document.createElement('div');
+    divider.className='li-divider';
+    body.appendChild(divider);
+    const avoidLabel=document.createElement('div');
+    avoidLabel.className='li-section-label avoid';
+    avoidLabel.textContent='🚫 Avoid these';
+    body.appendChild(avoidLabel);
+    avoidMoles.forEach(m=>body.appendChild(buildMoleRow(m,true)));
+  } else {
+    // No hazards this level
+    const safeLabel=document.createElement('div');
+    safeLabel.className='li-section-label safe';
+    safeLabel.textContent='✨ No hazards this level — just whack!';
+    body.appendChild(safeLabel);
+  }
+
+  // Start button
+  const btn=document.createElement('button');
+  btn.className='li-start-btn';
+  btn.textContent="Let's Go!";
+  btn.addEventListener('click',()=>{
+    AudioEngine.btn();window.gameHaptics.tap();
+    closeLevelIntro();
+    startGame();
+  });
+  body.appendChild(btn);
+}
+
+/* Build a single mole info row */
+function buildMoleRow(moleInfo,isAvoid){
+  const row=document.createElement('div');
+  row.className='li-mole-row'+(isAvoid?' avoid-row':'');
+  const icon=document.createElement('div');
+  icon.className='li-mole-icon';
+  icon.innerHTML=moleInfo.svg();
+  const info=document.createElement('div');
+  info.className='li-mole-info';
+  info.innerHTML=`<div class="li-mole-name">${moleInfo.name}</div><div class="li-mole-desc">${moleInfo.desc}</div>`;
+  const pts=document.createElement('div');
+  pts.className='li-mole-pts '+(isAvoid?'negative':'positive');
+  pts.textContent=moleInfo.pts;
+  row.appendChild(icon);
+  row.appendChild(info);
+  row.appendChild(pts);
+  return row;
+}
+
+/* Show the level intro popup */
+function showLevelIntro(){
+  buildLevelIntroContent();
+  document.getElementById('levelIntroOverlay').classList.add('show');
+}
+
+/* Close the level intro popup */
+function closeLevelIntro(){
+  document.getElementById('levelIntroOverlay').classList.remove('show');
+}
+
 /* ---- Start / End ---- */
 function startGame(){
   AudioEngine.init();AudioEngine.btn();window.gameHaptics.tap();
@@ -1453,25 +1667,28 @@ function endGame(won){
   document.getElementById('endOverlay').classList.add('show');
 }
 
-document.getElementById('playBtn').addEventListener('click',startGame);
+/* Play button → show level intro (not start game directly) */
+document.getElementById('playBtn').addEventListener('click',()=>{
+  AudioEngine.init();AudioEngine.btn();window.gameHaptics.tap();
+  document.getElementById('startOverlay').classList.add('hidden');
+  showLevelIntro();
+});
 
 /* ---- Action button icons ---- */
 const ICON_RETRY    =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
 const ICON_CONTINUE =`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14"/><path d="M12 6l6 6-6 6"/></svg>`;
 const ICON_PLAYAGAIN=`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>`;
 
-/* ---- Action button handler ---- */
+/* ---- Action button handler → show level intro ---- */
 document.getElementById('actionBtn').addEventListener('click',()=>{
   AudioEngine.btn();window.gameHaptics.tap();
   const action=document.getElementById('actionBtn').dataset.action;
-  if(action==='continue'){
-    startGame();
-  } else if(action==='playagain'){
+  if(action==='playagain'){
     state.level=0;
-    startGame();
-  } else {
-    startGame();
   }
+  // For all actions (continue/retry/playagain): close end screen, show level intro
+  document.getElementById('endOverlay').classList.remove('show');
+  showLevelIntro();
 });
 
 function triggerMascotReveal(){
