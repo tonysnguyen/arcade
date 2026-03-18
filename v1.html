@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Flip Recall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CSS RESET & ROOT
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1923;
+  --bg-card: #1a2a3a;
+  --bg-card-face: #f0ebe3;
+  --accent: #4ecdc4;
+  --accent-glow: rgba(78, 205, 196, 0.4);
+  --success: #2ecc71;
+  --success-glow: rgba(46, 204, 113, 0.5);
+  --error: #e74c3c;
+  --error-glow: rgba(231, 76, 60, 0.5);
+  --star: #f1c40f;
+  --text: #eaf2f8;
+  --text-dim: #7f9cb5;
+  --panel: rgba(26, 42, 58, 0.92);
+  --panel-border: rgba(78, 205, 196, 0.15);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.3);
+  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'Playfair Display', serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 30% 20%, #162a3d 0%, var(--bg) 70%);
+}
+
+/* ============================================================
+   CANVAS BACKGROUND (ambient particles)
+   ============================================================ */
+#bg-canvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0; pointer-events: none;
+}
+
+/* ============================================================
+   GAME CONTAINER
+   ============================================================ */
+#game {
+  position: relative;
+  width: 100%; max-width: 520px;
+  height: 100dvh;
+  display: flex; flex-direction: column;
+  z-index: 1;
+  padding: 12px 16px env(safe-area-inset-bottom, 12px);
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+.top-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 4px 12px; flex-shrink: 0;
+}
+.stat-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  padding: 6px 14px;
+  font-size: 14px; font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+.stat-pill .icon { font-size: 16px; }
+.stat-pill.stars .icon { color: var(--star); }
+.stat-pill.level .icon { color: var(--accent); }
+.stat-pill.score .icon { color: #a78bfa; }
+
+.top-bar-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.2s;
+  backdrop-filter: blur(8px);
+}
+.icon-btn:hover { background: rgba(78, 205, 196, 0.15); }
+
+/* ============================================================
+   CARD GRID
+   ============================================================ */
+.card-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  overflow: hidden;
+}
+.card-grid {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+  perspective: 800px;
+}
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.card {
+  position: relative;
+  aspect-ratio: 3/4;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card.flipped { transform: rotateY(180deg); }
+.card.correct .card-front {
+  background: linear-gradient(145deg, #27ae60, #2ecc71);
+  box-shadow: 0 0 20px var(--success-glow), 0 4px 16px rgba(0,0,0,0.2);
+}
+.card.wrong .card-front {
+  background: linear-gradient(145deg, #c0392b, #e74c3c);
+  box-shadow: 0 0 20px var(--error-glow), 0 4px 16px rgba(0,0,0,0.2);
+  animation: shake 0.4s ease;
+}
+.card-face {
+  position: absolute; inset: 0;
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.card-back {
+  background: linear-gradient(145deg, #1e3a52, #253d54);
+  border: 2px solid rgba(78, 205, 196, 0.2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.card-back::after {
+  content: '✦';
+  font-size: 24px;
+  color: rgba(78, 205, 196, 0.3);
+}
+.card-front {
+  background: var(--bg-card-face);
+  transform: rotateY(180deg);
+  color: #1a2a3a;
+  font-size: 28px;
+  font-weight: 800;
+  font-family: var(--font-display);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* ============================================================
+   GLOW BURST EFFECT
+   ============================================================ */
+.burst {
+  position: absolute; top: 50%; left: 50%;
+  width: 60px; height: 60px;
+  margin: -30px 0 0 -30px;
+  border-radius: 50%;
+  background: var(--success-glow);
+  pointer-events: none;
+  animation: burstAnim 0.5s ease-out forwards;
+  z-index: 10;
+}
+@keyframes burstAnim {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes shake {
+  0%, 100% { transform: rotateY(180deg) translateX(0); }
+  20% { transform: rotateY(180deg) translateX(-8px); }
+  40% { transform: rotateY(180deg) translateX(8px); }
+  60% { transform: rotateY(180deg) translateX(-4px); }
+  80% { transform: rotateY(180deg) translateX(4px); }
+}
+
+/* ============================================================
+   OVERLAYS / MODALS
+   ============================================================ */
+.overlay {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 18, 26, 0.85);
+  z-index: 100;
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.overlay.active { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: linear-gradient(170deg, #1a2f42, #152535);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  padding: 36px 28px;
+  text-align: center;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: var(--shadow), 0 0 60px rgba(78, 205, 196, 0.08);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+  opacity: 0;
+}
+.overlay.active .modal { transform: translateY(0) scale(1); opacity: 1; }
+
+.modal h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.modal p { color: var(--text-dim); font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+.modal .big-stat {
+  font-size: 48px; font-weight: 800;
+  font-family: var(--font-display);
+  color: var(--star);
+  margin: 8px 0;
+}
+.modal .stat-row {
+  display: flex; justify-content: center; gap: 24px;
+  margin: 16px 0;
+}
+.modal .stat-item { text-align: center; }
+.modal .stat-item .val {
+  font-size: 22px; font-weight: 700;
+  color: var(--text);
+}
+.modal .stat-item .lbl {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 32px;
+  border: none; border-radius: 14px;
+  font-family: var(--font-body);
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-width: 180px;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #38b2ac);
+  color: #0f1923;
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+.btn-primary:hover { box-shadow: 0 6px 28px var(--accent-glow); }
+.btn-secondary {
+  background: rgba(78, 205, 196, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(78, 205, 196, 0.3);
+}
+.btn-danger {
+  background: rgba(231, 76, 60, 0.15);
+  color: var(--error);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+.btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; align-items: center; }
+
+/* ============================================================
+   START SCREEN
+   ============================================================ */
+.start-title {
+  font-family: var(--font-display);
+  font-size: 44px; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), #a78bfa, var(--star));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.start-subtitle {
+  color: var(--text-dim); font-size: 15px;
+  max-width: 260px; margin: 0 auto 24px;
+  line-height: 1.5;
+}
+.start-cards {
+  display: flex; gap: 10px; justify-content: center;
+  margin-bottom: 28px;
+}
+.start-card {
+  width: 52px; height: 68px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 20px;
+  font-family: var(--font-display);
+  animation: floatCard 2s ease-in-out infinite;
+}
+.start-card:nth-child(1) { background: linear-gradient(145deg, #27ae60, #2ecc71); color: #fff; animation-delay: 0s; }
+.start-card:nth-child(2) { background: linear-gradient(145deg, #2980b9, #3498db); color: #fff; animation-delay: 0.2s; }
+.start-card:nth-child(3) { background: linear-gradient(145deg, #8e44ad, #a78bfa); color: #fff; animation-delay: 0.4s; }
+.start-card:nth-child(4) { background: linear-gradient(145deg, #e67e22, #f39c12); color: #fff; animation-delay: 0.6s; }
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ============================================================
+   START SCREEN — PREMIUM UPGRADES
+   ============================================================ */
+
+/* Top Player Spotlight Card */
+.top-player-card {
+  position: relative;
+  background: linear-gradient(145deg, rgba(78, 205, 196, 0.08), rgba(167, 139, 250, 0.06));
+  border: 1px solid rgba(78, 205, 196, 0.18);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin: 0 auto 20px;
+  max-width: 280px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 24px rgba(78, 205, 196, 0.07), inset 0 1px 0 rgba(255,255,255,0.04);
+  animation: spotlightFadeIn 0.8s ease 0.3s both;
+  overflow: hidden;
+}
+.top-player-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.05), transparent, rgba(167, 139, 250, 0.05));
+  animation: shimmer 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes spotlightFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.top-player-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.15), rgba(241, 196, 15, 0.05));
+  border: 1px solid rgba(241, 196, 15, 0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.top-player-info {
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+}
+.top-player-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--star);
+  margin-bottom: 2px;
+}
+.top-player-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-player-stats {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.top-player-stats span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Empty / placeholder state */
+.top-player-card.empty .top-player-name {
+  color: var(--text-dim);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Memory Quote */
+.start-quote {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-style: italic;
+  letter-spacing: 0.3px;
+  max-width: 260px;
+  margin: 0 auto 22px;
+  line-height: 1.5;
+  animation: quoteFadeIn 1s ease 0.6s both;
+  opacity: 0;
+}
+@keyframes quoteFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 0.7; transform: translateY(0); }
+}
+
+/* Refined play button glow pulse */
+.btn-play-hero {
+  position: relative;
+  padding: 16px 48px;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+}
+.btn-play-hero::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), #38b2ac);
+  opacity: 0;
+  z-index: -1;
+  filter: blur(12px);
+  animation: btnGlow 2.5s ease-in-out infinite;
+}
+@keyframes btnGlow {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.04); }
+}
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+.lb-list { margin: 16px 0; max-height: 280px; overflow-y: auto; }
+.lb-row {
+  display: flex; align-items: center;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.lb-row.top-3 { background: rgba(78, 205, 196, 0.08); border-color: var(--panel-border); }
+.lb-rank {
+  width: 28px; font-weight: 700; font-size: 14px;
+  color: var(--text-dim);
+}
+.lb-row.top-3 .lb-rank { color: var(--star); }
+.lb-name { flex: 1; font-weight: 600; font-size: 14px; }
+.lb-score { font-weight: 700; font-size: 14px; color: var(--accent); margin-right: 12px; }
+.lb-level { font-size: 12px; color: var(--text-dim); }
+
+/* nickname input */
+.nick-input {
+  width: 200px; padding: 10px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  text-align: center;
+  outline: none;
+}
+.nick-input:focus { border-color: var(--accent); }
+
+/* ============================================================
+   CONFETTI CANVAS
+   ============================================================ */
+#confetti-canvas {
+  position: fixed; inset: 0;
+  z-index: 200; pointer-events: none;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (min-width: 600px) {
+  #game { padding: 20px 24px; }
+  .card-grid { gap: 12px; }
+}
+@media (max-height: 600px) {
+  .modal { padding: 24px 20px; }
+  .modal h2 { font-size: 22px; }
+  .start-title { font-size: 34px; }
+}
+
+/* ============================================================
+   TRANSITION HELPERS
+   ============================================================ */
+.fade-in { animation: fadeIn 0.3s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+<!-- ============================================================
+     FIREBASE SDK (modular, CDN)
+     ============================================================ -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js';
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp }
+    from 'https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js';
+
+  /* ===========================================================
+     🔥 PASTE YOUR FIREBASE CONFIG HERE
+     ===========================================================
+     Replace the placeholder object below with your own config
+     from the Firebase Console → Project Settings → Your apps.
+
+     Example:
+     const firebaseConfig = {
+       apiKey: "AIzaSy...",
+       authDomain: "your-project.firebaseapp.com",
+       projectId: "your-project",
+       storageBucket: "your-project.appspot.com",
+       messagingSenderId: "123456789",
+       appId: "1:123456789:web:abcdef123456"
+     };
+     =========================================================== */
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "YOUR_APP_ID"
+  };
+  /* ===========================================================
+     END FIREBASE CONFIG
+     =========================================================== */
+
+  /*
+     Recommended Firestore Security Rules:
+     -----------------------------------------------
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /leaderboard/{entry} {
+           allow read: if true;
+           allow create: if request.resource.data.keys().hasAll(['name','score','level','timestamp'])
+                         && request.resource.data.name is string
+                         && request.resource.data.name.size() <= 12
+                         && request.resource.data.score is number
+                         && request.resource.data.level is number
+                         && request.resource.data.score >= 0
+                         && request.resource.data.level >= 1;
+           allow update, delete: if false;
+         }
+       }
+     }
+     -----------------------------------------------
+  */
+
+  // --- Initialize Firebase & Firestore ---
+  let db = null;
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    console.log('[Flip Recall] Firebase initialized');
+  } catch (err) {
+    console.warn('[Flip Recall] Firebase init failed — leaderboard disabled:', err.message);
+  }
+
+  // Expose Firestore helpers to the global game script
+  window._fb = {
+    db,
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+    limit,
+    serverTimestamp,
+  };
+
+  // Signal that Firebase module is loaded so the game can proceed
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+</head>
+<body>
+
+<!-- Background particles -->
+<canvas id="bg-canvas"></canvas>
+<!-- Confetti layer -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ============================================================
+     GAME CONTAINER
+     ============================================================ -->
+<div id="game">
+  <!-- Top bar (hidden on start) -->
+  <div class="top-bar" id="topBar" style="visibility:hidden">
+    <div class="stat-pill level"><span class="icon">◈</span> Lv <span id="dispLevel">1</span></div>
+    <div class="stat-pill score"><span class="icon">♦</span> <span id="dispScore">0</span></div>
+    <div class="stat-pill stars"><span class="icon">★</span> <span id="dispStars">5</span></div>
+    <div class="top-bar-actions">
+      <div class="icon-btn" id="btnSound" title="Toggle Sound">🔊</div>
+      <div class="icon-btn" id="btnLeaderboard" title="Leaderboard">🏆</div>
+    </div>
+  </div>
+
+  <!-- Card area -->
+  <div class="card-area" id="cardArea">
+    <div class="card-grid" id="cardGrid"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     START OVERLAY
+     ============================================================ -->
+<div class="overlay active" id="startOverlay">
+  <div class="modal">
+    <!-- Animated preview cards -->
+    <div class="start-cards">
+      <div class="start-card">1</div>
+      <div class="start-card">2</div>
+      <div class="start-card">3</div>
+      <div class="start-card">4</div>
+    </div>
+
+    <!-- Title -->
+    <h2 class="start-title">Flip Recall</h2>
+
+    <!-- Memory / Focus Quote -->
+    <p class="start-quote" id="startQuote"></p>
+
+    <!-- Top Player Spotlight -->
+    <div class="top-player-card" id="topPlayerCard">
+      <div class="top-player-icon">👑</div>
+      <div class="top-player-info">
+        <div class="top-player-label">Global #1</div>
+        <div class="top-player-name" id="topPlayerName">—</div>
+        <div class="top-player-stats" id="topPlayerStats"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="btn-group">
+      <button class="btn btn-primary btn-play-hero" id="btnPlay">▶ Play</button>
+      <button class="btn btn-secondary" id="btnLBStart">🏆 Leaderboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     LEVEL COMPLETE OVERLAY
+     ============================================================ -->
+<div class="overlay" id="winOverlay">
+  <div class="modal">
+    <h2>Level Clear!</h2>
+    <div class="stat-row">
+      <div class="stat-item"><div class="val" id="winLevel">-</div><div class="lbl">Level</div></div>
+      <div class="stat-item"><div class="val" id="winStarsEarned">-</div><div class="lbl">Stars ★</div></div>
+      <div class="stat-item"><div class="val" id="winScore">-</div><div class="lbl">Score</div></div>
+    </div>
+    <p>Total Stars: <strong id="winTotalStars">-</strong> ★</p>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnNextLevel">Next Level →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     GAME OVER OVERLAY
+     ============================================================ -->
+<div class="overlay" id="loseOverlay">
+  <div class="modal">
+    <h2>Game Over</h2>
+    <p id="loseMsg">You tapped the wrong card!</p>
+    <div class="stat-row">
+      <div class="stat-item"><div class="val" id="loseLevel">-</div><div class="lbl">Level</div></div>
+      <div class="stat-item"><div class="val" id="loseScore">-</div><div class="lbl">Score</div></div>
+      <div class="stat-item"><div class="val" id="loseStars">-</div><div class="lbl">Stars ★</div></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnRetry" style="display:none">🔄 Retry (1 ★)</button>
+      <button class="btn btn-secondary" id="btnRestart">↩ Restart from Level 1</button>
+      <button class="btn btn-secondary" id="btnLBLose">🏆 Leaderboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     LEADERBOARD OVERLAY
+     ============================================================ -->
+<div class="overlay" id="lbOverlay">
+  <div class="modal">
+    <h2>Leaderboard</h2>
+    <div class="lb-list" id="lbList">
+      <p style="color:var(--text-dim);font-size:13px;padding:20px 0;">No scores yet. Play to set the first record!</p>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btnLBClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     NICKNAME ENTRY OVERLAY
+     ============================================================ -->
+<div class="overlay" id="nickOverlay">
+  <div class="modal">
+    <h2>New High Score!</h2>
+    <p>Enter a nickname for the leaderboard</p>
+    <input class="nick-input" id="nickInput" maxlength="12" placeholder="Your name" autocomplete="off">
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnNickSave">Save</button>
+      <button class="btn btn-secondary" id="btnNickSkip">Skip</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+/* =============================================================
+   FIRESTORE LEADERBOARD — TOP 5 GLOBAL
+   =============================================================
+   All leaderboard operations go through Firestore.
+   The Firebase SDK is loaded as a module in <head> and exposes
+   helpers via window._fb. We wait for the 'firebase-ready' event
+   before using them, but the game itself boots immediately.
+
+   Collection: "leaderboard"
+   Document fields: name (string), score (number),
+                    level (number), timestamp (server)
+   ============================================================= */
+
+// Cached leaderboard entries (refreshed on every fetch)
+let cachedLeaderboard = [];
+
+// Check if Firestore is available
+function hasFirestore() {
+  return !!(window._fb && window._fb.db);
+}
+
+/**
+ * Fetch the top 5 leaderboard entries from Firestore,
+ * ordered by score descending.
+ * Returns an array of { name, score, level } objects.
+ */
+async function fetchLeaderboard() {
+  if (!hasFirestore()) return [];
+  try {
+    const fb = window._fb;
+    const q = fb.query(
+      fb.collection(fb.db, 'leaderboard'),
+      fb.orderBy('score', 'desc'),
+      fb.limit(5)
+    );
+    const snap = await fb.getDocs(q);
+    cachedLeaderboard = snap.docs.map(d => {
+      const data = d.data();
+      return { name: data.name, score: data.score, level: data.level };
+    });
+  } catch (err) {
+    console.warn('[Flip Recall] Leaderboard fetch failed:', err.message);
+  }
+  return cachedLeaderboard;
+}
+
+/**
+ * Get the cached leaderboard (non-async, for quick access).
+ * Call fetchLeaderboard() first to populate.
+ */
+function getLeaderboard() {
+  return cachedLeaderboard;
+}
+
+/**
+ * Save a new score to Firestore.
+ */
+async function addToLeaderboard(name, score, level) {
+  if (!hasFirestore()) return;
+  try {
+    const fb = window._fb;
+    await fb.addDoc(fb.collection(fb.db, 'leaderboard'), {
+      name: name,
+      score: score,
+      level: level,
+      timestamp: fb.serverTimestamp(),
+    });
+    // Refresh cache after saving
+    await fetchLeaderboard();
+    // Update the start screen spotlight
+    renderTopPlayer();
+  } catch (err) {
+    console.warn('[Flip Recall] Score save failed:', err.message);
+  }
+}
+
+/**
+ * Check if a score would place in the top 5.
+ * Uses the cached leaderboard for a quick check.
+ */
+function isLeaderboardWorthy(score) {
+  if (!hasFirestore()) return false;
+  if (cachedLeaderboard.length < 5) return score > 0;
+  return score > cachedLeaderboard[cachedLeaderboard.length - 1].score;
+}
+
+/**
+ * Get the #1 player from cache.
+ */
+function getTopPlayer() {
+  return cachedLeaderboard.length > 0 ? cachedLeaderboard[0] : null;
+}
+
+/* =============================================================
+   LEVEL CONFIGURATION
+   ============================================================= */
+const LEVEL_CONFIG = [
+  // cards          — number of cards on the grid
+  // revealTime     — ms each card stays highlighted during the reveal sequence
+  // starsReward    — stars earned for completing this level
+  // shuffleIntensity — 0 = ordered, 0‑0.35 = light, 0.35‑0.7 = moderate, 0.7‑1 = full
+  //
+  // Design notes:
+  //   Lv 1      : tutorial feel — cards in order, slow reveal
+  //   Lv 2‑3    : same card count, light shuffle so positions drift slightly
+  //   Lv 4‑6    : more cards + moderate shuffle — player must truly memorize
+  //   Lv 7‑9    : larger grids + faster reveal + near‑full shuffle
+  //   Lv 10‑12  : high card count + fast reveal + full shuffle
+  //   Lv 13+    : dynamic scaling — always full shuffle
+
+  { cards: 4,  revealTime: 900,  starsReward: 1, shuffleIntensity: 0    },  // Lv 1  — no shuffle
+  { cards: 4,  revealTime: 800,  starsReward: 1, shuffleIntensity: 0.2  },  // Lv 2  — light
+  { cards: 6,  revealTime: 850,  starsReward: 2, shuffleIntensity: 0.3  },  // Lv 3  — light
+  { cards: 6,  revealTime: 750,  starsReward: 2, shuffleIntensity: 0.45 },  // Lv 4  — moderate
+  { cards: 8,  revealTime: 800,  starsReward: 2, shuffleIntensity: 0.5  },  // Lv 5  — moderate
+  { cards: 8,  revealTime: 700,  starsReward: 3, shuffleIntensity: 0.6  },  // Lv 6  — moderate
+  { cards: 9,  revealTime: 750,  starsReward: 3, shuffleIntensity: 0.75 },  // Lv 7  — full
+  { cards: 10, revealTime: 700,  starsReward: 3, shuffleIntensity: 0.8  },  // Lv 8  — full
+  { cards: 10, revealTime: 600,  starsReward: 3, shuffleIntensity: 0.85 },  // Lv 9  — full
+  { cards: 12, revealTime: 650,  starsReward: 4, shuffleIntensity: 0.9  },  // Lv 10 — full
+  { cards: 12, revealTime: 550,  starsReward: 4, shuffleIntensity: 0.95 },  // Lv 11 — full
+  { cards: 15, revealTime: 600,  starsReward: 5, shuffleIntensity: 1.0  },  // Lv 12 — full
+  { cards: 16, revealTime: 550,  starsReward: 5, shuffleIntensity: 1.0  },  // Lv 13 — full
+];
+
+function getLevelConfig(level) {
+  if (level <= LEVEL_CONFIG.length) return { ...LEVEL_CONFIG[level - 1] };
+  // Beyond defined levels: scale dynamically, always full shuffle
+  const last = LEVEL_CONFIG[LEVEL_CONFIG.length - 1];
+  const extra = level - LEVEL_CONFIG.length;
+  return {
+    cards: Math.min(20, last.cards + extra),
+    revealTime: Math.max(350, last.revealTime - extra * 20),
+    starsReward: Math.min(8, last.starsReward + Math.floor(extra / 2)),
+    shuffleIntensity: 1.0,
+  };
+}
+
+/* =============================================================
+   CONTROLLED SHUFFLE SYSTEM
+   =============================================================
+   Produces an array of numbers [1..count] placed into grid positions.
+   - intensity 0   → [1, 2, 3, 4, ...]  (perfectly ordered)
+   - intensity 0.5 → roughly half the cards swap with a nearby neighbor
+   - intensity 1   → full Fisher‑Yates shuffle (any card anywhere)
+
+   The algorithm works in two stages:
+   1. Decide HOW MANY swaps to perform (proportional to intensity × count)
+   2. Decide HOW FAR each swap can reach (low intensity → adjacent only,
+      high intensity → any distance)
+   This keeps early levels feeling "almost ordered with a couple quirks"
+   and later levels genuinely random.
+   ============================================================= */
+function shufflePositions(count, intensity) {
+  // Start with ordered array [1, 2, 3, ... count]
+  const arr = Array.from({ length: count }, (_, i) => i + 1);
+
+  if (intensity <= 0) return arr;
+
+  if (intensity >= 0.95) {
+    // Full Fisher-Yates shuffle for high intensity (most efficient)
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // Partial shuffle: number of swap passes scales with intensity
+  const numSwaps = Math.ceil(count * intensity * 0.8);
+  // Maximum swap distance scales with intensity (1 = adjacent, count = anywhere)
+  const maxDist = Math.max(1, Math.floor(count * intensity));
+
+  for (let s = 0; s < numSwaps; s++) {
+    const i = Math.floor(Math.random() * count);
+    // Pick a swap partner within maxDist positions
+    const minJ = Math.max(0, i - maxDist);
+    const maxJ = Math.min(count - 1, i + maxDist);
+    const j = minJ + Math.floor(Math.random() * (maxJ - minJ + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  return arr;
+}
+
+/* =============================================================
+   GAME STATE
+   ============================================================= */
+let state = {
+  level: 1,
+  score: 0,
+  stars: 5,
+  retries: 0,
+  maxRetries: 3,
+  currentStep: 0,    // which card in sequence player must tap next
+  streak: 0,         // consecutive perfect levels
+  highestLevel: 0,
+  isRevealing: false,
+  isPlaying: false,
+  levelStartTime: 0,
+  soundOn: true,
+  cardPositions: [],  // shuffled array — cardPositions[gridIndex] = number shown
+};
+
+/* =============================================================
+   AUDIO ENGINE (Web Audio API)
+   ============================================================= */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration, type = 'sine', vol = 0.15, decay = true) {
+  if (!state.soundOn || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  if (decay) gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function sfxFlip() { playTone(600, 0.08, 'sine', 0.08); }
+function sfxCorrect(step) {
+  const base = 440 + step * 40;
+  playTone(base, 0.15, 'sine', 0.12);
+  setTimeout(() => playTone(base * 1.25, 0.12, 'sine', 0.08), 60);
+}
+function sfxWrong() {
+  playTone(200, 0.3, 'square', 0.1);
+  setTimeout(() => playTone(160, 0.3, 'square', 0.08), 100);
+}
+function sfxWin() {
+  [0, 100, 200, 300, 400].forEach((d, i) =>
+    setTimeout(() => playTone(523 + i * 80, 0.2, 'sine', 0.1), d));
+}
+function sfxLose() {
+  playTone(300, 0.4, 'sawtooth', 0.06);
+  setTimeout(() => playTone(200, 0.5, 'sawtooth', 0.05), 200);
+}
+function sfxReveal(i) {
+  playTone(400 + i * 30, 0.12, 'triangle', 0.06);
+}
+
+// Ambient background drone (very subtle)
+let bgDrone = null;
+function startBGMusic() {
+  if (!audioCtx || !state.soundOn || bgDrone) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start();
+  bgDrone = { osc, gain };
+}
+function stopBGMusic() {
+  if (bgDrone) { bgDrone.osc.stop(); bgDrone = null; }
+}
+
+/* =============================================================
+   HAPTICS
+   ============================================================= */
+function hapticLight() { navigator.vibrate?.(15); }
+function hapticError() { navigator.vibrate?.([50, 30, 80]); }
+function hapticWin() { navigator.vibrate?.([30, 40, 30, 40, 60]); }
+
+/* =============================================================
+   DOM REFS
+   ============================================================= */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+const topBar = $('#topBar');
+const cardGrid = $('#cardGrid');
+const dispLevel = $('#dispLevel');
+const dispScore = $('#dispScore');
+const dispStars = $('#dispStars');
+
+const startOverlay = $('#startOverlay');
+const winOverlay = $('#winOverlay');
+const loseOverlay = $('#loseOverlay');
+const lbOverlay = $('#lbOverlay');
+const nickOverlay = $('#nickOverlay');
+
+/* =============================================================
+   OVERLAY HELPERS
+   ============================================================= */
+function showOverlay(el) { el.classList.add('active'); }
+function hideOverlay(el) { el.classList.remove('active'); }
+
+/* =============================================================
+   UPDATE HUD
+   ============================================================= */
+function updateHUD() {
+  dispLevel.textContent = state.level;
+  dispScore.textContent = state.score;
+  dispStars.textContent = state.stars;
+}
+
+/* =============================================================
+   GRID LAYOUT CALCULATOR
+   ============================================================= */
+function getGridCols(n) {
+  if (n <= 4) return 2;
+  if (n <= 6) return 3;
+  if (n <= 9) return 3;
+  if (n <= 12) return 4;
+  if (n <= 16) return 4;
+  return 5;
+}
+
+/* =============================================================
+   CARD CREATION
+   =============================================================
+   Cards are placed on the grid in shuffled order.
+   state.cardPositions[gridIndex] = the number displayed on that card.
+   The player must tap cards in ascending number order (1, 2, 3 …).
+   ============================================================= */
+function buildCards(count, positions) {
+  cardGrid.innerHTML = '';
+  const cols = getGridCols(count);
+  cardGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  // Store positions in state so tap handler and reveal can use them
+  state.cardPositions = positions;
+
+  for (let gridIdx = 0; gridIdx < count; gridIdx++) {
+    const num = positions[gridIdx]; // the number this card shows
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.gridIndex = gridIdx;
+    card.dataset.number = num;
+    card.innerHTML = `
+      <div class="card-face card-back"></div>
+      <div class="card-face card-front">${num}</div>
+    `;
+    card.addEventListener('click', onCardTap);
+    card.addEventListener('touchend', (e) => { e.preventDefault(); onCardTap(e); }, { passive: false });
+    cardGrid.appendChild(card);
+  }
+}
+
+/* =============================================================
+   REVEAL SEQUENCE
+   =============================================================
+   Reveals cards one at a time in NUMBER order (1, 2, 3 …).
+   Each card flips face-up and stays up so the player can see
+   the full layout building. Once every card is revealed, a
+   brief hold lets the player absorb the positions, then all
+   cards flip face-down together.
+   ============================================================= */
+function revealSequence(count, revealTime) {
+  return new Promise((resolve) => {
+    state.isRevealing = true;
+    const allCards = Array.from(cardGrid.children);
+
+    // Build a lookup: number → DOM card element
+    const cardByNumber = {};
+    allCards.forEach(c => { cardByNumber[parseInt(c.dataset.number)] = c; });
+
+    let num = 1;
+    function revealNext() {
+      if (num > count) {
+        // All cards are now face-up — hold so the player can memorize
+        const holdTime = Math.max(800, Math.min(1800, count * 100));
+        setTimeout(() => {
+          // Flip every card back down together
+          allCards.forEach(c => c.classList.remove('flipped'));
+          // Short pause after the flip-down animation before play begins
+          setTimeout(() => {
+            state.isRevealing = false;
+            state.levelStartTime = Date.now();
+            resolve();
+          }, 500);
+        }, holdTime);
+        return;
+      }
+
+      const card = cardByNumber[num];
+      card.classList.add('flipped');
+      sfxReveal(num - 1);
+      num++;
+      setTimeout(revealNext, revealTime);
+    }
+
+    // Small delay before starting the sequence
+    setTimeout(revealNext, 500);
+  });
+}
+
+/* =============================================================
+   CARD TAP HANDLER
+   ============================================================= */
+function onCardTap(e) {
+  if (state.isRevealing || !state.isPlaying) return;
+  const card = e.currentTarget || e.target.closest('.card');
+  if (!card || card.classList.contains('flipped')) return;
+
+  const tappedNum = parseInt(card.dataset.number);
+  const expected = state.currentStep + 1;
+
+  // Flip the card
+  card.classList.add('flipped');
+  sfxFlip();
+
+  if (tappedNum === expected) {
+    // CORRECT
+    card.classList.add('correct');
+    sfxCorrect(state.currentStep);
+    hapticLight();
+    spawnBurst(card);
+    state.currentStep++;
+
+    const cfg = getLevelConfig(state.level);
+    // Score: base + streak bonus + speed bonus
+    const basePoints = 100 * state.level;
+    state.score += basePoints;
+
+    updateHUD();
+
+    // Check level complete
+    if (state.currentStep >= cfg.cards) {
+      state.isPlaying = false;
+      // Speed bonus
+      const elapsed = (Date.now() - state.levelStartTime) / 1000;
+      const speedBonus = Math.max(0, Math.floor((30 - elapsed) * 10 * state.level));
+      state.score += speedBonus;
+      // Streak bonus
+      state.streak++;
+      const streakBonus = state.streak >= 2 ? state.streak * 50 : 0;
+      state.score += streakBonus;
+      // Award stars
+      state.stars += cfg.starsReward;
+      state.highestLevel = Math.max(state.highestLevel, state.level);
+
+      updateHUD();
+      setTimeout(() => levelComplete(cfg.starsReward, speedBonus, streakBonus), 500);
+    }
+  } else {
+    // WRONG
+    card.classList.add('wrong');
+    sfxWrong();
+    hapticError();
+    state.isPlaying = false;
+    state.streak = 0;
+    state.highestLevel = Math.max(state.highestLevel, state.level - 1);
+
+    // Reveal all cards briefly
+    setTimeout(() => {
+      Array.from(cardGrid.children).forEach(c => {
+        if (!c.classList.contains('flipped')) c.classList.add('flipped');
+      });
+      setTimeout(() => showGameOver(), 800);
+    }, 400);
+  }
+}
+
+/* =============================================================
+   BURST EFFECT
+   ============================================================= */
+function spawnBurst(card) {
+  const burst = document.createElement('div');
+  burst.className = 'burst';
+  card.appendChild(burst);
+  setTimeout(() => burst.remove(), 600);
+}
+
+/* =============================================================
+   LEVEL COMPLETE
+   ============================================================= */
+function levelComplete(starsEarned, speedBonus, streakBonus) {
+  sfxWin();
+  hapticWin();
+  fireConfetti();
+
+  $('#winLevel').textContent = state.level;
+  $('#winStarsEarned').textContent = `+${starsEarned}`;
+  $('#winScore').textContent = state.score;
+  $('#winTotalStars').textContent = state.stars;
+
+  showOverlay(winOverlay);
+}
+
+/* =============================================================
+   GAME OVER
+   ============================================================= */
+function showGameOver() {
+  sfxLose();
+  $('#loseLevel').textContent = state.level;
+  $('#loseScore').textContent = state.score;
+  $('#loseStars').textContent = state.stars;
+
+  const canRetry = state.stars >= 1 && state.retries < state.maxRetries;
+  const btnRetry = $('#btnRetry');
+  if (canRetry) {
+    btnRetry.style.display = '';
+    btnRetry.textContent = `🔄 Retry Level ${state.level} (1 ★)`;
+  } else {
+    btnRetry.style.display = 'none';
+  }
+
+  showOverlay(loseOverlay);
+}
+
+/* =============================================================
+   GAME FLOW
+   ============================================================= */
+function startGame() {
+  state.level = 1;
+  state.score = 0;
+  state.stars = 5;
+  state.retries = 0;
+  state.streak = 0;
+  state.highestLevel = 0;
+  startLevel();
+}
+
+function startLevel() {
+  const cfg = getLevelConfig(state.level);
+  state.currentStep = 0;
+  state.isPlaying = false;
+  updateHUD();
+  topBar.style.visibility = 'visible';
+
+  // Generate shuffled card positions based on level's shuffle intensity
+  const positions = shufflePositions(cfg.cards, cfg.shuffleIntensity);
+  buildCards(cfg.cards, positions);
+
+  // Start reveal — cards shown one at a time in number order
+  revealSequence(cfg.cards, cfg.revealTime).then(() => {
+    state.isPlaying = true;
+  });
+}
+
+function nextLevel() {
+  state.level++;
+  state.retries = 0;
+  hideOverlay(winOverlay);
+  setTimeout(() => startLevel(), 300);
+}
+
+function retryLevel() {
+  if (state.stars < 1) return;
+  state.stars -= 1;
+  state.retries++;
+  hideOverlay(loseOverlay);
+  setTimeout(() => startLevel(), 300);
+}
+
+function restartGame() {
+  hideOverlay(loseOverlay);
+  // Check leaderboard
+  if (isLeaderboardWorthy(state.score) && state.score > 0) {
+    pendingScore = { score: state.score, level: state.highestLevel };
+    showOverlay(nickOverlay);
+    $('#nickInput').value = '';
+    $('#nickInput').focus();
+  } else {
+    setTimeout(() => startGame(), 300);
+  }
+}
+
+/* =============================================================
+   LEADERBOARD UI
+   ============================================================= */
+async function renderLeaderboard() {
+  const container = $('#lbList');
+  // Show loading state while fetching
+  container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:20px 0;">Loading…</p>';
+
+  await fetchLeaderboard();
+  const list = getLeaderboard();
+
+  if (list.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:20px 0;">No scores yet. Play to set the first record!</p>';
+    return;
+  }
+  container.innerHTML = list.map((e, i) => `
+    <div class="lb-row ${i < 3 ? 'top-3' : ''}">
+      <span class="lb-rank">${i + 1}.</span>
+      <span class="lb-name">${escapeHtml(e.name)}</span>
+      <span class="lb-score">${e.score.toLocaleString()}</span>
+      <span class="lb-level">Lv ${e.level}</span>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function sanitizeNick(str) {
+  return str.replace(/[^a-zA-Z0-9_\- ]/g, '').trim().slice(0, 12) || 'Anon';
+}
+
+let pendingScore = null;
+
+/* =============================================================
+   START SCREEN — TOP PLAYER + QUOTE SYSTEM
+   ============================================================= */
+
+// --- Memory / Focus Quotes ---
+const QUOTES = [
+  "Sharpen your mind, one sequence at a time.",
+  "Focus is a muscle. Train it.",
+  "Clarity comes from repetition.",
+  "A calm mind remembers everything.",
+  "Precision is patience in motion.",
+];
+
+function displayRandomQuote() {
+  const el = $('#startQuote');
+  if (el) el.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+}
+
+// --- Top Player Spotlight (reads from Firestore cache) ---
+function renderTopPlayer() {
+  const card = $('#topPlayerCard');
+  const nameEl = $('#topPlayerName');
+  const statsEl = $('#topPlayerStats');
+  const top = getTopPlayer();
+
+  if (top) {
+    card.classList.remove('empty');
+    nameEl.textContent = top.name;
+    statsEl.innerHTML = `Score <span>${top.score.toLocaleString()}</span> · Level <span>${top.level}</span>`;
+  } else {
+    card.classList.add('empty');
+    nameEl.textContent = 'Be the first champion';
+    statsEl.innerHTML = 'Play to claim the top spot';
+  }
+}
+
+// Initialize quote immediately
+displayRandomQuote();
+// Render top player with empty state first, then refresh when Firebase is ready
+renderTopPlayer();
+
+// When Firebase module finishes loading, fetch real data
+window.addEventListener('firebase-ready', async () => {
+  await fetchLeaderboard();
+  renderTopPlayer();
+});
+
+/* =============================================================
+   EVENT LISTENERS
+   ============================================================= */
+$('#btnPlay').addEventListener('click', () => {
+  ensureAudio();
+  startBGMusic();
+  hideOverlay(startOverlay);
+  setTimeout(() => startGame(), 300);
+});
+
+$('#btnNextLevel').addEventListener('click', nextLevel);
+$('#btnRetry').addEventListener('click', retryLevel);
+$('#btnRestart').addEventListener('click', restartGame);
+
+$('#btnLBStart').addEventListener('click', async () => { showOverlay(lbOverlay); await renderLeaderboard(); });
+$('#btnLBLose').addEventListener('click', async () => { showOverlay(lbOverlay); await renderLeaderboard(); });
+$('#btnLBClose').addEventListener('click', () => { hideOverlay(lbOverlay); });
+
+$('#btnNickSave').addEventListener('click', async () => {
+  if (!pendingScore) return;
+  const name = sanitizeNick($('#nickInput').value);
+  // Disable button while saving
+  const btn = $('#btnNickSave');
+  btn.textContent = 'Saving…';
+  btn.style.pointerEvents = 'none';
+  await addToLeaderboard(name, pendingScore.score, pendingScore.level);
+  btn.textContent = 'Save';
+  btn.style.pointerEvents = '';
+  pendingScore = null;
+  hideOverlay(nickOverlay);
+  await renderLeaderboard();
+  showOverlay(lbOverlay);
+});
+$('#btnNickSkip').addEventListener('click', () => {
+  pendingScore = null;
+  hideOverlay(nickOverlay);
+  setTimeout(() => startGame(), 300);
+});
+
+// Sound toggle
+$('#btnSound').addEventListener('click', () => {
+  state.soundOn = !state.soundOn;
+  $('#btnSound').textContent = state.soundOn ? '🔊' : '🔇';
+  if (state.soundOn) { ensureAudio(); startBGMusic(); }
+  else { stopBGMusic(); }
+});
+
+$('#btnLeaderboard').addEventListener('click', async () => {
+  showOverlay(lbOverlay);
+  await renderLeaderboard();
+});
+
+/* =============================================================
+   CONFETTI
+   ============================================================= */
+const confettiCanvas = document.getElementById('confetti-canvas');
+const cCtx = confettiCanvas.getContext('2d');
+let confettiPieces = [];
+let confettiRunning = false;
+
+function resizeConfetti() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeConfetti);
+resizeConfetti();
+
+function fireConfetti() {
+  confettiPieces = [];
+  const colors = ['#4ecdc4', '#f1c40f', '#2ecc71', '#a78bfa', '#e74c3c', '#3498db', '#f39c12'];
+  for (let i = 0; i < 80; i++) {
+    confettiPieces.push({
+      x: Math.random() * confettiCanvas.width,
+      y: -20 - Math.random() * 200,
+      w: 6 + Math.random() * 6,
+      h: 4 + Math.random() * 4,
+      rot: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 12,
+      vy: 2 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: 1,
+    });
+  }
+  if (!confettiRunning) { confettiRunning = true; animConfetti(); }
+}
+
+function animConfetti() {
+  cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  confettiPieces.forEach(p => {
+    p.y += p.vy;
+    p.x += p.vx;
+    p.rot += p.rotSpeed;
+    p.alpha -= 0.003;
+    if (p.alpha < 0) p.alpha = 0;
+    cCtx.save();
+    cCtx.translate(p.x, p.y);
+    cCtx.rotate(p.rot * Math.PI / 180);
+    cCtx.globalAlpha = p.alpha;
+    cCtx.fillStyle = p.color;
+    cCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    cCtx.restore();
+  });
+  confettiPieces = confettiPieces.filter(p => p.alpha > 0 && p.y < confettiCanvas.height + 30);
+  if (confettiPieces.length > 0) {
+    requestAnimationFrame(animConfetti);
+  } else {
+    confettiRunning = false;
+    cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  }
+}
+
+/* =============================================================
+   BACKGROUND PARTICLES
+   ============================================================= */
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+let particles = [];
+
+function resizeBG() {
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeBG);
+resizeBG();
+
+for (let i = 0; i < 40; i++) {
+  particles.push({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    r: 1 + Math.random() * 2,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    alpha: 0.1 + Math.random() * 0.2,
+  });
+}
+
+function animBG() {
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  particles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.x < 0) p.x = bgCanvas.width;
+    if (p.x > bgCanvas.width) p.x = 0;
+    if (p.y < 0) p.y = bgCanvas.height;
+    if (p.y > bgCanvas.height) p.y = 0;
+    bgCtx.beginPath();
+    bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(78, 205, 196, ${p.alpha})`;
+    bgCtx.fill();
+  });
+  requestAnimationFrame(animBG);
+}
+animBG();
+
+/* =============================================================
+   PREVENT DOUBLE-TAP ZOOM & PULL-TO-REFRESH
+   ============================================================= */
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 300) e.preventDefault();
+  lastTouchEnd = now;
+}, false);
+
+</script>
+</body>
+</html>
