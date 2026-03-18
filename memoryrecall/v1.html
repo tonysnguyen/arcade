@@ -516,7 +516,7 @@ body {
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 <!-- ============================================================
-     FIREBASE SDK (modular, CDN)
+     FIREBASE SDK (modular, CDN) — Firestore only, NO analytics
      ============================================================ -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js';
@@ -524,40 +524,32 @@ body {
     from 'https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js';
 
   /* ===========================================================
-     🔥 PASTE YOUR FIREBASE CONFIG HERE
-     ===========================================================
-     Replace the placeholder object below with your own config
-     from the Firebase Console → Project Settings → Your apps.
-
-     Example:
-     const firebaseConfig = {
-       apiKey: "AIzaSy...",
-       authDomain: "your-project.firebaseapp.com",
-       projectId: "your-project",
-       storageBucket: "your-project.appspot.com",
-       messagingSenderId: "123456789",
-       appId: "1:123456789:web:abcdef123456"
-     };
+     🔥 FIREBASE CONFIG — tony-arcade project
      =========================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
-  authDomain: "tony-arcade.firebaseapp.com",
-  projectId: "tony-arcade",
-  storageBucket: "tony-arcade.firebasestorage.app",
-  messagingSenderId: "88041829355",
-  appId: "1:88041829355:web:56d7048e7c842d14e99fae"
-};
-  /* ===========================================================
-     END FIREBASE CONFIG
-     =========================================================== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
+    authDomain: "tony-arcade.firebaseapp.com",
+    projectId: "tony-arcade",
+    storageBucket: "tony-arcade.firebasestorage.app",
+    messagingSenderId: "88041829355",
+    appId: "1:88041829355:web:56d7048e7c842d14e99fae",
+    // measurementId intentionally omitted — no analytics used
+  };
 
   /*
+     Firestore structure:
+       leaderboards / flip-recall / scores / {auto-id}
+         - name: string (max 12 chars)
+         - score: number
+         - level: number
+         - timestamp: server timestamp
+
      Recommended Firestore Security Rules:
      -----------------------------------------------
      rules_version = '2';
      service cloud.firestore {
        match /databases/{database}/documents {
-         match /leaderboard/{entry} {
+         match /leaderboards/{gameId}/scores/{entry} {
            allow read: if true;
            allow create: if request.resource.data.keys().hasAll(['name','score','level','timestamp'])
                          && request.resource.data.name is string
@@ -595,7 +587,10 @@ const firebaseConfig = {
     serverTimestamp,
   };
 
-  // Signal that Firebase module is loaded so the game can proceed
+  // Signal that Firebase module is loaded so the game can proceed.
+  // Set a flag AND dispatch an event so the game script works
+  // regardless of whether it attaches its listener before or after this runs.
+  window._fbReady = true;
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 </head>
@@ -742,9 +737,10 @@ const firebaseConfig = {
    helpers via window._fb. We wait for the 'firebase-ready' event
    before using them, but the game itself boots immediately.
 
-   Collection: "leaderboard"
-   Document fields: name (string), score (number),
-                    level (number), timestamp (server)
+   Path: leaderboards / flip-recall / scores / {auto-id}
+   Document fields: name (string, max 12 chars),
+                    score (number), level (number),
+                    timestamp (Firestore server timestamp)
    ============================================================= */
 
 // Cached leaderboard entries (refreshed on every fetch)
@@ -753,6 +749,15 @@ let cachedLeaderboard = [];
 // Check if Firestore is available
 function hasFirestore() {
   return !!(window._fb && window._fb.db);
+}
+
+/**
+ * Returns a Firestore CollectionReference to the scores subcollection:
+ *   leaderboards / flip-recall / scores
+ */
+function scoresCollection() {
+  const fb = window._fb;
+  return fb.collection(fb.db, 'leaderboards', 'flip-recall', 'scores');
 }
 
 /**
@@ -765,7 +770,7 @@ async function fetchLeaderboard() {
   try {
     const fb = window._fb;
     const q = fb.query(
-      fb.collection(fb.db, 'leaderboard'),
+      scoresCollection(),
       fb.orderBy('score', 'desc'),
       fb.limit(5)
     );
@@ -789,13 +794,13 @@ function getLeaderboard() {
 }
 
 /**
- * Save a new score to Firestore.
+ * Save a new score to Firestore at leaderboards/flip-recall/scores.
  */
 async function addToLeaderboard(name, score, level) {
   if (!hasFirestore()) return;
   try {
     const fb = window._fb;
-    await fb.addDoc(fb.collection(fb.db, 'leaderboard'), {
+    await fb.addDoc(scoresCollection(), {
       name: name,
       score: score,
       level: level,
@@ -1376,14 +1381,25 @@ function renderTopPlayer() {
 
 // Initialize quote immediately
 displayRandomQuote();
-// Render top player with empty state first, then refresh when Firebase is ready
+// Render top player with empty/fallback state first
 renderTopPlayer();
 
-// When Firebase module finishes loading, fetch real data
-window.addEventListener('firebase-ready', async () => {
+// Fetch real leaderboard data from Firestore once Firebase is ready.
+// The module script in <head> sets window._fbReady = true AND dispatches
+// a 'firebase-ready' event — but because modules are deferred, the event
+// may fire before this listener is registered. We handle both cases.
+async function onFirebaseReady() {
   await fetchLeaderboard();
   renderTopPlayer();
-});
+}
+
+if (window._fbReady) {
+  // Module already executed — fetch immediately
+  onFirebaseReady();
+} else {
+  // Module hasn't fired yet — wait for the event
+  window.addEventListener('firebase-ready', onFirebaseReady, { once: true });
+}
 
 /* =============================================================
    EVENT LISTENERS
