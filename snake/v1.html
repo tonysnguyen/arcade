@@ -828,7 +828,7 @@ html, body {
     </div>
     <div class="hs-claim-line">Enter your name to claim your spot</div>
     <div class="highscore-input-wrap">
-      <input type="text" class="highscore-input" id="hs-name-input" placeholder="Your name" maxlength="10" autocomplete="off" spellcheck="false" />
+      <input type="text" class="highscore-input" id="hs-name-input" placeholder="Your name" maxlength="12" autocomplete="off" spellcheck="false" />
       <button class="highscore-submit" id="hs-submit-btn">SAVE</button>
     </div>
     <div class="hs-error-msg" id="hs-error-msg"></div>
@@ -838,22 +838,23 @@ html, body {
 </div>
 
 <!-- ============================================================
-     FIREBASE MODULE — Firestore leaderboard backend
+     FIREBASE MODULE — Firestore leaderboard backend (NO analytics)
+     ============================================================
+     Firestore path: leaderboards / sneaky-snake / scores / {auto-id}
+     Each document: { name, score, timestamp }
      ============================================================ -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
   import {
     getFirestore,
     collection,
     addDoc,
     query,
-    where,
     orderBy,
     limit,
     getDocs,
     serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+  } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
@@ -862,30 +863,56 @@ html, body {
     storageBucket: "tony-arcade.firebasestorage.app",
     messagingSenderId: "88041829355",
     appId: "1:88041829355:web:56d7048e7c842d14e99fae",
-    measurementId: "G-RVYF35QB7W"
+    // measurementId intentionally omitted — no analytics used
   };
 
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getFirestore(app);
+  /*
+     Recommended Firestore Security Rules:
+     -----------------------------------------------
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /leaderboards/{gameId}/scores/{entry} {
+           allow read: if true;
+           allow create: if request.resource.data.keys().hasAll(['name','score','timestamp'])
+                         && request.resource.data.name is string
+                         && request.resource.data.name.size() <= 12
+                         && request.resource.data.score is number
+                         && request.resource.data.score >= 0;
+           allow update, delete: if false;
+         }
+       }
+     }
+     -----------------------------------------------
+  */
 
-  const GAME_ID = "sneaky-snake";
-  const COLLECTION_NAME = "leaderboardScores";
-  const MAX_ENTRIES = 5;
+  let db = null;
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    console.log('[Sneaky Snake] Firebase initialized');
+  } catch (err) {
+    console.warn('[Sneaky Snake] Firebase init failed:', err.message);
+  }
+
+  /** Subcollection reference: leaderboards / sneaky-snake / scores */
+  function scoresRef() {
+    return collection(db, 'leaderboards', 'sneaky-snake', 'scores');
+  }
 
   /* ── EXPOSE FIREBASE FUNCTIONS TO GLOBAL GAME SCOPE ─────── */
 
   /**
-   * loadLeaderboard — fetch top 5 scores for this game from Firestore
-   * Returns: Array of { name, score, timestamp } sorted desc
+   * loadLeaderboard — fetch top 5 scores from Firestore
+   * Returns: Array of { name, score, timestamp } sorted desc, or null on error
    */
   window.fbLoadLeaderboard = async function () {
+    if (!db) return null;
     try {
       const q = query(
-        collection(db, COLLECTION_NAME),
-        where("gameId", "==", GAME_ID),
+        scoresRef(),
         orderBy("score", "desc"),
-        limit(MAX_ENTRIES)
+        limit(5)
       );
       const snapshot = await getDocs(q);
       const entries = [];
@@ -895,41 +922,38 @@ html, body {
       });
       return entries;
     } catch (err) {
-      console.warn("Firestore load failed:", err);
-      return null; // null = error, [] = empty
+      console.warn("[Sneaky Snake] Firestore load failed:", err);
+      return null;
     }
   };
 
   /**
    * saveLeaderboardScore — write a new score to Firestore
-   * Payload is hardened: only gameId, name, score, timestamp are written.
-   * Name and score are re-validated at the write boundary.
+   * Saves only: name, score, timestamp. No gameId needed (path encodes it).
    */
   window.fbSaveLeaderboardScore = async function (name, scoreVal) {
+    if (!db) return false;
     try {
-      // Final type enforcement at the Firebase boundary
-      const safeName  = String(name || '').slice(0, 10);
+      const safeName  = String(name || '').slice(0, 12);
       const safeScore = Math.max(0, Math.min(999999, Math.floor(Number(scoreVal) || 0)));
 
       if (!safeName || safeScore <= 0) return false;
 
-      // Strict payload — only these four fields, nothing else
-      await addDoc(collection(db, COLLECTION_NAME), {
-        gameId:    GAME_ID,
+      await addDoc(scoresRef(), {
         name:      safeName,
         score:     safeScore,
         timestamp: serverTimestamp()
       });
       return true;
     } catch (err) {
-      console.warn("Firestore save failed:", err);
+      console.warn("[Sneaky Snake] Firestore save failed:", err);
       return false;
     }
   };
 
-  /* Signal that Firebase is ready */
+  /* Signal that Firebase is ready (flag + event for race-condition resilience) */
   window.fbReady = true;
-  if (typeof window.onFirebaseReady === 'function') window.onFirebaseReady();
+  window.dispatchEvent(new Event('firebase-ready'));
 </script>
 
 <script>
@@ -1004,10 +1028,10 @@ const BANNED_FRAGMENTS = [
   'asshole','dumbass','badass','jackass'
 ];
 
-/** sanitizePlayerName — letters + numbers only, max 10 chars */
+/** sanitizePlayerName — letters + numbers only, max 12 chars */
 function sanitizePlayerName(raw) {
   let clean = raw.replace(/[^a-zA-Z0-9]/g, '').trim();
-  if (clean.length > 10) clean = clean.slice(0, 10);
+  if (clean.length > 12) clean = clean.slice(0, 12);
   if (clean.length === 0) clean = 'Player';
   return clean.toUpperCase();
 }
@@ -1055,14 +1079,14 @@ async function loadLeaderboard() {
 
 /**
  * saveLeaderboardScore — validate + write to Firebase
- * Enforces clean payload: gameId, name (string), score (integer), timestamp.
+ * Enforces clean payload: name (string, max 12), score (integer), timestamp.
  * Returns true on success, false on failure.
  */
 async function saveLeaderboardScore(name, scoreVal) {
   if (typeof window.fbSaveLeaderboardScore !== 'function') return false;
 
   // Payload hardening — ensure types are correct before sending
-  const cleanName  = String(name).slice(0, 10);
+  const cleanName  = String(name).slice(0, 12);
   const cleanScore = Math.max(0, Math.min(999999, Math.floor(Number(scoreVal) || 0)));
 
   return await window.fbSaveLeaderboardScore(cleanName, cleanScore);
@@ -1605,17 +1629,23 @@ function refreshTopSnakeDisplay() {
 }
 
 /* ── FIREBASE READY HOOK ──────────────────────────────────────
-   The Firebase module script (type="module") is deferred and runs
-   AFTER this regular script. So on first page load, fbLoadLeaderboard
-   doesn't exist yet when showStartPopup fires. This hook retries
-   the leaderboard load once Firebase signals it's ready.
+   The Firebase module script (type="module") is deferred and may
+   run BEFORE or AFTER this regular script. We handle both cases:
+   - If fbReady flag is already set, refresh immediately
+   - Otherwise, listen for the 'firebase-ready' event
    ──────────────────────────────────────────────────────────── */
-window.onFirebaseReady = function () {
+function onFirebaseReady() {
   // Only refresh if the start popup is currently visible
   if (popupStart.style.display !== 'none') {
     refreshTopSnakeDisplay();
   }
-};
+}
+
+if (window.fbReady) {
+  onFirebaseReady();
+} else {
+  window.addEventListener('firebase-ready', onFirebaseReady, { once: true });
+}
 
 function hideOverlay() {
   overlay.classList.add('hidden');
