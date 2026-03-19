@@ -989,7 +989,7 @@ function getLeaderboard() {
  * Save a new score to Firestore at leaderboards/flip-recall/scores.
  */
 async function addToLeaderboard(name, score, level) {
-  if (!hasFirestore()) return;
+  if (!hasFirestore()) return false;
   try {
     const fb = window._fb;
     await fb.addDoc(scoresCollection(), {
@@ -998,12 +998,12 @@ async function addToLeaderboard(name, score, level) {
       level: level,
       timestamp: fb.serverTimestamp(),
     });
-    // Refresh cache after saving
     await fetchLeaderboard();
-    // Update the start screen spotlight
     renderTopPlayer();
+    return true;
   } catch (err) {
     console.warn('[Flip Recall] Score save failed:', err.message);
+    return false;
   }
 }
 
@@ -1588,10 +1588,7 @@ function updateFreebieHUD() {
   for (let i = 0; i < state.maxFreebieCards; i++) {
     const slot = document.getElementById(`freebieSlot${i}`);
     if (!slot) continue;
-    const wasFilled = slot.classList.contains('filled');
-    const shouldFill = i < state.freebieCards;
-    slot.classList.toggle('filled', shouldFill);
-    slot.textContent = shouldFill ? '✦' : '✦';
+    slot.classList.toggle('filled', i < state.freebieCards);
   }
 }
 
@@ -1796,13 +1793,46 @@ function levelComplete(starsEarned, speedBonus, streakBonus) {
 }
 
 /* =============================================================
-   GAME OVER
+   GAME OVER — checks leaderboard qualification before showing overlays
    ============================================================= */
 function showGameOver() {
   sfxLose();
+
+  if (isLeaderboardWorthy(state.score) && state.score > 0) {
+    // Player made the Top 5 — show nickname entry first, then lose overlay
+    pendingScore = { score: state.score, level: state.highestLevel };
+    nickFlowFromLoss = true;
+    showOverlay(nickOverlay);
+    $('#nickInput').value = '';
+    $('#nickInput').focus();
+  } else {
+    showLoseOverlay('missed');
+  }
+}
+
+/**
+ * showLoseOverlay — populates and displays the game-over screen.
+ * @param {'missed'|'saved'|'save-failed'|'skipped'} reason
+ *   'missed'      — score did not qualify for Top 5
+ *   'saved'       — qualified, player saved successfully
+ *   'save-failed' — qualified, player tried to save but Firestore failed
+ *   'skipped'     — qualified, player chose to skip saving
+ */
+function showLoseOverlay(reason) {
   $('#loseLevel').textContent = state.level;
   $('#loseScore').textContent = state.score;
   $('#loseStars').textContent = state.stars;
+
+  const loseMsg = $('#loseMsg');
+  if (reason === 'saved') {
+    loseMsg.textContent = 'Your score has been saved to the Top 5 leaderboard!';
+  } else if (reason === 'save-failed') {
+    loseMsg.textContent = 'You made the Top 5, but the save didn\u2019t go through.';
+  } else if (reason === 'skipped') {
+    loseMsg.textContent = 'You made the Top 5 leaderboard!';
+  } else {
+    loseMsg.textContent = 'Keep pushing \u2014 break into the Top 5 leaderboard!';
+  }
 
   const canRetry = state.stars >= 1 && state.retries < state.maxRetries;
   const btnRetry = $('#btnRetry');
@@ -1879,6 +1909,7 @@ function returnToStart() {
   state.isRevealing = false;
   state.currentStep = 0;
   pendingScore = null;
+  nickFlowFromLoss = false;
 
   // Music continues on the start screen — do NOT stop it here
 
@@ -1901,17 +1932,16 @@ function returnToStart() {
 }
 
 function restartGame() {
+  // "Restart from Level 1" — immediately start a fresh run
+  state.isPlaying = false;
+  state.isRevealing = false;
+  pendingScore = null;
+  nickFlowFromLoss = false;
   hideOverlay(loseOverlay);
-  // Check leaderboard qualification
-  if (isLeaderboardWorthy(state.score) && state.score > 0) {
-    pendingScore = { score: state.score, level: state.highestLevel };
-    showOverlay(nickOverlay);
-    $('#nickInput').value = '';
-    $('#nickInput').focus();
-  } else {
-    // Return to start screen so the player can choose to play again
-    returnToStart();
-  }
+  // Ensure audio continuity
+  ensureAudio();
+  if (state.musicOn) startBGMusic();
+  setTimeout(() => startGame(), 300);
 }
 
 /* =============================================================
@@ -1950,6 +1980,9 @@ function sanitizeNick(str) {
 }
 
 let pendingScore = null;
+// When true, the nickname overlay was triggered by a qualifying loss.
+// After save/skip, the lose overlay should be shown (not return to start).
+let nickFlowFromLoss = false;
 
 /* =============================================================
    START SCREEN — TOP PLAYER + QUOTE SYSTEM
@@ -2088,13 +2121,29 @@ $('#btnNickSave').addEventListener('click', async () => {
   const btn = $('#btnNickSave');
   btn.textContent = 'Saving…';
   btn.style.pointerEvents = 'none';
-  await addToLeaderboard(name, pendingScore.score, pendingScore.level);
+  const saveOk = await addToLeaderboard(name, pendingScore.score, pendingScore.level);
   btn.textContent = 'Save';
   btn.style.pointerEvents = '';
-  returnToStart();
+  pendingScore = null;
+  hideOverlay(nickOverlay);
+
+  if (nickFlowFromLoss) {
+    nickFlowFromLoss = false;
+    showLoseOverlay(saveOk ? 'saved' : 'save-failed');
+  } else {
+    returnToStart();
+  }
 });
 $('#btnNickSkip').addEventListener('click', () => {
-  returnToStart();
+  pendingScore = null;
+  hideOverlay(nickOverlay);
+
+  if (nickFlowFromLoss) {
+    nickFlowFromLoss = false;
+    showLoseOverlay('skipped');
+  } else {
+    returnToStart();
+  }
 });
 
 // --- In-game HUD audio toggles ---
