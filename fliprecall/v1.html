@@ -558,6 +558,111 @@ body {
 }
 
 /* ============================================================
+   FREEBIE CARD METER — 3-slot HUD element
+   ============================================================ */
+.freebie-meter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0 2px;
+  flex-shrink: 0;
+}
+.freebie-meter-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.freebie-slot {
+  width: 26px; height: 34px;
+  border-radius: 6px;
+  border: 1.5px dashed rgba(167, 139, 250, 0.3);
+  background: rgba(167, 139, 250, 0.04);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  color: rgba(167, 139, 250, 0.2);
+  transition: all 0.35s ease;
+  position: relative;
+  overflow: hidden;
+}
+.freebie-slot.filled {
+  border-style: solid;
+  border-color: rgba(167, 139, 250, 0.5);
+  background: rgba(167, 139, 250, 0.12);
+  color: #a78bfa;
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.15);
+}
+.freebie-slot.consumed {
+  animation: freebieConsume 0.5s ease forwards;
+}
+@keyframes freebieConsume {
+  0% { transform: scale(1); border-color: rgba(167, 139, 250, 0.5); }
+  30% { transform: scale(1.15); border-color: rgba(231, 76, 60, 0.6); background: rgba(231, 76, 60, 0.15); }
+  100% { transform: scale(1); border-color: rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.04); }
+}
+.freebie-slot.earned {
+  animation: freebieEarn 0.5s ease forwards;
+}
+@keyframes freebieEarn {
+  0% { transform: scale(0.7); opacity: 0.3; }
+  50% { transform: scale(1.2); box-shadow: 0 0 18px rgba(167, 139, 250, 0.5); }
+  100% { transform: scale(1); }
+}
+
+/* Freebie used toast */
+.freebie-toast {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(167, 139, 250, 0.18);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 14px;
+  padding: 10px 22px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: #a78bfa;
+  letter-spacing: 0.5px;
+  z-index: 150;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  animation: toastPop 1.2s ease forwards;
+}
+@keyframes toastPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(0.95); }
+}
+
+/* Freebie reward fly animation */
+.freebie-fly-card {
+  position: fixed;
+  width: 36px; height: 46px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #a78bfa, #7c5ce0);
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.5), 0 4px 12px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff; font-weight: 800;
+  font-family: var(--font-display);
+  z-index: 250;
+  pointer-events: none;
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Win overlay freebie message */
+.win-freebie-msg {
+  font-size: 13px;
+  color: #a78bfa;
+  font-weight: 600;
+  margin-top: 4px;
+  min-height: 20px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (min-width: 600px) {
@@ -682,6 +787,14 @@ body {
     </div>
   </div>
 
+  <!-- Freebie Card Meter -->
+  <div class="freebie-meter" id="freebieMeter" style="visibility:hidden">
+    <span class="freebie-meter-label">Freebies</span>
+    <div class="freebie-slot" id="freebieSlot0">✦</div>
+    <div class="freebie-slot" id="freebieSlot1">✦</div>
+    <div class="freebie-slot" id="freebieSlot2">✦</div>
+  </div>
+
   <!-- Card area -->
   <div class="card-area" id="cardArea">
     <div class="card-grid" id="cardGrid"></div>
@@ -749,6 +862,7 @@ body {
       <div class="stat-item"><div class="val" id="winScore">-</div><div class="lbl">Score</div></div>
     </div>
     <p>Total Stars: <strong id="winTotalStars">-</strong> ★</p>
+    <p class="win-freebie-msg" id="winFreebieMsg"></p>
     <div class="btn-group">
       <button class="btn btn-primary" id="btnNextLevel">Next Level →</button>
     </div>
@@ -1090,15 +1204,21 @@ let state = {
   stars: 5,
   retries: 0,
   maxRetries: 3,
-  currentStep: 0,    // which card in sequence player must tap next
-  streak: 0,         // consecutive perfect levels
+  currentStep: 0,
+  streak: 0,
   highestLevel: 0,
   isRevealing: false,
   isPlaying: false,
   levelStartTime: 0,
-  musicOn: true,      // ambient music toggle (independent)
-  sfxOn: true,        // sound effects toggle (independent)
-  cardPositions: [],  // shuffled array — cardPositions[gridIndex] = number shown
+  musicOn: true,
+  sfxOn: true,
+  cardPositions: [],
+  // Freebie card system
+  freebieCards: 0,          // current freebie cards held (0–3)
+  maxFreebieCards: 3,       // cap
+  levelsTowardFreebie: 0,   // 0–2, resets to 0 after earning one
+  freebieEarnedThisLevel: false, // flag for win-screen messaging
+  freebieConvertedToStars: false, // flag when freebie overflows into stars
 };
 
 /* =============================================================
@@ -1142,6 +1262,14 @@ function sfxLose() {
 }
 function sfxReveal(i) {
   playTone(400 + i * 30, 0.12, 'triangle', 0.06);
+}
+function sfxFreebieUsed() {
+  playTone(500, 0.15, 'sine', 0.08);
+  setTimeout(() => playTone(400, 0.2, 'sine', 0.06), 80);
+}
+function sfxFreebieEarned() {
+  playTone(660, 0.12, 'sine', 0.1);
+  setTimeout(() => playTone(880, 0.15, 'sine', 0.08), 100);
 }
 
 /* =============================================================
@@ -1454,6 +1582,74 @@ function revealSequence(count, revealTime) {
 }
 
 /* =============================================================
+   FREEBIE CARD SYSTEM — HUD + helpers
+   ============================================================= */
+function updateFreebieHUD() {
+  for (let i = 0; i < state.maxFreebieCards; i++) {
+    const slot = document.getElementById(`freebieSlot${i}`);
+    if (!slot) continue;
+    const wasFilled = slot.classList.contains('filled');
+    const shouldFill = i < state.freebieCards;
+    slot.classList.toggle('filled', shouldFill);
+    slot.textContent = shouldFill ? '✦' : '✦';
+  }
+}
+
+function showFreebieToast(text) {
+  const toast = document.createElement('div');
+  toast.className = 'freebie-toast';
+  toast.textContent = text;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 1300);
+}
+
+function animateFreebieConsume(slotIdx) {
+  const slot = document.getElementById(`freebieSlot${slotIdx}`);
+  if (slot) {
+    slot.classList.remove('consumed');
+    void slot.offsetWidth; // force reflow
+    slot.classList.add('consumed');
+    setTimeout(() => slot.classList.remove('consumed'), 600);
+  }
+}
+
+function animateFreebieEarn(slotIdx) {
+  const slot = document.getElementById(`freebieSlot${slotIdx}`);
+  if (!slot) return;
+
+  // Create a flying card that moves to the slot
+  const flyCard = document.createElement('div');
+  flyCard.className = 'freebie-fly-card';
+  flyCard.textContent = '✦';
+  // Start from center of screen
+  flyCard.style.left = '50%';
+  flyCard.style.top = '45%';
+  flyCard.style.transform = 'translate(-50%, -50%) scale(1.2)';
+  document.body.appendChild(flyCard);
+
+  // After a beat, fly to the target slot
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const rect = slot.getBoundingClientRect();
+      flyCard.style.left = rect.left + rect.width / 2 + 'px';
+      flyCard.style.top = rect.top + rect.height / 2 + 'px';
+      flyCard.style.transform = 'translate(-50%, -50%) scale(0.6)';
+      flyCard.style.opacity = '0.8';
+    });
+  });
+
+  // On arrival, pop the slot and remove the fly card
+  setTimeout(() => {
+    flyCard.remove();
+    slot.classList.remove('earned');
+    void slot.offsetWidth;
+    slot.classList.add('earned');
+    sfxFreebieEarned();
+    setTimeout(() => slot.classList.remove('earned'), 600);
+  }, 750);
+}
+
+/* =============================================================
    CARD TAP HANDLER
    ============================================================= */
 function onCardTap(e) {
@@ -1502,21 +1698,40 @@ function onCardTap(e) {
       setTimeout(() => levelComplete(cfg.starsReward, speedBonus, streakBonus), 500);
     }
   } else {
-    // WRONG
-    card.classList.add('wrong');
+    // WRONG TAP
     sfxWrong();
     hapticError();
-    state.isPlaying = false;
-    state.streak = 0;
-    state.highestLevel = Math.max(state.highestLevel, state.level - 1);
 
-    // Reveal all cards briefly
-    setTimeout(() => {
-      Array.from(cardGrid.children).forEach(c => {
-        if (!c.classList.contains('flipped')) c.classList.add('flipped');
-      });
-      setTimeout(() => showGameOver(), 800);
-    }, 400);
+    if (state.freebieCards > 0) {
+      // --- FREEBIE FORGIVENESS: consume 1 card, continue playing ---
+      const consumedIdx = state.freebieCards - 1;
+      state.freebieCards--;
+      updateFreebieHUD();
+      animateFreebieConsume(consumedIdx);
+      sfxFreebieUsed();
+      showFreebieToast('Freebie Saved!');
+
+      // Brief error flash, then recover the card to tappable state
+      card.classList.add('wrong');
+      setTimeout(() => {
+        card.classList.remove('flipped', 'wrong');
+        // Do NOT advance currentStep — player must still find the correct card
+      }, 500);
+      // isPlaying stays true — board remains active
+    } else {
+      // --- NO FREEBIES: normal game over flow ---
+      state.isPlaying = false;
+      state.streak = 0;
+      state.highestLevel = Math.max(state.highestLevel, state.level - 1);
+
+      // Reveal all cards briefly
+      setTimeout(() => {
+        Array.from(cardGrid.children).forEach(c => {
+          if (!c.classList.contains('flipped')) c.classList.add('flipped');
+        });
+        setTimeout(() => showGameOver(), 800);
+      }, 400);
+    }
   }
 }
 
@@ -1538,10 +1753,44 @@ function levelComplete(starsEarned, speedBonus, streakBonus) {
   hapticWin();
   fireConfetti();
 
+  // --- Freebie progress tracking ---
+  state.levelsTowardFreebie++;
+  state.freebieEarnedThisLevel = false;
+  state.freebieConvertedToStars = false;
+
+  if (state.levelsTowardFreebie >= 3) {
+    state.levelsTowardFreebie = 0;
+    if (state.freebieCards < state.maxFreebieCards) {
+      // Award a freebie card
+      state.freebieEarnedThisLevel = true;
+      state.freebieCards++;
+      updateFreebieHUD();
+      // Animate the earned slot (delayed so overlay is visible first)
+      const earnedSlotIdx = state.freebieCards - 1;
+      setTimeout(() => animateFreebieEarn(earnedSlotIdx), 400);
+    } else {
+      // Overflow: convert to bonus stars instead
+      state.freebieConvertedToStars = true;
+      state.stars += 2;
+    }
+  }
+
+  // --- Win overlay content ---
   $('#winLevel').textContent = state.level;
   $('#winStarsEarned').textContent = `+${starsEarned}`;
   $('#winScore').textContent = state.score;
   $('#winTotalStars').textContent = state.stars;
+
+  // Freebie reward messaging
+  const freebieMsg = $('#winFreebieMsg');
+  if (state.freebieEarnedThisLevel) {
+    freebieMsg.textContent = '✦ Freebie Card Earned!';
+  } else if (state.freebieConvertedToStars) {
+    freebieMsg.textContent = '✦ Freebies Full → +2 Bonus Stars!';
+  } else {
+    const remaining = 3 - state.levelsTowardFreebie;
+    freebieMsg.textContent = remaining > 0 ? `${remaining} more level${remaining > 1 ? 's' : ''} to next freebie` : '';
+  }
 
   showOverlay(winOverlay);
 }
@@ -1577,6 +1826,12 @@ function startGame() {
   state.retries = 0;
   state.streak = 0;
   state.highestLevel = 0;
+  // Reset freebie system for new run
+  state.freebieCards = 0;
+  state.levelsTowardFreebie = 0;
+  state.freebieEarnedThisLevel = false;
+  state.freebieConvertedToStars = false;
+  updateFreebieHUD();
   startLevel();
 }
 
@@ -1585,7 +1840,9 @@ function startLevel() {
   state.currentStep = 0;
   state.isPlaying = false;
   updateHUD();
+  updateFreebieHUD();
   topBar.style.visibility = 'visible';
+  document.getElementById('freebieMeter').style.visibility = 'visible';
 
   // Generate card positions using smart placement + controlled shuffle
   const positions = generatePositions(cfg.cards, cfg.shuffleIntensity, cfg.clusterAssist);
@@ -1633,6 +1890,7 @@ function returnToStart() {
 
   // Hide the gameplay HUD and clear the card grid
   topBar.style.visibility = 'hidden';
+  document.getElementById('freebieMeter').style.visibility = 'hidden';
   cardGrid.innerHTML = '';
 
   // Refresh start screen data and show it
