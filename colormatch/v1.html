@@ -207,6 +207,7 @@ canvas{display:block}
     <div class="title-text">Color Match</div>
     <div class="title-sub">Swipe · Match · Score</div>
     <div class="leaderboard-box" id="menuLB"></div>
+    <div id="lbStatus" style="margin-top:8px;font-size:.8rem;color:var(--text2);position:relative;z-index:1;">Connecting leaderboard...</div>
     <button class="btn" onclick="startGame()">Play</button>
   </div>
 </div>
@@ -297,7 +298,7 @@ let state = {
 // FIREBASE LEADERBOARD — PRODUCTION READY
 // ============================================================
 
-// ---- STEP 1: Paste your Firebase config here ----
+// ---- Firebase config (paste your values here) ----
 const firebaseConfig = {
   apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
   authDomain: "tony-arcade.firebaseapp.com",
@@ -308,101 +309,116 @@ const firebaseConfig = {
   measurementId: "G-RVYF35QB7W"
 };
 
-// ---- STEP 2: Set your game's leaderboard collection name ----
+// ---- Game-specific leaderboard settings ----
 const LEADERBOARD_COLLECTION = 'leaderboard_color_match';
-
-// ---- STEP 3: Set max name length ----
 const MAX_NAME_LENGTH = 8;
 const LEADERBOARD_SIZE = 5;
 
-// ---- Firebase initialization ----
+// ---- Firebase state ----
 let db = null;
 let firebaseReady = false;
 
+// ---- Status helper (updates visible #lbStatus element) ----
+function setLeaderboardStatus(message, isError = false) {
+  const el = document.getElementById('lbStatus');
+  if (!el) return;
+  el.textContent = message;
+  el.style.color = isError ? 'var(--red)' : 'var(--text2)';
+}
+
+// ---- Firebase initialization (called once at startup) ----
 function initFirebase() {
+  // Guard: SDK must be loaded
+  if (typeof firebase === 'undefined') {
+    console.error('[Leaderboard] Firebase SDK not loaded.');
+    setLeaderboardStatus('Leaderboard unavailable (SDK missing)', true);
+    return;
+  }
+  // Guard: config must have an apiKey
+  if (!firebaseConfig.apiKey) {
+    console.warn('[Leaderboard] Firebase config not set — add your config to go live.');
+    setLeaderboardStatus('Leaderboard offline (no config)', true);
+    return;
+  }
   try {
-    if (!firebaseConfig.apiKey) {
-      console.warn('Firebase config not set. Leaderboard will use local fallback.');
-      return;
+    // Only initialize once
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
     }
-    if (typeof firebase === 'undefined') {
-      console.warn('Firebase SDK not loaded. Leaderboard will use local fallback.');
-      return;
-    }
-    firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     firebaseReady = true;
-    console.log('Firebase initialized for leaderboard.');
+    console.log('[Leaderboard] Firebase connected. Collection:', LEADERBOARD_COLLECTION);
+    setLeaderboardStatus('Leaderboard connected ✓');
   } catch (e) {
-    console.error('Firebase init failed:', e);
+    console.error('[Leaderboard] Firebase init failed:', e);
+    setLeaderboardStatus('Leaderboard error (init failed)', true);
     firebaseReady = false;
   }
 }
 
-// ---- Leaderboard module (used by all UI) ----
+// ---- Leaderboard module ----
 const Leaderboard = {
-  // Local cache for offline / fallback
-  _cache: [],
 
-  /** Fetch top N scores. Returns array of {name, score}. */
+  /** Fetch top N scores from Firestore. Returns {name, score}[] */
   async getTop(n = LEADERBOARD_SIZE) {
-    if (firebaseReady) {
-      try {
-        const snap = await db.collection(LEADERBOARD_COLLECTION)
-          .orderBy('score', 'desc')
-          .limit(n)
-          .get();
-        const results = snap.docs.map(d => ({
-          name: d.data().name || 'PLAYER',
-          score: d.data().score || 0
-        }));
-        this._cache = results;
-        return results;
-      } catch (e) {
-        console.error('Firestore getTop failed:', e);
-        return this._cache.slice(0, n);
-      }
+    if (!firebaseReady) {
+      console.warn('[Leaderboard] getTop called but Firebase not ready.');
+      return [];
     }
-    return this._cache.slice(0, n);
+    try {
+      const snap = await db.collection(LEADERBOARD_COLLECTION)
+        .orderBy('score', 'desc')
+        .limit(n)
+        .get();
+      return snap.docs.map(d => ({
+        name: d.data().name || 'PLAYER',
+        score: d.data().score || 0
+      }));
+    } catch (e) {
+      console.error('[Leaderboard] getTop failed:', e);
+      setLeaderboardStatus('Failed to load scores', true);
+      return [];
+    }
   },
 
   /** Check if a score qualifies for top N. */
   async qualifies(score, n = LEADERBOARD_SIZE) {
     if (score <= 0) return false;
-    const top = await this.getTop(n);
-    if (top.length < n) return true;
-    return score > top[top.length - 1].score;
+    if (!firebaseReady) return false;
+    try {
+      const top = await this.getTop(n);
+      if (top.length < n) return true;
+      return score > top[top.length - 1].score;
+    } catch (e) {
+      console.error('[Leaderboard] qualifies check failed:', e);
+      return false;
+    }
   },
 
-  /** Submit a score. Sanitizes name. */
+  /** Submit a score to Firestore. Returns true on success, false on failure. */
   async submit(rawName, score) {
     let name = (rawName || '').trim().substring(0, MAX_NAME_LENGTH).replace(/[<>"'&]/g, '');
     if (!name) name = 'PLAYER';
 
-    if (firebaseReady) {
-      try {
-        await db.collection(LEADERBOARD_COLLECTION).add({
-          name: name,
-          score: score,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        // Refresh cache
-        await this.getTop(LEADERBOARD_SIZE);
-        return true;
-      } catch (e) {
-        console.error('Firestore submit failed:', e);
-        // Fallback to local
-        this._cache.push({ name, score });
-        this._cache.sort((a, b) => b.score - a.score);
-        this._cache = this._cache.slice(0, 10);
-        return false;
-      }
+    if (!firebaseReady) {
+      console.error('[Leaderboard] submit called but Firebase not ready.');
+      setLeaderboardStatus('Could not save score (offline)', true);
+      return false;
     }
-    // Local-only fallback
-    this._cache.push({ name, score });
-    this._cache.sort((a, b) => b.score - a.score);
-    this._cache = this._cache.slice(0, 10);
-    return false;
+    try {
+      await db.collection(LEADERBOARD_COLLECTION).add({
+        name: name,
+        score: score,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      console.log('[Leaderboard] Score submitted:', name, score);
+      setLeaderboardStatus('Score saved ✓');
+      return true;
+    } catch (e) {
+      console.error('[Leaderboard] submit failed:', e);
+      setLeaderboardStatus('Failed to save score', true);
+      return false;
+    }
   }
 };
 
@@ -603,21 +619,11 @@ async function renderLeaderboard(containerId, n=5){
   else top.forEach((s,i)=>{html+=`<div class="lb-row"><div class="lb-rank">${i+1}</div><div class="lb-name">${s.name}</div><div class="lb-score">${s.score}</div></div>`});
   el.innerHTML=html;
 }
-async function renderMenuLeaderboard(){
-  const el=document.getElementById('menuLB');if(!el)return;
-  const top=await Leaderboard.getTop(1);
-  if(!top.length){el.innerHTML='<div class="lb-title">🏆 Top Player</div><div style="color:var(--text2);font-size:.85rem;text-align:center;padding:4px 0">No scores yet</div>';return}
-  const s=top[0];
-  el.innerHTML=`<div class="lb-title">🏆 Top Player</div><div class="lb-top-player"><span class="lb-crown">👑</span><span class="lb-tp-name">${s.name}</span><span class="lb-tp-score">${s.score}</span></div>`;
-}
-
-// ============================================================
-// NAME ENTRY & SCORE SUBMISSION
-// ============================================================
 async function showNameEntryIfQualified(score){
   const container=document.getElementById('goNameEntry');
   container.innerHTML='';
   state.scoreSubmitted=false;
+
   const qualified=await Leaderboard.qualifies(score);
   if(!qualified||score<=0)return;
 
@@ -629,29 +635,48 @@ async function showNameEntryIfQualified(score){
         <button class="name-entry-submit" id="nameSubmitBtn" onclick="submitLeaderboardScore()">Save</button>
       </div>
     </div>`;
-  // Allow typing in name field without triggering game controls
+
   const inp=document.getElementById('nameInput');
   inp.addEventListener('touchstart',e=>e.stopPropagation());
   inp.addEventListener('mousedown',e=>e.stopPropagation());
   setTimeout(()=>inp.focus(),300);
 }
 
+// ============================================================
+// NAME ENTRY & SCORE SUBMISSION
+// ============================================================
 async function submitLeaderboardScore(){
   if(state.scoreSubmitted)return;
+
   const btn=document.getElementById('nameSubmitBtn');
   const inp=document.getElementById('nameInput');
   if(!inp||!btn)return;
-  btn.disabled=true;btn.textContent='...';
-  const name=inp.value;
-  await Leaderboard.submit(name,state.totalScore);
-  state.scoreSubmitted=true;
-  // Replace entry with confirmation
-  const container=document.getElementById('goNameEntry');
-  container.innerHTML='<div class="name-entry-done">✅ Score saved!</div>';
-  // Refresh the leaderboard display below
-  await renderLeaderboard('goLB',5);
-}
 
+  btn.disabled=true;
+  btn.textContent='...';
+
+  const ok = await Leaderboard.submit(inp.value, state.totalScore);
+
+  if(ok){
+    state.scoreSubmitted=true;
+    const container=document.getElementById('goNameEntry');
+    container.innerHTML='<div class="name-entry-done">✅ Score saved!</div>';
+
+    // refresh BOTH leaderboards
+    await renderLeaderboard('goLB',5);
+    await renderMenuLeaderboard();
+
+  } else {
+    btn.disabled=false;
+    btn.textContent='Save';
+
+    const container=document.getElementById('goNameEntry');
+    container.insertAdjacentHTML(
+      'beforeend',
+      '<div class="name-entry-done" style="color:var(--red)">Could not save. Check Firebase rules.</div>'
+    );
+  }
+}
 // ============================================================
 // SCREENS
 // ============================================================
@@ -722,10 +747,9 @@ function backToMenu(){clearInterval(state.timerInterval);stopMusic();showScreen(
 // ============================================================
 // INIT
 // ============================================================
-initFirebase();
-resizeCanvas();
-renderMenuLeaderboard();
-render();
-</script>
-</body>
-</html>
+(async function initGame() {
+  initFirebase();
+  resizeCanvas();
+  await renderMenuLeaderboard();
+  render();
+})();
