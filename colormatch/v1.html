@@ -310,7 +310,7 @@ const firebaseConfig = {
 };
 
 // ---- Game-specific leaderboard settings ----
-const LEADERBOARD_COLLECTION = 'leaderboard_color_match';
+const LEADERBOARD_COLLECTION = 'color-match';
 const MAX_NAME_LENGTH = 8;
 const LEADERBOARD_SIZE = 5;
 
@@ -366,10 +366,15 @@ const Leaderboard = {
       return [];
     }
     try {
-      const snap = await db.collection(LEADERBOARD_COLLECTION)
-        .orderBy('score', 'desc')
-        .limit(n)
-        .get();
+   const GAME_ID = 'color-match';
+
+const snap = await db
+  .collection('leaderboards')
+  .doc(GAME_ID)
+  .collection('scores')
+  .orderBy('score', 'desc')
+  .limit(n)
+  .get();
       return snap.docs.map(d => ({
         name: d.data().name || 'PLAYER',
         score: d.data().score || 0
