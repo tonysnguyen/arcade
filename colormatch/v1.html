@@ -360,32 +360,33 @@ function initFirebase() {
 const Leaderboard = {
 
   /** Fetch top N scores from Firestore. Returns {name, score}[] */
-  async getTop(n = LEADERBOARD_SIZE) {
-    if (!firebaseReady) {
-      console.warn('[Leaderboard] getTop called but Firebase not ready.');
-      return [];
-    }
-    try {
-   const GAME_ID = 'color-match';
+async getTop(n = LEADERBOARD_SIZE) {
+  if (!firebaseReady) {
+    console.warn('[Leaderboard] getTop called but Firebase not ready.');
+    return [];
+  }
 
-const snap = await db
-  .collection('leaderboards')
-  .doc(GAME_ID)
-  .collection('scores')
-  .orderBy('score', 'desc')
-  .limit(n)
-  .get();
-      return snap.docs.map(d => ({
-        name: d.data().name || 'PLAYER',
-        score: d.data().score || 0
-      }));
-    } catch (e) {
-      console.error('[Leaderboard] getTop failed:', e);
-      setLeaderboardStatus('Failed to load scores', true);
-      return [];
-    }
-  },
+  try {
+    const GAME_ID = 'color-match';
 
+    const snap = await db
+      .collection('leaderboards')
+      .doc(GAME_ID)
+      .collection('scores')
+      .orderBy('score', 'desc')
+      .limit(n)
+      .get();
+
+    return snap.docs.map(d => ({
+      name: d.data().name || 'PLAYER',
+      score: d.data().score || 0
+    }));
+  } catch (e) {
+    console.error('[Leaderboard] getTop failed:', e);
+    setLeaderboardStatus('Failed to load scores', true);
+    return [];
+  }
+}
   /** Check if a score qualifies for top N. */
   async qualifies(score, n = LEADERBOARD_SIZE) {
     if (score <= 0) return false;
@@ -401,31 +402,28 @@ const snap = await db
   },
 
   /** Submit a score to Firestore. Returns true on success, false on failure. */
-  async submit(rawName, score) {
-    let name = (rawName || '').trim().substring(0, MAX_NAME_LENGTH).replace(/[<>"'&]/g, '');
-    if (!name) name = 'PLAYER';
+try {
+  const GAME_ID = 'color-match';
 
-    if (!firebaseReady) {
-      console.error('[Leaderboard] submit called but Firebase not ready.');
-      setLeaderboardStatus('Could not save score (offline)', true);
-      return false;
-    }
-    try {
-      await db.collection(LEADERBOARD_COLLECTION).add({
-        name: name,
-        score: score,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      console.log('[Leaderboard] Score submitted:', name, score);
-      setLeaderboardStatus('Score saved ✓');
-      return true;
-    } catch (e) {
-      console.error('[Leaderboard] submit failed:', e);
-      setLeaderboardStatus('Failed to save score', true);
-      return false;
-    }
-  }
-};
+  await db
+    .collection('leaderboards')
+    .doc(GAME_ID)
+    .collection('scores')
+    .add({
+      name: name,
+      score: score,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+  console.log('[Leaderboard] Score submitted:', name, score);
+  setLeaderboardStatus('Score saved ✓');
+  return true;
+}
+  catch (e) {
+  console.error('[Leaderboard] submit failed:', e);
+  setLeaderboardStatus('Failed to save score', true);
+  return false;
+}
 
 // ============================================================
 // AUDIO
