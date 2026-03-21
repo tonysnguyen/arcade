@@ -437,33 +437,6 @@ const Leaderboard = {
     }
   }
 };
-
-async function renderMenuLeaderboard() {
-  const el = document.getElementById('menuLB');
-  if (!el) return;
-
-  const top = await Leaderboard.getTop(1);
-
-  if (!top.length) {
-    el.innerHTML = `
-      <div class="lb-title">🏆 Top Player</div>
-      <div style="color:var(--text2);font-size:.85rem;text-align:center;padding:4px 0">
-        No scores yet
-      </div>
-    `;
-    return;
-  }
-
-  const s = top[0];
-  el.innerHTML = `
-    <div class="lb-title">🏆 Top Player</div>
-    <div class="lb-top-player">
-      <span class="lb-crown">👑</span>
-      <span class="lb-tp-name">${s.name}</span>
-      <span class="lb-tp-score">${s.score}</span>
-    </div>
-  `;
-}
 // ============================================================
 // AUDIO
 // ============================================================
