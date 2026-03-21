@@ -61,8 +61,6 @@ canvas{display:block}
 .hud-score{font-family:'Fredoka',sans-serif;font-weight:600;font-size:.85rem;color:var(--orange);white-space:nowrap}
 .progress-wrap{flex:1;height:9px;background:var(--bg2);border-radius:8px;overflow:hidden;position:relative;min-width:0}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--orange),var(--yellow));border-radius:8px;transition:width .3s ease}
-.hud-lives{display:flex;gap:2px}
-.heart{font-size:.75rem}
 .hud-sound{
   width:32px;height:32px;border-radius:9px;border:none;
   background:rgba(0,0,0,.04);
@@ -70,6 +68,21 @@ canvas{display:block}
   flex-shrink:0;transition:background .2s
 }
 .hud-sound:active{background:rgba(0,0,0,.08)}
+
+/* Replay tile badge — styled like a mini game tile */
+.hud-replay{
+  font-family:'Fredoka',sans-serif;font-weight:700;font-size:.8rem;
+  color:#fff;white-space:nowrap;display:flex;align-items:center;gap:3px;
+  padding:4px 10px;border-radius:10px;flex-shrink:0;
+  background:var(--purple);
+  box-shadow:0 2px 0 #8a60aa,0 3px 8px rgba(176,133,208,.25);
+  position:relative
+}
+.hud-replay::after{
+  content:'';position:absolute;top:1px;left:3px;right:3px;height:40%;
+  border-radius:8px 8px 4px 4px;
+  background:linear-gradient(to bottom,rgba(255,255,255,.3),rgba(255,255,255,0))
+}
 
 .board-controls{
   position:fixed;z-index:51;left:0;right:0;
@@ -151,6 +164,19 @@ canvas{display:block}
 .name-entry-submit:disabled{opacity:.5;cursor:default}
 .name-entry-done{font-family:'Fredoka',sans-serif;font-weight:500;font-size:.8rem;color:var(--green);margin-top:2px}
 
+/* Board toast — fading message over grid */
+#boardToast{
+  position:fixed;z-index:55;left:50%;transform:translateX(-50%);
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:clamp(.78rem,2.6vw,.95rem);
+  color:var(--text);background:rgba(255,250,245,.92);
+  padding:8px 20px;border-radius:14px;white-space:nowrap;
+  box-shadow:0 4px 16px rgba(60,40,20,.12);
+  pointer-events:none;opacity:0;
+  transition:opacity .4s ease
+}
+#boardToast.show{opacity:1}
+#boardToast.fade-out{opacity:0}
+
 .combo-text{
   position:fixed;z-index:60;font-family:'Fredoka',sans-serif;font-weight:700;
   font-size:1.6rem;color:var(--orange);pointer-events:none;
@@ -216,7 +242,7 @@ canvas{display:block}
   <div class="hud-level" id="hudLevel">Lv 1</div>
   <div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <div class="hud-score" id="hudScore">0</div>
-  <div class="hud-lives" id="hudLives"></div>
+  <div class="hud-replay" id="hudReplay" style="display:none">🔄 <span id="replayCount">0</span></div>
   <button class="hud-sound" id="soundBtn" onclick="toggleSound()">🔊</button>
 </div>
 
@@ -234,6 +260,7 @@ canvas{display:block}
     <div class="overlay-title" style="color:var(--green)">Level Complete! 🎉</div>
     <div class="overlay-score" id="lcScore">0</div>
     <div class="overlay-sub" id="lcSub">Great job!</div>
+    <div id="lcReplayEarned" style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:.85rem;color:var(--purple);margin-bottom:8px"></div>
     <div class="overlay-btns">
       <button class="btn btn-green" onclick="nextLevel()">Next Level</button>
     </div>
@@ -253,6 +280,9 @@ canvas{display:block}
   </div>
 </div>
 
+<!-- Board toast message (fading, non-modal) -->
+<div id="boardToast" style="display:none"></div>
+
 <script>
 // ============================================================
 // CONSTANTS & STATE
@@ -267,20 +297,51 @@ const COLORS = [
   {name:'pink',  hex:'#e88aaf',shadow:'#c06888',hi:'#f0aec8'}
 ];
 
+// ============================================================
+// LEVEL PROGRESSION — starts at 3x3, ramps up smoothly
+// ============================================================
 const LEVELS = [];
-for(let i=0;i<30;i++){
-  const cols = Math.min(4+Math.floor(i/3),8);
-  const rows = Math.min(4+Math.floor(i/3),9);
-  const numColors = Math.min(3+Math.floor(i/2),7);
-  const target = 80+i*60+Math.floor(i*i*1.5);
-  const time = Math.max(25,60-i*1.2)|0;
-  LEVELS.push({cols,rows,numColors,target,time});
+const LEVEL_DEFS = [
+  // Lv1: 3x3 (9 tiles), 2 colors — gentle intro
+  {cols:3,rows:3,numColors:2,target:40,time:50},
+  // Lv2: 3x3, 3 colors
+  {cols:3,rows:3,numColors:3,target:70,time:50},
+  // Lv3: 3x4 (12 tiles), 3 colors — shuffle unlocks
+  {cols:3,rows:4,numColors:3,target:100,time:50},
+  // Lv4: 4x4 (16 tiles), 3 colors
+  {cols:4,rows:4,numColors:3,target:140,time:55},
+  // Lv5: 4x4, 4 colors — first replay tile earned
+  {cols:4,rows:4,numColors:4,target:180,time:55},
+  // Lv6: 4x5, 4 colors
+  {cols:4,rows:5,numColors:4,target:240,time:55},
+  // Lv7: 4x5, 4 colors — replay tile earned
+  {cols:4,rows:5,numColors:4,target:300,time:55},
+  // Lv8: 5x5, 4 colors
+  {cols:5,rows:5,numColors:4,target:360,time:55},
+  // Lv9: 5x5, 5 colors — replay tile earned
+  {cols:5,rows:5,numColors:5,target:420,time:50},
+  // Lv10: 5x6, 5 colors
+  {cols:5,rows:6,numColors:5,target:500,time:50},
+];
+// Generate remaining levels (11–30) with gradual ramp
+for(let i=LEVEL_DEFS.length;i<30;i++){
+  const cols=Math.min(5+Math.floor((i-10)/4),8);
+  const rows=Math.min(6+Math.floor((i-10)/3),9);
+  const numColors=Math.min(5+Math.floor((i-10)/3),7);
+  const target=500+(i-10)*90+Math.floor((i-10)*(i-10)*2);
+  const time=Math.max(25,50-Math.floor((i-10)*1.2));
+  LEVEL_DEFS.push({cols,rows,numColors,target,time});
 }
+LEVEL_DEFS.forEach(d=>LEVELS.push(d));
 
-const SHUFFLE_UNLOCK_LEVEL = 2;
+const SHUFFLE_UNLOCK_LEVEL = 2; // Level 3 (index 2)
+
+// Replay tile earned after completing these level indices
+// (Lv5, Lv7, Lv9, Lv12, Lv16, Lv20, Lv24, Lv28)
+const REPLAY_EARN_LEVELS = [4,6,8,11,15,19,23,27];
 
 let state = {
-  screen:'menu', level:0, score:0, totalScore:0, lives:3, timer:0, timerInterval:null,
+  screen:'menu', level:0, score:0, totalScore:0, timer:0, timerInterval:null,
   grid:[], gridCols:0, gridRows:0, numColors:3,
   path:[], dragging:false,
   particles:[], comboTexts:[],
@@ -291,11 +352,19 @@ let state = {
   shakeAmount:0, shakeDecay:.9,
   shuffleUsed:false, shuffling:false, shuffleAvailable:false,
   shuffleAnims:[], shuffleT:0,
-  scoreSubmitted:false
+  scoreSubmitted:false,
+  // Replay tiles
+  replayTiles:0,
+  // Out-of-moves check pending flag
+  oomCheckPending:false
 };
 
 // ============================================================
-// FIREBASE LEADERBOARD — PRODUCTION READY
+// 🔒 PROTECTED FIREBASE / LEADERBOARD CODE
+// DO NOT MODIFY THIS SECTION UNLESS EXPLICITLY REQUESTED
+// This code is live and currently working.
+// Includes Firebase init, leaderboard reads, leaderboard writes,
+// menu leaderboard rendering, and score submission flow.
 // ============================================================
 
 const GAME_ID = 'color-match';
@@ -455,6 +524,11 @@ async function renderMenuLeaderboard() {
     </div>
   `;
 }
+
+// ============================================================
+// 🔒 END PROTECTED FIREBASE / LEADERBOARD CODE
+// ============================================================
+
 // ============================================================
 // AUDIO
 // ============================================================
@@ -516,6 +590,90 @@ function getTileAt(px,py){if(state.shuffling)return null;const{gridCols:c,gridRo
 function areAdjacent(a,b){return Math.abs(a.row-b.row)+Math.abs(a.col-b.col)===1}
 
 // ============================================================
+// OUT-OF-MOVES DETECTION (lightweight board toast, no modal)
+// ============================================================
+function hasValidMoves(){
+  const{gridCols:c,gridRows:r}=state;
+  const visited=Array.from({length:r},()=>Array(c).fill(false));
+  for(let row=0;row<r;row++){
+    for(let col=0;col<c;col++){
+      const tile=state.grid[row]?.[col];
+      if(!tile||!tile.alive||visited[row][col])continue;
+      const color=tile.colorIdx;
+      let count=0;
+      const queue=[{row,col}];
+      visited[row][col]=true;
+      while(queue.length){
+        const cur=queue.shift();
+        count++;
+        const neighbors=[{row:cur.row-1,col:cur.col},{row:cur.row+1,col:cur.col},{row:cur.row,col:cur.col-1},{row:cur.row,col:cur.col+1}];
+        for(const n of neighbors){
+          if(n.row>=0&&n.row<r&&n.col>=0&&n.col<c&&!visited[n.row][n.col]){
+            const nt=state.grid[n.row]?.[n.col];
+            if(nt&&nt.alive&&nt.colorIdx===color){
+              visited[n.row][n.col]=true;
+              queue.push(n);
+            }
+          }
+        }
+      }
+      if(count>=3)return true;
+    }
+  }
+  return false;
+}
+
+function ensureGridHasMoves(){
+  let attempts=0;
+  while(!hasValidMoves()&&attempts<20){
+    const{gridCols:c,gridRows:r,numColors:nc}=state;
+    for(let row=0;row<r;row++)for(let col=0;col<c;col++){
+      state.grid[row][col].colorIdx=Math.floor(Math.random()*nc);
+    }
+    attempts++;
+  }
+}
+
+let _boardToastTimer=null;
+function showBoardToast(msg,duration){
+  const el=document.getElementById('boardToast');
+  if(!el)return;
+  clearTimeout(_boardToastTimer);
+  el.textContent=msg;
+  el.style.display='block';
+  // Position over the board center
+  el.style.top=(state.boardTrayY+state.boardTrayH/2-20)+'px';
+  el.classList.remove('fade-out');
+  // Force reflow then show
+  void el.offsetWidth;
+  el.classList.add('show');
+  _boardToastTimer=setTimeout(()=>{
+    el.classList.add('fade-out');
+    el.classList.remove('show');
+    setTimeout(()=>{el.style.display='none';el.classList.remove('fade-out')},500);
+  },duration||2000);
+}
+
+function checkForOutOfMoves(){
+  if(state.screen!=='game'||state.shuffling)return;
+  if(hasValidMoves())return;
+
+  // No valid moves on the board
+  if(state.shuffleAvailable&&!state.shuffleUsed){
+    // Shuffle still available — show a gentle nudge, keep playing
+    showBoardToast('No moves — try Shuffle!',2500);
+  } else {
+    // Truly stuck — show message then transition to game over
+    showBoardToast('No moves left',1800);
+    setTimeout(()=>{
+      if(state.screen==='game') gameOver();
+    },2000);
+  }
+}
+
+// (Replay tiles are now used from the game-over popup only — see useReplayFromGameOver)
+
+// ============================================================
 // SHUFFLE
 // ============================================================
 function useShuffle(){
@@ -533,7 +691,10 @@ function useShuffle(){
 function updateShuffleAnimation(){
   if(!state.shuffling)return;state.shuffleT+=0.025;const t=Math.min(state.shuffleT,1);
   if(t>=1){for(const a of state.shuffleAnims){const ti=state.grid[a.row][a.col];if(ti&&ti.alive){ti.shuffleOffX=0;ti.shuffleOffY=0;ti.scale=1}}state.shuffleAnims=[];state.shuffling=false;
-    for(let r=0;r<state.gridRows;r++)for(let c=0;c<state.gridCols;c++){const ti=state.grid[r][c];if(ti&&ti.alive){const tr=tileRect(r,c),co=COLORS[ti.colorIdx];for(let p=0;p<2;p++)state.particles.push({x:tr.x+tr.w/2,y:tr.y+tr.h/2,vx:(Math.random()-.5)*2,vy:-1-Math.random()*1.5,r:1.5+Math.random()*2,color:co.hex,alpha:.5,life:.35})}}return}
+    for(let r=0;r<state.gridRows;r++)for(let c=0;c<state.gridCols;c++){const ti=state.grid[r][c];if(ti&&ti.alive){const tr=tileRect(r,c),co=COLORS[ti.colorIdx];for(let p=0;p<2;p++)state.particles.push({x:tr.x+tr.w/2,y:tr.y+tr.h/2,vx:(Math.random()-.5)*2,vy:-1-Math.random()*1.5,r:1.5+Math.random()*2,color:co.hex,alpha:.5,life:.35})}}
+    // After shuffle settles, check for out-of-moves
+    setTimeout(()=>checkForOutOfMoves(),200);
+    return}
   let ease;if(t<.7){const p=t/.7;ease=1-Math.pow(1-p,3)}else{const p=(t-.7)/.3;ease=1+.04*Math.sin(p*Math.PI)*(1-p)}
   for(const a of state.shuffleAnims){const ti=state.grid[a.row][a.col];if(!ti||!ti.alive)continue;ti.shuffleOffX=a.startOffX*(1-ease);ti.shuffleOffY=a.startOffY*(1-ease);
     if(t<.15)ti.scale=1-.12*(t/.15);else if(t<.85)ti.scale=.88;else ti.scale=.88+.12*((t-.85)/.15)}
@@ -546,7 +707,7 @@ function updateShuffleBtn(){const b=document.getElementById('shuffleBtn'),l=docu
 function getPos(e){if(e.touches)return{x:e.touches[0].clientX,y:e.touches[0].clientY};return{x:e.clientX,y:e.clientY}}
 function onPointerDown(e){if(state.screen!=='game'||state.shuffling)return;e.preventDefault();initAudio();const p=getPos(e),h=getTileAt(p.x,p.y);if(!h)return;const t=state.grid[h.row][h.col];if(!t||!t.alive)return;state.dragging=true;state.path=[h];sfxSelect()}
 function onPointerMove(e){if(!state.dragging||state.screen!=='game'||state.shuffling)return;e.preventDefault();const p=getPos(e),h=getTileAt(p.x,p.y);if(!h)return;const t=state.grid[h.row][h.col];if(!t||!t.alive)return;const l=state.path[state.path.length-1];if(h.row===l.row&&h.col===l.col)return;if(state.path.length>=2){const pv=state.path[state.path.length-2];if(h.row===pv.row&&h.col===pv.col){state.path.pop();sfxSelect();return}}const ft=state.grid[state.path[0].row][state.path[0].col];if(t.colorIdx!==ft.colorIdx)return;if(!areAdjacent(l,h))return;if(state.path.some(p=>p.row===h.row&&p.col===h.col))return;state.path.push(h);sfxSelect()}
-function onPointerUp(e){if(!state.dragging)return;state.dragging=false;if(state.path.length>=3)clearMatched();else{sfxCancel();state.path.forEach(p=>{const t=state.grid[p.row][p.col];if(t)t.scale=1})}state.path=[]}
+function onPointerUp(e){if(!state.dragging)return;state.dragging=false;if(state.path.length>=3){clearMatched()}else{sfxCancel();state.path.forEach(p=>{const t=state.grid[p.row][p.col];if(t)t.scale=1})}state.path=[]}
 canvas.addEventListener('mousedown',onPointerDown);canvas.addEventListener('mousemove',onPointerMove);canvas.addEventListener('mouseup',onPointerUp);
 canvas.addEventListener('touchstart',onPointerDown,{passive:false});canvas.addEventListener('touchmove',onPointerMove,{passive:false});canvas.addEventListener('touchend',onPointerUp);
 
@@ -559,7 +720,10 @@ function clearMatched(){
   sfxPop(count);
   if(count>=5){sfxCombo();const mid=state.path[Math.floor(count/2)],tr=tileRect(mid.row,mid.col),msgs=['Nice!','Great!','Amazing!','Incredible!','LEGENDARY!'],idx=Math.min(count-5,msgs.length-1);showComboText(tr.x+tr.w/2,tr.y,msgs[idx])}else if(count>=4){const mid=state.path[1],tr=tileRect(mid.row,mid.col);showComboText(tr.x+tr.w/2,tr.y,'Nice!')}
   if(count>=5)state.shakeAmount=Math.min(count*1.5,12);else if(count>=4)state.shakeAmount=4;
-  updateHUD();setTimeout(()=>applyGravity(),150);
+  updateHUD();setTimeout(()=>{applyGravity();
+    // Schedule out-of-moves check after gravity settles
+    setTimeout(()=>checkForOutOfMoves(),400);
+  },150);
   setTimeout(()=>{if(state.score>=LEVELS[state.level].target&&state.screen==='game')levelComplete()},300);
 }
 function showComboText(x,y,msg){const el=document.createElement('div');el.className='combo-text';el.textContent=msg;el.style.left=x+'px';el.style.top=y+'px';document.body.appendChild(el);setTimeout(()=>el.remove(),900)}
@@ -630,8 +794,12 @@ function updateHUD(){
   document.getElementById('hudScore').textContent=state.score;
   const pct=Math.min(100,state.score/lv.target*100);
   document.getElementById('progressFill').style.width=pct+'%';
-  let h='';for(let i=0;i<3;i++)h+=`<span class="heart">${i<state.lives?'❤️':'🖤'}</span>`;
-  document.getElementById('hudLives').innerHTML=h;updateShuffleBtn();
+  updateShuffleBtn();
+  // Replay tiles display
+  const rEl=document.getElementById('hudReplay');
+  const rCount=document.getElementById('replayCount');
+  if(state.replayTiles>0){rEl.style.display='flex';rCount.textContent=state.replayTiles}
+  else{rEl.style.display='none'}
 }
 function updateTimer(){
   state.timer--;const te=document.getElementById('hudTimer'),tv=document.getElementById('timerValue');
@@ -642,7 +810,8 @@ function updateTimer(){
 }
 
 // ============================================================
-// LEADERBOARD RENDERING
+// 🔒 PROTECTED LEADERBOARD RENDERING & SCORE SUBMISSION
+// DO NOT MODIFY THIS SECTION
 // ============================================================
 async function renderLeaderboard(containerId, n=5){
   const el=document.getElementById(containerId);if(!el)return;
@@ -675,9 +844,6 @@ async function showNameEntryIfQualified(score){
   setTimeout(()=>inp.focus(),300);
 }
 
-// ============================================================
-// NAME ENTRY & SCORE SUBMISSION
-// ============================================================
 async function submitLeaderboardScore(){
   if(state.scoreSubmitted)return;
 
@@ -711,6 +877,10 @@ async function submitLeaderboardScore(){
   }
 }
 // ============================================================
+// 🔒 END PROTECTED LEADERBOARD RENDERING & SCORE SUBMISSION
+// ============================================================
+
+// ============================================================
 // SCREENS
 // ============================================================
 function showScreen(name){
@@ -726,55 +896,75 @@ function showScreen(name){
 // ============================================================
 // GAME FLOW
 // ============================================================
-function startGame(){initAudio();state.level=0;state.score=0;state.totalScore=0;state.lives=3;startLevel()}
+function startGame(){
+  initAudio();state.level=0;state.score=0;state.totalScore=0;
+  state.replayTiles=0; // Reset replay tiles on new run
+  startLevel();
+}
 
 function startLevel(){
   const lv=LEVELS[state.level];state.gridCols=lv.cols;state.gridRows=lv.rows;state.numColors=lv.numColors;
   state.score=0;state.path=[];state.particles=[];state.dragging=false;state.shakeAmount=0;state.shuffling=false;state.shuffleAnims=[];
   state.shuffleAvailable=state.level>=SHUFFLE_UNLOCK_LEVEL;state.shuffleUsed=false;
-  recalcGrid();createGrid();updateHUD();
+  recalcGrid();createGrid();ensureGridHasMoves();updateHUD();
   state.timer=lv.time;const te=document.getElementById('hudTimer'),tv=document.getElementById('timerValue');
   tv.textContent=state.timer+'s';te.classList.remove('warn','critical');
   clearInterval(state.timerInterval);state.timerInterval=setInterval(updateTimer,1000);
   showScreen('game');startMusic();
+  // Schedule an OOM check after tiles finish spawning in
+  setTimeout(()=>checkForOutOfMoves(),600);
 }
 
 function levelComplete(){
   clearInterval(state.timerInterval);stopMusic();sfxLevelComplete();
   document.getElementById('lcScore').textContent=state.score;
   document.getElementById('lcSub').textContent=`Target: ${LEVELS[state.level].target} — Cleared!`;
+
+  // Check if player earns a replay tile for completing this level
+  const earnedEl=document.getElementById('lcReplayEarned');
+  if(REPLAY_EARN_LEVELS.includes(state.level)){
+    state.replayTiles++;
+    earnedEl.textContent=`🔄 +1 Replay Tile earned! (${state.replayTiles} total)`;
+  } else {
+    earnedEl.textContent='';
+  }
+
   showScreen('levelComplete');
 }
 
 function nextLevel(){state.level=Math.min(state.level+1,LEVELS.length-1);startLevel()}
 
 async function gameOver(){
-  clearInterval(state.timerInterval);stopMusic();sfxFail();state.lives--;
+  clearInterval(state.timerInterval);stopMusic();sfxFail();
   document.getElementById('goScore').textContent=state.totalScore;
   document.getElementById('goSub').textContent=`Target: ${LEVELS[state.level].target}`;
   document.getElementById('goNameEntry').innerHTML='';
 
   const btns=document.getElementById('goBtns');
-  if(state.lives>0){
-    btns.innerHTML=`<button class="btn btn-sm" onclick="retryLevel()">Retry (${state.lives} ❤️)</button><button class="btn btn-sm" onclick="endRunAndSubmit()" style="background:var(--text2);box-shadow:0 4px 0 #5a4a3a">End Run</button>`;
+  if(state.replayTiles>0){
+    // Has replay tiles — offer replay or end run
+    btns.innerHTML=`<button class="btn btn-sm" style="background:var(--purple);box-shadow:0 4px 0 #8a60aa" onclick="useReplayFromGameOver()">Replay 🔄 (${state.replayTiles})</button><button class="btn btn-sm" onclick="endRunAndSubmit()" style="background:var(--text2);box-shadow:0 4px 0 #5a4a3a">End Run</button>`;
+    showScreen('gameOver');
   } else {
+    // No replay tiles — final game over
     btns.innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;
-    // Final game over — show name entry if qualified
     showScreen('gameOver');
     await showNameEntryIfQualified(state.totalScore);
-    return;
   }
-  showScreen('gameOver');
+}
+
+function useReplayFromGameOver(){
+  if(state.replayTiles<=0)return;
+  state.replayTiles--;
+  document.getElementById('gameOver').classList.remove('active');
+  startLevel();
 }
 
 async function endRunAndSubmit(){
-  // Player chose to stop retrying — treat as final score
-  state.lives=0;
   document.getElementById('goBtns').innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;
   await showNameEntryIfQualified(state.totalScore);
 }
 
-function retryLevel(){startLevel()}
 function backToMenu(){clearInterval(state.timerInterval);stopMusic();showScreen('menu')}
 
 // ============================================================
