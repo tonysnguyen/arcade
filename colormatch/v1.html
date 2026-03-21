@@ -298,7 +298,9 @@ let state = {
 // FIREBASE LEADERBOARD — PRODUCTION READY
 // ============================================================
 
-// ---- Firebase config (paste your values here) ----
+const GAME_ID = 'color-match';
+
+// ---- Firebase config ----
 const firebaseConfig = {
   apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
   authDomain: "tony-arcade.firebaseapp.com",
@@ -309,16 +311,12 @@ const firebaseConfig = {
   measurementId: "G-RVYF35QB7W"
 };
 
-// ---- Game-specific leaderboard settings ----
-const LEADERBOARD_COLLECTION = 'color-match';
 const MAX_NAME_LENGTH = 8;
 const LEADERBOARD_SIZE = 5;
 
-// ---- Firebase state ----
 let db = null;
 let firebaseReady = false;
 
-// ---- Status helper (updates visible #lbStatus element) ----
 function setLeaderboardStatus(message, isError = false) {
   const el = document.getElementById('lbStatus');
   if (!el) return;
@@ -326,28 +324,26 @@ function setLeaderboardStatus(message, isError = false) {
   el.style.color = isError ? 'var(--red)' : 'var(--text2)';
 }
 
-// ---- Firebase initialization (called once at startup) ----
 function initFirebase() {
-  // Guard: SDK must be loaded
   if (typeof firebase === 'undefined') {
     console.error('[Leaderboard] Firebase SDK not loaded.');
     setLeaderboardStatus('Leaderboard unavailable (SDK missing)', true);
     return;
   }
-  // Guard: config must have an apiKey
+
   if (!firebaseConfig.apiKey) {
-    console.warn('[Leaderboard] Firebase config not set — add your config to go live.');
+    console.warn('[Leaderboard] Missing Firebase config.');
     setLeaderboardStatus('Leaderboard offline (no config)', true);
     return;
   }
+
   try {
-    // Only initialize once
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
     db = firebase.firestore();
     firebaseReady = true;
-    console.log('[Leaderboard] Firebase connected. Collection:', LEADERBOARD_COLLECTION);
+    console.log('[Leaderboard] Firebase connected.');
     setLeaderboardStatus('Leaderboard connected ✓');
   } catch (e) {
     console.error('[Leaderboard] Firebase init failed:', e);
@@ -356,7 +352,6 @@ function initFirebase() {
   }
 }
 
-// ---- Leaderboard module ----
 const Leaderboard = {
   async getTop(n = LEADERBOARD_SIZE) {
     if (!firebaseReady) {
@@ -365,8 +360,6 @@ const Leaderboard = {
     }
 
     try {
-      const GAME_ID = 'color-match';
-      
       const snap = await db
         .collection('leaderboards')
         .doc(GAME_ID)
@@ -395,7 +388,7 @@ const Leaderboard = {
       if (top.length < n) return true;
       return score > top[top.length - 1].score;
     } catch (e) {
-      console.error('[Leaderboard] qualifies check failed:', e);
+      console.error('[Leaderboard] qualifies failed:', e);
       return false;
     }
   },
@@ -415,15 +408,13 @@ const Leaderboard = {
     }
 
     try {
-      const GAME_ID = 'color-match';
-
       await db
         .collection('leaderboards')
         .doc(GAME_ID)
         .collection('scores')
         .add({
-          name: name,
-          score: score,
+          name,
+          score,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -437,7 +428,8 @@ const Leaderboard = {
     }
   }
 };
-  async function renderMenuLeaderboard() {
+
+async function renderMenuLeaderboard() {
   const el = document.getElementById('menuLB');
   if (!el) return;
 
