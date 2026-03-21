@@ -365,6 +365,8 @@ const Leaderboard = {
     }
 
     try {
+      const GAME_ID = 'color-match';
+      
       const snap = await db
         .collection('leaderboards')
         .doc(GAME_ID)
