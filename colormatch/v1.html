@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Color Match</title>
 
 <!-- Firebase SDK (compat builds for simple single-file usage) -->
@@ -56,7 +56,7 @@ canvas{display:block}
 .lb-top-player .lb-tp-name{font-weight:600;font-size:.9rem;color:var(--text)}
 .lb-top-player .lb-tp-score{font-weight:700;font-size:.9rem;color:var(--orange)}
 
-.hud{position:fixed;top:0;left:0;right:0;z-index:50;padding:8px 12px 5px;display:flex;align-items:center;gap:7px;background:linear-gradient(to bottom,var(--bg) 70%,transparent)}
+.hud{position:fixed;top:0;left:0;right:0;z-index:50;padding:max(8px, env(safe-area-inset-top, 8px)) 12px 5px;display:flex;align-items:center;gap:7px;background:linear-gradient(to bottom,var(--bg) 70%,transparent)}
 .hud-level{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.9rem;color:var(--text);white-space:nowrap}
 .hud-score{font-family:'Fredoka',sans-serif;font-weight:600;font-size:.85rem;color:var(--orange);white-space:nowrap}
 .progress-wrap{flex:1;height:9px;background:var(--bg2);border-radius:8px;overflow:hidden;position:relative;min-width:0}
@@ -223,20 +223,19 @@ canvas{display:block}
   display:flex;align-items:center;justify-content:center;
   text-decoration:none;
   transition:transform .12s,background .12s;
-  -webkit-tap-highlight-color:transparent
+  -webkit-tap-highlight-color:transparent;
+  pointer-events:all;
 }
 .arcade-home:active{transform:scale(.88);background:rgba(0,0,0,.08)}
 .arcade-home svg{width:28px;height:28px;pointer-events:none;display:block}
 
-/* Home link on menu screen */
-.menu-home{
-  position:relative;z-index:1;margin-top:14px;
-  font-family:'Fredoka',sans-serif;font-weight:600;font-size:.85rem;
-  color:var(--text2);text-decoration:none;
-  display:inline-flex;align-items:center;gap:5px;
-  transition:color .2s
+/* Arcade home on start screen — top-left corner with safe-area */
+.start-home{
+  position:absolute;
+  top:max(16px, env(safe-area-inset-top, 16px));
+  left:max(16px, env(safe-area-inset-left, 16px));
+  z-index:10;
 }
-.menu-home:active{color:var(--text)}
 </style>
 </head>
 <body>
@@ -246,6 +245,7 @@ canvas{display:block}
   <div class="screen-bg">
     <div class="blob blob1"></div><div class="blob blob2"></div><div class="blob blob3"></div>
   </div>
+  <a class="arcade-home start-home" href="https://www.tonysnguyen.com/arcade" aria-label="Back to Arcade"><svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
   <div class="menu-content">
     <div class="menu-tiles">
       <div class="menu-tile"></div><div class="menu-tile"></div>
@@ -256,7 +256,6 @@ canvas{display:block}
     <div class="leaderboard-box" id="menuLB"></div>
     <div id="lbStatus" style="margin-top:8px;font-size:.8rem;color:var(--text2);position:relative;z-index:1;">Connecting leaderboard...</div>
     <button class="btn" onclick="startGame()">Play</button>
-    <a class="menu-home" href="https://tonysnguyen.com">← Home</a>
   </div>
 </div>
 
@@ -325,28 +324,17 @@ const COLORS = [
 // ============================================================
 const LEVELS = [];
 const LEVEL_DEFS = [
-  // Lv1: 3x3 (9 tiles), 2 colors — gentle intro
   {cols:3,rows:3,numColors:2,target:40,time:50},
-  // Lv2: 3x3, 3 colors
   {cols:3,rows:3,numColors:3,target:70,time:50},
-  // Lv3: 3x4 (12 tiles), 3 colors — shuffle unlocks
   {cols:3,rows:4,numColors:3,target:100,time:50},
-  // Lv4: 4x4 (16 tiles), 3 colors
   {cols:4,rows:4,numColors:3,target:140,time:55},
-  // Lv5: 4x4, 4 colors — first replay tile earned
   {cols:4,rows:4,numColors:4,target:180,time:55},
-  // Lv6: 4x5, 4 colors
   {cols:4,rows:5,numColors:4,target:240,time:55},
-  // Lv7: 4x5, 4 colors — replay tile earned
   {cols:4,rows:5,numColors:4,target:300,time:55},
-  // Lv8: 5x5, 4 colors
   {cols:5,rows:5,numColors:4,target:360,time:55},
-  // Lv9: 5x5, 5 colors — replay tile earned
   {cols:5,rows:5,numColors:5,target:420,time:50},
-  // Lv10: 5x6, 5 colors
   {cols:5,rows:6,numColors:5,target:500,time:50},
 ];
-// Generate remaining levels (11–30) with gradual ramp
 for(let i=LEVEL_DEFS.length;i<30;i++){
   const cols=Math.min(5+Math.floor((i-10)/4),8);
   const rows=Math.min(6+Math.floor((i-10)/3),9);
@@ -357,10 +345,7 @@ for(let i=LEVEL_DEFS.length;i<30;i++){
 }
 LEVEL_DEFS.forEach(d=>LEVELS.push(d));
 
-const SHUFFLE_UNLOCK_LEVEL = 2; // Level 3 (index 2)
-
-// Replay tile earned after completing these level indices
-// (Lv5, Lv7, Lv9, Lv12, Lv16, Lv20, Lv24, Lv28)
+const SHUFFLE_UNLOCK_LEVEL = 2;
 const REPLAY_EARN_LEVELS = [4,6,8,11,15,19,23,27];
 
 let state = {
@@ -376,23 +361,17 @@ let state = {
   shuffleUsed:false, shuffling:false, shuffleAvailable:false,
   shuffleAnims:[], shuffleT:0,
   scoreSubmitted:false,
-  // Replay tiles
   replayTiles:0,
-  // Out-of-moves check pending flag
   oomCheckPending:false
 };
 
 // ============================================================
 // 🔒 PROTECTED FIREBASE / LEADERBOARD CODE
 // DO NOT MODIFY THIS SECTION UNLESS EXPLICITLY REQUESTED
-// This code is live and currently working.
-// Includes Firebase init, leaderboard reads, leaderboard writes,
-// menu leaderboard rendering, and score submission flow.
 // ============================================================
 
 const GAME_ID = 'color-match';
 
-// ---- Firebase config ----
 const firebaseConfig = {
   apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
   authDomain: "tony-arcade.firebaseapp.com",
@@ -422,17 +401,13 @@ function initFirebase() {
     setLeaderboardStatus('Leaderboard unavailable (SDK missing)', true);
     return;
   }
-
   if (!firebaseConfig.apiKey) {
     console.warn('[Leaderboard] Missing Firebase config.');
     setLeaderboardStatus('Leaderboard offline (no config)', true);
     return;
   }
-
   try {
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     db = firebase.firestore();
     firebaseReady = true;
     console.log('[Leaderboard] Firebase connected.');
@@ -446,106 +421,41 @@ function initFirebase() {
 
 const Leaderboard = {
   async getTop(n = LEADERBOARD_SIZE) {
-    if (!firebaseReady) {
-      console.warn('[Leaderboard] getTop called but Firebase not ready.');
-      return [];
-    }
-
+    if (!firebaseReady) { console.warn('[Leaderboard] getTop called but Firebase not ready.'); return []; }
     try {
-      const snap = await db
-        .collection('leaderboards')
-        .doc(GAME_ID)
-        .collection('scores')
-        .orderBy('score', 'desc')
-        .limit(n)
-        .get();
-
-      return snap.docs.map(d => ({
-        name: d.data().name || 'PLAYER',
-        score: d.data().score || 0
-      }));
-    } catch (e) {
-      console.error('[Leaderboard] getTop failed:', e);
-      setLeaderboardStatus('Failed to load scores', true);
-      return [];
-    }
+      const snap = await db.collection('leaderboards').doc(GAME_ID).collection('scores').orderBy('score', 'desc').limit(n).get();
+      return snap.docs.map(d => ({ name: d.data().name || 'PLAYER', score: d.data().score || 0 }));
+    } catch (e) { console.error('[Leaderboard] getTop failed:', e); setLeaderboardStatus('Failed to load scores', true); return []; }
   },
-
   async qualifies(score, n = LEADERBOARD_SIZE) {
     if (score <= 0) return false;
     if (!firebaseReady) return false;
-
-    try {
-      const top = await this.getTop(n);
-      if (top.length < n) return true;
-      return score > top[top.length - 1].score;
-    } catch (e) {
-      console.error('[Leaderboard] qualifies failed:', e);
-      return false;
-    }
+    try { const top = await this.getTop(n); if (top.length < n) return true; return score > top[top.length - 1].score; }
+    catch (e) { console.error('[Leaderboard] qualifies failed:', e); return false; }
   },
-
   async submit(rawName, score) {
-    let name = (rawName || '')
-      .trim()
-      .substring(0, MAX_NAME_LENGTH)
-      .replace(/[<>"'&]/g, '');
-
+    let name = (rawName || '').trim().substring(0, MAX_NAME_LENGTH).replace(/[<>"'&]/g, '');
     if (!name) name = 'PLAYER';
-
-    if (!firebaseReady) {
-      console.error('[Leaderboard] submit called but Firebase not ready.');
-      setLeaderboardStatus('Could not save score (offline)', true);
-      return false;
-    }
-
+    if (!firebaseReady) { console.error('[Leaderboard] submit called but Firebase not ready.'); setLeaderboardStatus('Could not save score (offline)', true); return false; }
     try {
-      await db
-        .collection('leaderboards')
-        .doc(GAME_ID)
-        .collection('scores')
-        .add({
-          name,
-          score,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
+      await db.collection('leaderboards').doc(GAME_ID).collection('scores').add({ name, score, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
       console.log('[Leaderboard] Score submitted:', name, score);
       setLeaderboardStatus('Score saved ✓');
       return true;
-    } catch (e) {
-      console.error('[Leaderboard] submit failed:', e);
-      setLeaderboardStatus('Failed to save score', true);
-      return false;
-    }
+    } catch (e) { console.error('[Leaderboard] submit failed:', e); setLeaderboardStatus('Failed to save score', true); return false; }
   }
 };
 
 async function renderMenuLeaderboard() {
   const el = document.getElementById('menuLB');
   if (!el) return;
-
   const top = await Leaderboard.getTop(1);
-
   if (!top.length) {
-    el.innerHTML = `
-      <div class="lb-title">🏆 Top Player</div>
-      <div style="color:var(--text2);font-size:.85rem;text-align:center;padding:4px 0">
-        No scores yet
-      </div>
-    `;
+    el.innerHTML = `<div class="lb-title">🏆 Top Player</div><div style="color:var(--text2);font-size:.85rem;text-align:center;padding:4px 0">No scores yet</div>`;
     return;
   }
-
   const s = top[0];
-  el.innerHTML = `
-    <div class="lb-title">🏆 Top Player</div>
-    <div class="lb-top-player">
-      <span class="lb-crown">👑</span>
-      <span class="lb-tp-name">${s.name}</span>
-      <span class="lb-tp-score">${s.score}</span>
-    </div>
-  `;
+  el.innerHTML = `<div class="lb-title">🏆 Top Player</div><div class="lb-top-player"><span class="lb-crown">👑</span><span class="lb-tp-name">${s.name}</span><span class="lb-tp-score">${s.score}</span></div>`;
 }
 
 // ============================================================
@@ -613,88 +523,42 @@ function getTileAt(px,py){if(state.shuffling)return null;const{gridCols:c,gridRo
 function areAdjacent(a,b){return Math.abs(a.row-b.row)+Math.abs(a.col-b.col)===1}
 
 // ============================================================
-// OUT-OF-MOVES DETECTION (lightweight board toast, no modal)
+// OUT-OF-MOVES DETECTION
 // ============================================================
 function hasValidMoves(){
   const{gridCols:c,gridRows:r}=state;
   const visited=Array.from({length:r},()=>Array(c).fill(false));
-  for(let row=0;row<r;row++){
-    for(let col=0;col<c;col++){
-      const tile=state.grid[row]?.[col];
-      if(!tile||!tile.alive||visited[row][col])continue;
-      const color=tile.colorIdx;
-      let count=0;
-      const queue=[{row,col}];
-      visited[row][col]=true;
-      while(queue.length){
-        const cur=queue.shift();
-        count++;
-        const neighbors=[{row:cur.row-1,col:cur.col},{row:cur.row+1,col:cur.col},{row:cur.row,col:cur.col-1},{row:cur.row,col:cur.col+1}];
-        for(const n of neighbors){
-          if(n.row>=0&&n.row<r&&n.col>=0&&n.col<c&&!visited[n.row][n.col]){
-            const nt=state.grid[n.row]?.[n.col];
-            if(nt&&nt.alive&&nt.colorIdx===color){
-              visited[n.row][n.col]=true;
-              queue.push(n);
-            }
-          }
-        }
-      }
-      if(count>=3)return true;
-    }
-  }
+  for(let row=0;row<r;row++){for(let col=0;col<c;col++){
+    const tile=state.grid[row]?.[col];
+    if(!tile||!tile.alive||visited[row][col])continue;
+    const color=tile.colorIdx;let count=0;const queue=[{row,col}];visited[row][col]=true;
+    while(queue.length){const cur=queue.shift();count++;
+      const neighbors=[{row:cur.row-1,col:cur.col},{row:cur.row+1,col:cur.col},{row:cur.row,col:cur.col-1},{row:cur.row,col:cur.col+1}];
+      for(const n of neighbors){if(n.row>=0&&n.row<r&&n.col>=0&&n.col<c&&!visited[n.row][n.col]){
+        const nt=state.grid[n.row]?.[n.col];if(nt&&nt.alive&&nt.colorIdx===color){visited[n.row][n.col]=true;queue.push(n)}}}}
+    if(count>=3)return true;}}
   return false;
 }
 
 function ensureGridHasMoves(){
   let attempts=0;
-  while(!hasValidMoves()&&attempts<20){
-    const{gridCols:c,gridRows:r,numColors:nc}=state;
-    for(let row=0;row<r;row++)for(let col=0;col<c;col++){
-      state.grid[row][col].colorIdx=Math.floor(Math.random()*nc);
-    }
-    attempts++;
-  }
+  while(!hasValidMoves()&&attempts<20){const{gridCols:c,gridRows:r,numColors:nc}=state;
+    for(let row=0;row<r;row++)for(let col=0;col<c;col++){state.grid[row][col].colorIdx=Math.floor(Math.random()*nc);}attempts++;}
 }
 
 let _boardToastTimer=null;
 function showBoardToast(msg,duration){
-  const el=document.getElementById('boardToast');
-  if(!el)return;
-  clearTimeout(_boardToastTimer);
-  el.textContent=msg;
-  el.style.display='block';
-  // Position over the board center
-  el.style.top=(state.boardTrayY+state.boardTrayH/2-20)+'px';
-  el.classList.remove('fade-out');
-  // Force reflow then show
-  void el.offsetWidth;
-  el.classList.add('show');
-  _boardToastTimer=setTimeout(()=>{
-    el.classList.add('fade-out');
-    el.classList.remove('show');
-    setTimeout(()=>{el.style.display='none';el.classList.remove('fade-out')},500);
-  },duration||2000);
+  const el=document.getElementById('boardToast');if(!el)return;clearTimeout(_boardToastTimer);
+  el.textContent=msg;el.style.display='block';el.style.top=(state.boardTrayY+state.boardTrayH/2-20)+'px';
+  el.classList.remove('fade-out');void el.offsetWidth;el.classList.add('show');
+  _boardToastTimer=setTimeout(()=>{el.classList.add('fade-out');el.classList.remove('show');setTimeout(()=>{el.style.display='none';el.classList.remove('fade-out')},500);},duration||2000);
 }
 
 function checkForOutOfMoves(){
-  if(state.screen!=='game'||state.shuffling)return;
-  if(hasValidMoves())return;
-
-  // No valid moves on the board
-  if(state.shuffleAvailable&&!state.shuffleUsed){
-    // Shuffle still available — show a gentle nudge, keep playing
-    showBoardToast('No moves — try Shuffle!',2500);
-  } else {
-    // Truly stuck — show message then transition to game over
-    showBoardToast('No moves left',1800);
-    setTimeout(()=>{
-      if(state.screen==='game') gameOver();
-    },2000);
-  }
+  if(state.screen!=='game'||state.shuffling)return;if(hasValidMoves())return;
+  if(state.shuffleAvailable&&!state.shuffleUsed){showBoardToast('No moves — try Shuffle!',2500);}
+  else{showBoardToast('No moves left',1800);setTimeout(()=>{if(state.screen==='game') gameOver();},2000);}
 }
-
-// (Replay tiles are now used from the game-over popup only — see useReplayFromGameOver)
 
 // ============================================================
 // SHUFFLE
@@ -715,9 +579,7 @@ function updateShuffleAnimation(){
   if(!state.shuffling)return;state.shuffleT+=0.025;const t=Math.min(state.shuffleT,1);
   if(t>=1){for(const a of state.shuffleAnims){const ti=state.grid[a.row][a.col];if(ti&&ti.alive){ti.shuffleOffX=0;ti.shuffleOffY=0;ti.scale=1}}state.shuffleAnims=[];state.shuffling=false;
     for(let r=0;r<state.gridRows;r++)for(let c=0;c<state.gridCols;c++){const ti=state.grid[r][c];if(ti&&ti.alive){const tr=tileRect(r,c),co=COLORS[ti.colorIdx];for(let p=0;p<2;p++)state.particles.push({x:tr.x+tr.w/2,y:tr.y+tr.h/2,vx:(Math.random()-.5)*2,vy:-1-Math.random()*1.5,r:1.5+Math.random()*2,color:co.hex,alpha:.5,life:.35})}}
-    // After shuffle settles, check for out-of-moves
-    setTimeout(()=>checkForOutOfMoves(),200);
-    return}
+    setTimeout(()=>checkForOutOfMoves(),200);return}
   let ease;if(t<.7){const p=t/.7;ease=1-Math.pow(1-p,3)}else{const p=(t-.7)/.3;ease=1+.04*Math.sin(p*Math.PI)*(1-p)}
   for(const a of state.shuffleAnims){const ti=state.grid[a.row][a.col];if(!ti||!ti.alive)continue;ti.shuffleOffX=a.startOffX*(1-ease);ti.shuffleOffY=a.startOffY*(1-ease);
     if(t<.15)ti.scale=1-.12*(t/.15);else if(t<.85)ti.scale=.88;else ti.scale=.88+.12*((t-.85)/.15)}
@@ -743,10 +605,7 @@ function clearMatched(){
   sfxPop(count);
   if(count>=5){sfxCombo();const mid=state.path[Math.floor(count/2)],tr=tileRect(mid.row,mid.col),msgs=['Nice!','Great!','Amazing!','Incredible!','LEGENDARY!'],idx=Math.min(count-5,msgs.length-1);showComboText(tr.x+tr.w/2,tr.y,msgs[idx])}else if(count>=4){const mid=state.path[1],tr=tileRect(mid.row,mid.col);showComboText(tr.x+tr.w/2,tr.y,'Nice!')}
   if(count>=5)state.shakeAmount=Math.min(count*1.5,12);else if(count>=4)state.shakeAmount=4;
-  updateHUD();setTimeout(()=>{applyGravity();
-    // Schedule out-of-moves check after gravity settles
-    setTimeout(()=>checkForOutOfMoves(),400);
-  },150);
+  updateHUD();setTimeout(()=>{applyGravity();setTimeout(()=>checkForOutOfMoves(),400);},150);
   setTimeout(()=>{if(state.score>=LEVELS[state.level].target&&state.screen==='game')levelComplete()},300);
 }
 function showComboText(x,y,msg){const el=document.createElement('div');el.className='combo-text';el.textContent=msg;el.style.left=x+'px';el.style.top=y+'px';document.body.appendChild(el);setTimeout(()=>el.remove(),900)}
@@ -818,11 +677,8 @@ function updateHUD(){
   const pct=Math.min(100,state.score/lv.target*100);
   document.getElementById('progressFill').style.width=pct+'%';
   updateShuffleBtn();
-  // Replay tiles display
-  const rEl=document.getElementById('hudReplay');
-  const rCount=document.getElementById('replayCount');
-  if(state.replayTiles>0){rEl.style.display='flex';rCount.textContent=state.replayTiles}
-  else{rEl.style.display='none'}
+  const rEl=document.getElementById('hudReplay');const rCount=document.getElementById('replayCount');
+  if(state.replayTiles>0){rEl.style.display='flex';rCount.textContent=state.replayTiles}else{rEl.style.display='none'}
 }
 function updateTimer(){
   state.timer--;const te=document.getElementById('hudTimer'),tv=document.getElementById('timerValue');
@@ -845,58 +701,25 @@ async function renderLeaderboard(containerId, n=5){
   el.innerHTML=html;
 }
 async function showNameEntryIfQualified(score){
-  const container=document.getElementById('goNameEntry');
-  container.innerHTML='';
-  state.scoreSubmitted=false;
-
-  const qualified=await Leaderboard.qualifies(score);
-  if(!qualified||score<=0)return;
-
-  container.innerHTML=`
-    <div class="name-entry">
-      <div class="name-entry-label">🎉 New High Score!</div>
-      <div class="name-entry-row">
-        <input class="name-entry-input" id="nameInput" type="text" maxlength="${MAX_NAME_LENGTH}" placeholder="Your name" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-        <button class="name-entry-submit" id="nameSubmitBtn" onclick="submitLeaderboardScore()">Save</button>
-      </div>
-    </div>`;
-
-  const inp=document.getElementById('nameInput');
-  inp.addEventListener('touchstart',e=>e.stopPropagation());
-  inp.addEventListener('mousedown',e=>e.stopPropagation());
-  setTimeout(()=>inp.focus(),300);
+  const container=document.getElementById('goNameEntry');container.innerHTML='';state.scoreSubmitted=false;
+  const qualified=await Leaderboard.qualifies(score);if(!qualified||score<=0)return;
+  container.innerHTML=`<div class="name-entry"><div class="name-entry-label">🎉 New High Score!</div><div class="name-entry-row"><input class="name-entry-input" id="nameInput" type="text" maxlength="${MAX_NAME_LENGTH}" placeholder="Your name" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"><button class="name-entry-submit" id="nameSubmitBtn" onclick="submitLeaderboardScore()">Save</button></div></div>`;
+  const inp=document.getElementById('nameInput');inp.addEventListener('touchstart',e=>e.stopPropagation());inp.addEventListener('mousedown',e=>e.stopPropagation());setTimeout(()=>inp.focus(),300);
 }
 
 async function submitLeaderboardScore(){
   if(state.scoreSubmitted)return;
-
-  const btn=document.getElementById('nameSubmitBtn');
-  const inp=document.getElementById('nameInput');
-  if(!inp||!btn)return;
-
-  btn.disabled=true;
-  btn.textContent='...';
-
+  const btn=document.getElementById('nameSubmitBtn');const inp=document.getElementById('nameInput');if(!inp||!btn)return;
+  btn.disabled=true;btn.textContent='...';
   const ok = await Leaderboard.submit(inp.value, state.totalScore);
-
   if(ok){
-    state.scoreSubmitted=true;
-    const container=document.getElementById('goNameEntry');
+    state.scoreSubmitted=true;const container=document.getElementById('goNameEntry');
     container.innerHTML='<div class="name-entry-done">✅ Score saved!</div>';
-
-    // refresh BOTH leaderboards
-    await renderLeaderboard('goLB',5);
-    await renderMenuLeaderboard();
-
+    await renderLeaderboard('goLB',5);await renderMenuLeaderboard();
   } else {
-    btn.disabled=false;
-    btn.textContent='Save';
-
+    btn.disabled=false;btn.textContent='Save';
     const container=document.getElementById('goNameEntry');
-    container.insertAdjacentHTML(
-      'beforeend',
-      '<div class="name-entry-done" style="color:var(--red)">Could not save. Check Firebase rules.</div>'
-    );
+    container.insertAdjacentHTML('beforeend','<div class="name-entry-done" style="color:var(--red)">Could not save. Check Firebase rules.</div>');
   }
 }
 // ============================================================
@@ -921,8 +744,7 @@ function showScreen(name){
 // ============================================================
 function startGame(){
   initAudio();state.level=0;state.score=0;state.totalScore=0;
-  state.replayTiles=0; // Reset replay tiles on new run
-  startLevel();
+  state.replayTiles=0;startLevel();
 }
 
 function startLevel(){
@@ -933,25 +755,15 @@ function startLevel(){
   state.timer=lv.time;const te=document.getElementById('hudTimer'),tv=document.getElementById('timerValue');
   tv.textContent=state.timer+'s';te.classList.remove('warn','critical');
   clearInterval(state.timerInterval);state.timerInterval=setInterval(updateTimer,1000);
-  showScreen('game');startMusic();
-  // Schedule an OOM check after tiles finish spawning in
-  setTimeout(()=>checkForOutOfMoves(),600);
+  showScreen('game');startMusic();setTimeout(()=>checkForOutOfMoves(),600);
 }
 
 function levelComplete(){
   clearInterval(state.timerInterval);stopMusic();sfxLevelComplete();
   document.getElementById('lcScore').textContent=state.score;
   document.getElementById('lcSub').textContent=`Target: ${LEVELS[state.level].target} — Cleared!`;
-
-  // Check if player earns a replay tile for completing this level
   const earnedEl=document.getElementById('lcReplayEarned');
-  if(REPLAY_EARN_LEVELS.includes(state.level)){
-    state.replayTiles++;
-    earnedEl.textContent=`🔄 +1 Replay Tile earned! (${state.replayTiles} total)`;
-  } else {
-    earnedEl.textContent='';
-  }
-
+  if(REPLAY_EARN_LEVELS.includes(state.level)){state.replayTiles++;earnedEl.textContent=`🔄 +1 Replay Tile earned! (${state.replayTiles} total)`;}else{earnedEl.textContent='';}
   showScreen('levelComplete');
 }
 
@@ -962,32 +774,18 @@ async function gameOver(){
   document.getElementById('goScore').textContent=state.totalScore;
   document.getElementById('goSub').textContent=`Target: ${LEVELS[state.level].target}`;
   document.getElementById('goNameEntry').innerHTML='';
-
   const btns=document.getElementById('goBtns');
   if(state.replayTiles>0){
-    // Has replay tiles — offer replay or end run
     btns.innerHTML=`<button class="btn btn-sm" style="background:var(--purple);box-shadow:0 4px 0 #8a60aa" onclick="useReplayFromGameOver()">Replay 🔄 (${state.replayTiles})</button><button class="btn btn-sm" onclick="endRunAndSubmit()" style="background:var(--text2);box-shadow:0 4px 0 #5a4a3a">End Run</button>`;
     showScreen('gameOver');
   } else {
-    // No replay tiles — final game over
     btns.innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;
-    showScreen('gameOver');
-    await showNameEntryIfQualified(state.totalScore);
+    showScreen('gameOver');await showNameEntryIfQualified(state.totalScore);
   }
 }
 
-function useReplayFromGameOver(){
-  if(state.replayTiles<=0)return;
-  state.replayTiles--;
-  document.getElementById('gameOver').classList.remove('active');
-  startLevel();
-}
-
-async function endRunAndSubmit(){
-  document.getElementById('goBtns').innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;
-  await showNameEntryIfQualified(state.totalScore);
-}
-
+function useReplayFromGameOver(){if(state.replayTiles<=0)return;state.replayTiles--;document.getElementById('gameOver').classList.remove('active');startLevel();}
+async function endRunAndSubmit(){document.getElementById('goBtns').innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;await showNameEntryIfQualified(state.totalScore);}
 function backToMenu(){clearInterval(state.timerInterval);stopMusic();showScreen('menu')}
 
 // ============================================================
