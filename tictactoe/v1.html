@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TIC TAC TOE — Handheld Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   POCKETPLAY TIC TAC TOE — style.css (revised)
+   ============================================================ */
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Tokens ── */
+:root {
+  --shell-hi:    #f2d458;
+  --shell-mid:   #dea828;
+  --shell-lo:    #c49018;
+  --shell-edge:  #7a5208;
+  --lcd-bg:      #8bac63;
+  --lcd-dark:    #1a2610;
+  --lcd-mid:     #4a6e30;
+  --lcd-light:   #b0cc80;
+  --lcd-glow:    #b8ff60;
+  --btn-sfx:     #2060a8;
+  --btn-sfx-hi:  #3080d0;
+  --f-lcd:  'VT323', monospace;
+  --f-mono: 'Share Tech Mono', monospace;
+}
+
+/* ── Body ── */
+body {
+  background: radial-gradient(ellipse at center, #3a2a0a 0%, #180e02 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 12px;
+  font-family: var(--f-mono);
+}
+
+/* ============================================================
+   DEVICE SHELL
+   ============================================================ */
+#device {
+  width: min(320px, 94vw);
+  background: linear-gradient(162deg, var(--shell-hi) 0%, var(--shell-mid) 45%, var(--shell-lo) 100%);
+  border-radius: 16px 16px 36px 36px;
+  padding: 12px 14px 18px;
+  box-shadow:
+    0 0 0 3px var(--shell-edge),
+    0 10px 40px rgba(0,0,0,0.75),
+    inset 0 2px 0 rgba(255,255,255,0.35),
+    inset 0 -3px 0 rgba(0,0,0,0.18);
+  user-select: none;
+  position: relative;
+}
+
+#device::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.018) 3px,
+    rgba(0,0,0,0.018) 6px
+  );
+  pointer-events: none;
+}
+
+/* ── Top bar ── */
+.device-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  margin-bottom: 10px;
+}
+
+.device-top-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-label {
+  font-family: var(--f-lcd);
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--shell-edge);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+}
+.brand-label span { color: #b82020; }
+
+.power-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.power-led {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #50ee30;
+  box-shadow: 0 0 5px #50ee30;
+  animation: blink 2.4s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+.power-switch {
+  width: 14px; height: 7px;
+  background: #2a2a2a;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+}
+
+/* ============================================================
+   ARCADE HOME ICON — shared brand element
+   ============================================================ */
+.arcade-home{
+  width:32px;height:32px;border-radius:9px;flex-shrink:0;
+  background:rgba(0,0,0,.04);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  text-decoration:none;
+  transition:transform .12s,background .12s;
+  -webkit-tap-highlight-color:transparent;
+  pointer-events:all;
+  position:relative;
+  z-index:1;
+}
+.arcade-home:active{transform:scale(.88);background:rgba(0,0,0,.08)}
+.arcade-home svg{width:28px;height:28px;pointer-events:none;display:block}
+
+/* ============================================================
+   LCD FRAME & SCREEN
+   ============================================================ */
+.lcd-frame {
+  background: #1e1e1e;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow:
+    inset 0 3px 8px rgba(0,0,0,0.85),
+    0 2px 0 rgba(255,255,255,0.08);
+}
+
+.lcd-screen {
+  background: var(--lcd-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  height: 280px;
+  box-shadow: inset 0 0 24px rgba(0,0,0,0.28);
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,0.055) 3px,
+    rgba(0,0,0,0.055) 4px
+  );
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ── Screen states ── */
+.game-screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  z-index: 1;
+}
+.game-screen.active { display: flex; }
+
+/* ── START SCREEN ── */
+.screen-title {
+  font-family: var(--f-lcd);
+  font-size: 50px;
+  line-height: 0.88;
+  color: var(--lcd-dark);
+  text-align: center;
+  text-shadow: 2px 2px 0 var(--lcd-mid);
+  animation: flicker 5s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%,94%,100%{opacity:1}
+  95%{opacity:.65}
+  97%{opacity:1}
+  99%{opacity:.5}
+}
+
+.screen-subtitle {
+  font-family: var(--f-lcd);
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--lcd-mid);
+  margin: 5px 0 10px;
+}
+
+.flavor-start {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--lcd-dark);
+  text-align: center;
+  opacity: .8;
+  margin-bottom: 14px;
+  padding: 0 8px;
+  min-height: 26px;
+}
+
+/* ── LCD BUTTONS ── */
+.lcd-btn {
+  font-family: var(--f-lcd);
+  font-size: 17px;
+  letter-spacing: 2px;
+  background: var(--lcd-dark);
+  color: var(--lcd-light);
+  border: none;
+  border-radius: 4px;
+  padding: 7px 18px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.55);
+  transition: transform .08s, box-shadow .08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.lcd-btn:active, .lcd-btn.pressed {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.55);
+}
+.lcd-btn.small { font-size: 14px; padding: 6px 14px; }
+
+/* ============================================================
+   GAME SCREEN INTERIOR LAYOUT
+   ============================================================ */
+.lcd-header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.round-label {
+  font-family: var(--f-lcd);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--lcd-mid);
+  line-height: 1;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 36px;
+}
+.score-label {
+  font-family: var(--f-lcd);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--lcd-mid);
+  line-height: 1;
+}
+.score-num {
+  font-family: var(--f-lcd);
+  font-size: 30px;
+  color: var(--lcd-dark);
+  line-height: 1;
+}
+
+.pips-block {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.round-pip {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--lcd-dark);
+  background: transparent;
+  transition: background .3s, box-shadow .3s;
+  flex-shrink: 0;
+}
+.round-pip.win  { background:#2ec840; border-color:#20a030; box-shadow:0 0 5px #2ec840; }
+.round-pip.loss { background:#cc2828; border-color:#a01818; box-shadow:0 0 5px #cc2828; }
+.round-pip.draw { background:#c8a018; border-color:#a08010; box-shadow:0 0 5px #c8a018; }
+
+.lcd-board-wrap {
+  width: 192px;
+  height: 192px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 6px auto 0;
+}
+
+.board {
+  width: 192px;
+  height: 192px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 60px 60px 60px;
+  grid-template-rows:    60px 60px 60px;
+  gap: 3px;
+  background: var(--lcd-dark);
+  border: 3px solid var(--lcd-dark);
+  border-radius: 4px;
+  contain: strict;
+}
+
+.cell {
+  width: 60px;
+  height: 60px;
+  background: var(--lcd-bg);
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s;
+}
+
+.cell::after {
+  content: attr(data-mark);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--f-lcd);
+  font-size: 46px;
+  line-height: 1;
+  color: var(--lcd-dark);
+  pointer-events: none;
+}
+.cell[data-mark="O"]::after { color: var(--lcd-mid); }
+
+.cell:active { background: var(--lcd-light); }
+
+.cell.win-cell {
+  animation: winFlash .45s ease-in-out 3;
+}
+@keyframes winFlash {
+  0%,100%{ background: rgba(180,255,100,.25); }
+  50%    { background: rgba(180,255,100,.65); }
+}
+
+.lcd-message {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--lcd-dark);
+  text-align: center;
+  opacity: .8;
+  flex-shrink: 0;
+  padding: 0 6px;
+  min-height: 14px;
+  line-height: 1.3;
+}
+
+/* ── ROUND OVERLAY ── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(20,32,10,.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  border-radius: 4px;
+}
+.overlay.hidden { display: none; }
+
+.overlay-msg {
+  font-family: var(--f-lcd);
+  font-size: 24px;
+  color: var(--lcd-light);
+  text-align: center;
+  text-shadow: 0 0 10px var(--lcd-glow);
+  padding: 0 12px;
+  animation: popIn .28s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+/* ── MATCH SCREEN ── */
+.match-result {
+  font-family: var(--f-lcd);
+  font-size: 38px;
+  color: var(--lcd-dark);
+  text-shadow: 2px 2px 0 var(--lcd-mid);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.match-msg {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: var(--lcd-mid);
+  text-align: center;
+  padding: 0 12px;
+  margin-bottom: 6px;
+}
+.final-score {
+  font-family: var(--f-lcd);
+  font-size: 30px;
+  color: var(--lcd-dark);
+  margin-bottom: 14px;
+}
+
+/* ============================================================
+   BOTTOM CONTROLS
+   ============================================================ */
+.bottom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 0 6px;
+}
+
+.nub-pair {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.nub-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.select-nub {
+  width: 24px; height: 9px;
+  background: linear-gradient(to bottom, #2e2e2e, #1a1a1a);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.nub-label {
+  font-family: var(--f-mono);
+  font-size: 7.5px;
+  color: var(--shell-edge);
+  letter-spacing: .5px;
+  opacity: .75;
+}
+
+.action-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.action-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-family: var(--f-mono);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+  transition: transform .08s, box-shadow .08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.action-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.btn-sfx {
+  background: radial-gradient(circle at 38% 32%, var(--btn-sfx-hi), var(--btn-sfx));
+}
+.btn-sfx.muted {
+  background: radial-gradient(circle at 38% 32%, #555, #333);
+}
+.btn-label {
+  font-family: var(--f-mono);
+  font-size: 7.5px;
+  color: var(--shell-edge);
+  letter-spacing: .5px;
+  opacity: .75;
+}
+
+/* ============================================================
+   SPEAKER + FOOTER
+   ============================================================ */
+.speaker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+.speaker-holes {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 3px;
+}
+.speaker-holes span {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--shell-edge);
+  opacity: .55;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.4);
+}
+.device-footer {
+  font-family: var(--f-mono);
+  font-size: 7px;
+  color: var(--shell-edge);
+  letter-spacing: 1px;
+  opacity: .6;
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================ */
+@media (min-height: 700px) {
+  .lcd-screen { height: 300px; }
+}
+
+@media (max-width: 340px) {
+  #device { padding: 10px 10px 16px; }
+  .lcd-screen { height: 256px; }
+  .lcd-board-wrap { width: 168px; height: 168px; }
+  .board {
+    width: 168px; height: 168px;
+    grid-template-columns: 52px 52px 52px;
+    grid-template-rows:    52px 52px 52px;
+  }
+  .cell { width: 52px; height: 52px; }
+  .cell::after { font-size: 38px; }
+  .score-num    { font-size: 26px; }
+  .screen-title { font-size: 44px; }
+  .match-result { font-size: 32px; }
+}
+
+@media (max-height: 540px) {
+  body { padding: 8px; align-items: flex-start; }
+  .lcd-screen { height: 240px; }
+  .lcd-board-wrap { width: 156px; height: 156px; }
+  .board {
+    width: 156px; height: 156px;
+    grid-template-columns: 48px 48px 48px;
+    grid-template-rows:    48px 48px 48px;
+  }
+  .cell { width: 48px; height: 48px; }
+  .cell::after { font-size: 34px; }
+}
+</style>
+</head>
+<body>
+  <div id="device">
+
+    <!-- ── TOP BAR ── -->
+    <div class="device-top">
+      <div class="device-top-left">
+        <a class="arcade-home" href="https://www.tonysnguyen.com/arcade" aria-label="Back to Arcade"><svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
+        <div class="brand-label">POCKET<span>PLAY</span></div>
+      </div>
+      <div class="power-area">
+        <div class="power-led"></div>
+        <div class="power-switch"></div>
+      </div>
+    </div>
+
+    <!-- ── LCD FRAME ── -->
+    <div class="lcd-frame">
+      <div class="lcd-screen">
+        <div class="scanlines"></div>
+
+        <!-- START SCREEN -->
+        <div class="game-screen active" id="startScreen">
+          <div class="screen-title">TIC<br/>TAC<br/>TOE</div>
+          <div class="screen-subtitle">POCKET EDITION</div>
+          <div class="flavor-start" id="flavorStart">Think you could beat me?</div>
+          <button class="lcd-btn" id="startBtn">PRESS START</button>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div class="game-screen" id="gameScreen">
+          <div class="lcd-header">
+            <div class="round-label" id="roundLabel">ROUND 1</div>
+            <div class="score-row">
+              <div class="score-block">
+                <div class="score-label">YOU</div>
+                <div class="score-num" id="scorePlayer">0</div>
+              </div>
+              <div class="pips-block">
+                <div class="round-pip" id="pip0"></div>
+                <div class="round-pip" id="pip1"></div>
+                <div class="round-pip" id="pip2"></div>
+              </div>
+              <div class="score-block">
+                <div class="score-label">CPU</div>
+                <div class="score-num" id="scoreCpu">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lcd-board-wrap">
+            <div class="board" id="board">
+              <div class="cell" data-i="0"></div>
+              <div class="cell" data-i="1"></div>
+              <div class="cell" data-i="2"></div>
+              <div class="cell" data-i="3"></div>
+              <div class="cell" data-i="4"></div>
+              <div class="cell" data-i="5"></div>
+              <div class="cell" data-i="6"></div>
+              <div class="cell" data-i="7"></div>
+              <div class="cell" data-i="8"></div>
+            </div>
+          </div>
+
+          <div class="lcd-message" id="statusBar">Your move, genius.</div>
+        </div>
+
+        <!-- ROUND END OVERLAY -->
+        <div class="overlay hidden" id="roundOverlay">
+          <div class="overlay-msg" id="overlayMsg">Nice try.</div>
+          <button class="lcd-btn small" id="nextRoundBtn">NEXT ROUND</button>
+        </div>
+
+        <!-- MATCH END SCREEN -->
+        <div class="game-screen" id="matchScreen">
+          <div class="match-result" id="matchResult">YOU WIN</div>
+          <div class="match-msg" id="matchMsg">Enjoy your tiny victory.</div>
+          <div class="final-score" id="finalScore">2 — 1</div>
+          <button class="lcd-btn" id="replayBtn">PLAY AGAIN</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── BOTTOM CONTROLS ── -->
+    <div class="bottom-controls">
+      <div class="nub-pair">
+        <div class="nub-item">
+          <div class="select-nub"></div>
+          <div class="nub-label">SELECT</div>
+        </div>
+        <div class="nub-item">
+          <div class="select-nub"></div>
+          <div class="nub-label">START</div>
+        </div>
+      </div>
+      <div class="action-cluster">
+        <button class="action-btn btn-sfx" id="soundToggle" title="Toggle sound">♪</button>
+        <div class="btn-label">SFX</div>
+      </div>
+    </div>
+
+    <!-- ── SPEAKER + FOOTER ── -->
+    <div class="speaker-row">
+      <div class="speaker-holes">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="device-footer">© 1997 POCKETPLAY CO.</div>
+    </div>
+
+  </div>
+
+<script>
+// ============================================================
+//  TIC TAC TOE — POCKETPLAY EDITION
+// ============================================================
+
+(function () {
+  'use strict';
+
+  // ── DOM refs ──────────────────────────────────────────────
+  const startScreen   = document.getElementById('startScreen');
+  const gameScreen    = document.getElementById('gameScreen');
+  const matchScreen   = document.getElementById('matchScreen');
+  const roundOverlay  = document.getElementById('roundOverlay');
+  const startBtn      = document.getElementById('startBtn');
+  const nextRoundBtn  = document.getElementById('nextRoundBtn');
+  const replayBtn     = document.getElementById('replayBtn');
+  const soundToggle   = document.getElementById('soundToggle');
+  const boardEl       = document.getElementById('board');
+  const cells         = Array.from(document.querySelectorAll('.cell'));
+  const statusBar     = document.getElementById('statusBar');
+  const scorePlayerEl = document.getElementById('scorePlayer');
+  const scoreCpuEl    = document.getElementById('scoreCpu');
+  const roundLabel    = document.getElementById('roundLabel');
+  const overlayMsg    = document.getElementById('overlayMsg');
+  const matchResult   = document.getElementById('matchResult');
+  const matchMsg      = document.getElementById('matchMsg');
+  const finalScore    = document.getElementById('finalScore');
+  const flavorStart   = document.getElementById('flavorStart');
+  const pips          = [0,1,2].map(i => document.getElementById('pip'+i));
+
+  // ── State ─────────────────────────────────────────────────
+  let board       = Array(9).fill(null);
+  let currentRound = 1;
+  let scorePlayer  = 0;
+  let scoreCpu     = 0;
+  let roundResults = [];
+  let gameActive   = false;
+  let soundOn      = true;
+
+  // ── Copy banks ────────────────────────────────────────────
+  const copy = {
+    startFlavor: [
+      "Think you could beat me?",
+      "Ready to embarrass yourself?",
+      "Let's see what you've got.",
+      "Go on, impress me.",
+    ],
+    ingame: [
+      "Your move, genius.",
+      "Don't overthink it.",
+      "This should be good.",
+      "Bold choice.",
+      "Huh. Interesting.",
+      "Okay, okay...",
+      "I'm watching.",
+    ],
+    aiThinking: [
+      "Hmm...",
+      "Let me think...",
+      "Oh, I see it.",
+      "Easy.",
+    ],
+    win: [
+      "Wow, you beat me.",
+      "Okay, rude.",
+      "Beginner's luck?",
+      "Fine. You got one.",
+      "Whatever.",
+    ],
+    loss: [
+      "Nice try.",
+      "Better luck next time.",
+      "Oof. That was rough.",
+      "You really walked into that one.",
+      "Did you even try?",
+    ],
+    draw: [
+      "Nobody wins. Boring.",
+      "A tie? Really?",
+      "Stalemate.",
+      "Not bad, I guess.",
+      "Well... that happened.",
+    ],
+    matchWin: [
+      "Alright, you win. Don't get cocky.",
+      "Okay okay, you got me.",
+      "Enjoy your tiny victory.",
+    ],
+    matchLoss: [
+      "Told you so.",
+      "Better luck next time.",
+      "Maybe stick to checkers.",
+    ],
+    matchDraw: [
+      "A draw? How dull.",
+      "Neither of us wins. Great.",
+    ],
+  };
+
+  function rand(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // ── Audio ─────────────────────────────────────────────────
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { return null; }
+    }
+    return audioCtx;
+  }
+
+  function playTone(freq, type, duration, volume, delay = 0) {
+    if (!soundOn) return;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + duration + 0.05);
+    } catch(e) {}
+  }
+
+  const sfx = {
+    tap: () => { playTone(440, 'square', 0.06, 0.15); },
+    aiMove: () => { playTone(280, 'square', 0.06, 0.12); },
+    win: () => {
+      playTone(523, 'square', 0.1, 0.2);
+      playTone(659, 'square', 0.1, 0.2, 0.12);
+      playTone(784, 'square', 0.18, 0.2, 0.24);
+    },
+    loss: () => {
+      playTone(300, 'sawtooth', 0.1, 0.18);
+      playTone(220, 'sawtooth', 0.18, 0.18, 0.12);
+    },
+    draw: () => {
+      playTone(350, 'square', 0.08, 0.15);
+      playTone(350, 'square', 0.08, 0.1, 0.14);
+    },
+    start: () => {
+      playTone(392, 'square', 0.08, 0.15);
+      playTone(523, 'square', 0.12, 0.15, 0.1);
+    },
+    matchWin: () => {
+      [523,659,784,1047].forEach((f,i) => playTone(f,'square',0.12,0.2,i*0.1));
+    },
+    matchLoss: () => {
+      [300,250,200].forEach((f,i) => playTone(f,'sawtooth',0.12,0.2,i*0.12));
+    },
+  };
+
+  // ── Win detection ─────────────────────────────────────────
+  const WINS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6],
+  ];
+
+  function checkWinner(b) {
+    for (const [a,c,d] of WINS) {
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+        return { winner: b[a], line: [a,c,d] };
+      }
+    }
+    if (b.every(v => v !== null)) return { winner: 'draw', line: [] };
+    return null;
+  }
+
+  // ── AI logic ──────────────────────────────────────────────
+  function getBestMove(b) {
+    for (const [a,c,d] of WINS) {
+      if (b[a] === 'O' && b[c] === 'O' && b[d] === null) return d;
+      if (b[a] === 'O' && b[d] === 'O' && b[c] === null) return c;
+      if (b[c] === 'O' && b[d] === 'O' && b[a] === null) return a;
+    }
+    for (const [a,c,d] of WINS) {
+      if (b[a] === 'X' && b[c] === 'X' && b[d] === null) return d;
+      if (b[a] === 'X' && b[d] === 'X' && b[c] === null) return c;
+      if (b[c] === 'X' && b[d] === 'X' && b[a] === null) return a;
+    }
+    if (b[4] === null) return 4;
+    const corners = [0,2,6,8].filter(i => b[i] === null);
+    if (corners.length) return rand(corners);
+    const open = b.map((v,i) => v===null?i:null).filter(v=>v!==null);
+    return open.length ? rand(open) : null;
+  }
+
+  // ── Screen switcher ───────────────────────────────────────
+  function showScreen(id) {
+    [startScreen, gameScreen, matchScreen].forEach(s => {
+      s.classList.remove('active');
+      s.style.display = '';
+    });
+    document.getElementById(id).classList.add('active');
+    document.getElementById(id).style.display = 'flex';
+  }
+
+  // ── Render board ──────────────────────────────────────────
+  function renderBoard() {
+    cells.forEach((cell, i) => {
+      cell.dataset.mark = board[i] || '';
+      cell.className = 'cell';
+    });
+  }
+
+  function highlightWin(line) {
+    line.forEach(i => cells[i].classList.add('win-cell'));
+  }
+
+  // ── Round management ──────────────────────────────────────
+  function startNewRound() {
+    board = Array(9).fill(null);
+    renderBoard();
+    roundOverlay.classList.add('hidden');
+    roundLabel.textContent = 'ROUND ' + currentRound;
+    statusBar.textContent = rand(copy.ingame);
+    gameActive = true;
+  }
+
+  function endRound(result, line) {
+    gameActive = false;
+    roundResults.push(result);
+
+    if (line && line.length) highlightWin(line);
+
+    const pipIdx = currentRound - 1;
+    if (pipIdx < 3) {
+      pips[pipIdx].classList.remove('win','loss','draw');
+      pips[pipIdx].classList.add(result);
+    }
+
+    if (result === 'win') {
+      scorePlayer++;
+      scorePlayerEl.textContent = scorePlayer;
+      sfx.win();
+      overlayMsg.textContent = rand(copy.win);
+    } else if (result === 'loss') {
+      scoreCpu++;
+      scoreCpuEl.textContent = scoreCpu;
+      sfx.loss();
+      overlayMsg.textContent = rand(copy.loss);
+    } else {
+      sfx.draw();
+      overlayMsg.textContent = rand(copy.draw);
+    }
+
+    setTimeout(() => {
+      roundOverlay.classList.remove('hidden');
+
+      const matchDone = scorePlayer >= 2 || scoreCpu >= 2 || currentRound >= 3;
+      if (matchDone) {
+        nextRoundBtn.textContent = 'SEE RESULTS';
+        nextRoundBtn.dataset.matchDone = '1';
+      } else {
+        nextRoundBtn.textContent = 'NEXT ROUND';
+        nextRoundBtn.dataset.matchDone = '0';
+        currentRound++;
+      }
+    }, 700);
+  }
+
+  function endMatch() {
+    roundOverlay.classList.add('hidden');
+    showScreen('matchScreen');
+
+    if (scorePlayer > scoreCpu) {
+      matchResult.textContent = 'YOU WIN!';
+      matchMsg.textContent = rand(copy.matchWin);
+      sfx.matchWin();
+    } else if (scoreCpu > scorePlayer) {
+      matchResult.textContent = 'YOU LOSE';
+      matchMsg.textContent = rand(copy.matchLoss);
+      sfx.matchLoss();
+    } else {
+      matchResult.textContent = 'IT\'S A DRAW';
+      matchMsg.textContent = rand(copy.matchDraw);
+      sfx.draw();
+    }
+    finalScore.textContent = scorePlayer + ' — ' + scoreCpu;
+  }
+
+  // ── Player tap ────────────────────────────────────────────
+  function handleCellTap(i) {
+    if (!gameActive) return;
+    if (board[i] !== null) return;
+
+    sfx.tap();
+    board[i] = 'X';
+    renderBoard();
+
+    const result = checkWinner(board);
+    if (result) {
+      if (result.winner === 'X') endRound('win', result.line);
+      else if (result.winner === 'draw') endRound('draw', result.line);
+      return;
+    }
+
+    gameActive = false;
+    statusBar.textContent = rand(copy.aiThinking);
+    setTimeout(() => {
+      const aiIdx = getBestMove(board);
+      if (aiIdx === null) return;
+      board[aiIdx] = 'O';
+      sfx.aiMove();
+      renderBoard();
+
+      const r2 = checkWinner(board);
+      if (r2) {
+        if (r2.winner === 'O') endRound('loss', r2.line);
+        else if (r2.winner === 'draw') endRound('draw', r2.line);
+        return;
+      }
+      statusBar.textContent = rand(copy.ingame);
+      gameActive = true;
+    }, 480);
+  }
+
+  // ── Event listeners ───────────────────────────────────────
+  cells.forEach((cell, i) => {
+    cell.addEventListener('click', () => handleCellTap(i));
+    cell.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      handleCellTap(i);
+    }, { passive: false });
+  });
+
+  startBtn.addEventListener('click', () => {
+    sfx.start();
+    resetMatch();
+    showScreen('gameScreen');
+    startNewRound();
+  });
+
+  nextRoundBtn.addEventListener('click', () => {
+    if (nextRoundBtn.dataset.matchDone === '1') {
+      endMatch();
+    } else {
+      startNewRound();
+    }
+  });
+
+  replayBtn.addEventListener('click', () => {
+    sfx.start();
+    resetMatch();
+    showScreen('gameScreen');
+    startNewRound();
+  });
+
+  soundToggle.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundToggle.classList.toggle('muted', !soundOn);
+    soundToggle.textContent = soundOn ? '♪' : '✕';
+    if (soundOn) getAudioCtx();
+  });
+
+  document.querySelectorAll('.lcd-btn').forEach(btn => {
+    btn.addEventListener('mousedown', () => btn.classList.add('pressed'));
+    btn.addEventListener('mouseup', () => btn.classList.remove('pressed'));
+    btn.addEventListener('touchstart', () => btn.classList.add('pressed'), { passive: true });
+    btn.addEventListener('touchend', () => btn.classList.remove('pressed'), { passive: true });
+  });
+
+  // ── Match reset ───────────────────────────────────────────
+  function resetMatch() {
+    scorePlayer = 0;
+    scoreCpu    = 0;
+    currentRound = 1;
+    roundResults = [];
+    scorePlayerEl.textContent = '0';
+    scoreCpuEl.textContent    = '0';
+    pips.forEach(p => {
+      p.className = 'round-pip';
+    });
+  }
+
+  // ── Init ──────────────────────────────────────────────────
+  flavorStart.textContent = rand(copy.startFlavor);
+  showScreen('startScreen');
+
+})();
+</script>
+</body>
+</html>
