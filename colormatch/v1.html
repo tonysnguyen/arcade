@@ -219,14 +219,24 @@ canvas{display:block}
 /* Arcade home button — inside HUD */
 .arcade-home{
   width:32px;height:32px;border-radius:9px;flex-shrink:0;
-  background:rgba(0,0,0,.04);
+  background:rgba(0,0,0,.04);overflow:hidden;
   display:flex;align-items:center;justify-content:center;
   text-decoration:none;
   transition:transform .12s,background .12s;
   -webkit-tap-highlight-color:transparent
 }
 .arcade-home:active{transform:scale(.88);background:rgba(0,0,0,.08)}
-.arcade-home svg{pointer-events:none}
+.arcade-home svg{width:28px;height:28px;pointer-events:none;display:block}
+
+/* Home link on menu screen */
+.menu-home{
+  position:relative;z-index:1;margin-top:14px;
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:.85rem;
+  color:var(--text2);text-decoration:none;
+  display:inline-flex;align-items:center;gap:5px;
+  transition:color .2s
+}
+.menu-home:active{color:var(--text)}
 </style>
 </head>
 <body>
@@ -246,11 +256,12 @@ canvas{display:block}
     <div class="leaderboard-box" id="menuLB"></div>
     <div id="lbStatus" style="margin-top:8px;font-size:.8rem;color:var(--text2);position:relative;z-index:1;">Connecting leaderboard...</div>
     <button class="btn" onclick="startGame()">Play</button>
+    <a class="menu-home" href="https://tonysnguyen.com">← Home</a>
   </div>
 </div>
 
 <div class="hud" id="hud" style="display:none">
-  <a class="arcade-home" href="https://www.tonysnguyen.com/arcade" aria-label="Back to Arcade"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
+  <a class="arcade-home" href="https://www.tonysnguyen.com/arcade" aria-label="Back to Arcade"><svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
   <div class="hud-level" id="hudLevel">Lv 1</div>
   <div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <div class="hud-score" id="hudScore">0</div>
