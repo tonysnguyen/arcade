@@ -77,6 +77,36 @@ body {
 }
 
 /* ============================================================
+   BRAND BADGE & HOME BUTTON
+   ============================================================ */
+.brand-badge {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.brand-badge:hover { transform: scale(1.06); }
+.brand-badge:active { transform: scale(0.95); }
+.brand-badge svg { display: block; }
+
+/* Start screen brand row */
+.start-brand-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* In-game top bar brand placement */
+.top-bar-left {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ============================================================
    TOP BAR
    ============================================================ */
 .top-bar {
@@ -775,7 +805,10 @@ body {
 <div id="game">
   <!-- Top bar (hidden on start) -->
   <div class="top-bar" id="topBar" style="visibility:hidden">
-    <div class="stat-pill level"><span class="icon">◈</span> Lv <span id="dispLevel">1</span></div>
+    <div class="top-bar-left">
+      <a class="brand-badge" href="https://www.tonysnguyen.com/arcade" title="Back to Arcade"><svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
+      <div class="stat-pill level"><span class="icon">◈</span> Lv <span id="dispLevel">1</span></div>
+    </div>
     <div class="stat-pill score"><span class="icon">♦</span> <span id="dispScore">0</span></div>
     <div class="stat-pill stars"><span class="icon">★</span> <span id="dispStars">5</span></div>
     <div class="top-bar-actions">
@@ -806,6 +839,11 @@ body {
      ============================================================ -->
 <div class="overlay active" id="startOverlay">
   <div class="modal">
+    <!-- Brand + Home row -->
+    <div class="start-brand-row">
+      <a class="brand-badge" href="https://www.tonysnguyen.com/arcade" title="Back to Arcade"><svg width="28" height="28" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="20" height="20" rx="5" fill="#5B6EE8"/><rect x=".7" y=".7" width="18.6" height="18.6" rx="4.3" stroke="#fff" stroke-opacity=".2" stroke-width="1.4"/><path d="M5 6.5C5 6 5.3 5.5 6 5.5h8c.7 0 1 .5 1 1s-.3 1-1 1h-2.8v6c0 .7-.5 1-1.1 1-.7 0-1.1-.3-1.1-1v-6H6c-.7 0-1-.5-1-1Z" fill="#fff"/><circle cx="14.2" cy="14.2" r="1.3" fill="#fff"/></svg></a>
+    </div>
+
     <!-- Animated preview cards -->
     <div class="start-cards">
       <div class="start-card">1</div>
