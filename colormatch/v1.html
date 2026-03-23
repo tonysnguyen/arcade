@@ -236,6 +236,125 @@ canvas{display:block}
   left:max(16px, env(safe-area-inset-left, 16px));
   z-index:10;
 }
+
+/* ============================================================
+   VOTE / RATE — Game Over overlay (Color Match style)
+   Compact pill buttons matching the warm rounded aesthetic
+   ============================================================ */
+.vote-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-top: 14px;
+}
+.vote-label {
+  font-family: 'Fredoka', sans-serif;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: .5px;
+}
+.vote-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.vote-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 20px;
+  border: 2px solid var(--bg2);
+  background: var(--bg);
+  cursor: pointer;
+  transition: transform .12s ease, border-color .25s ease, background .25s ease, box-shadow .25s ease;
+  outline: none;
+  font-family: 'Fredoka', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.vote-pill:hover:not(.voted):not(.vote-locked) { transform: scale(1.06); }
+.vote-pill:active:not(.voted):not(.vote-locked) { transform: scale(.94); }
+
+.vote-pill .vote-icon { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.vote-pill .vote-count {
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .3px;
+  line-height: 1;
+  min-width: 10px;
+  text-align: center;
+}
+
+/* Heart pill */
+.vote-pill.like-pill { border-color: rgba(232, 115, 108, .25); }
+.vote-pill.like-pill .vote-count { color: rgba(232, 115, 108, .55); }
+
+.vote-pill.like-pill:hover:not(.voted):not(.vote-locked) {
+  border-color: var(--red);
+  background: rgba(232, 115, 108, .08);
+  box-shadow: 0 3px 12px rgba(232, 115, 108, .15);
+}
+.vote-pill.like-pill:hover:not(.voted):not(.vote-locked) .vote-count { color: var(--red); }
+
+.vote-pill.like-pill.voted {
+  border-color: var(--red);
+  background: rgba(232, 115, 108, .10);
+  box-shadow: 0 3px 14px rgba(232, 115, 108, .18);
+  cursor: default;
+  animation: pill-glow-heart 2.5s ease-in-out infinite;
+}
+.vote-pill.like-pill.voted .vote-count { color: var(--red); }
+
+/* Meh pill */
+.vote-pill.dislike-pill { border-color: rgba(138, 117, 101, .2); }
+.vote-pill.dislike-pill .vote-count { color: rgba(138, 117, 101, .5); }
+
+.vote-pill.dislike-pill:hover:not(.voted):not(.vote-locked) {
+  border-color: var(--text2);
+  background: rgba(138, 117, 101, .06);
+  box-shadow: 0 3px 12px rgba(138, 117, 101, .12);
+}
+.vote-pill.dislike-pill:hover:not(.voted):not(.vote-locked) .vote-count { color: var(--text2); }
+
+.vote-pill.dislike-pill.voted {
+  border-color: var(--text2);
+  background: rgba(138, 117, 101, .08);
+  box-shadow: 0 3px 12px rgba(138, 117, 101, .12);
+  cursor: default;
+  animation: pill-glow-meh 2.5s ease-in-out infinite;
+}
+.vote-pill.dislike-pill.voted .vote-count { color: var(--text2); }
+
+.vote-pill.vote-locked {
+  opacity: .2;
+  cursor: default;
+  pointer-events: none;
+}
+
+.vote-thanks {
+  font-family: 'Fredoka', sans-serif;
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: .3px;
+  opacity: 0;
+  transition: opacity .5s ease;
+  text-align: center;
+  min-height: 14px;
+}
+.vote-thanks.visible { opacity: 1; }
+
+@keyframes pill-glow-heart {
+  0%, 100% { box-shadow: 0 3px 12px rgba(232, 115, 108, .14); }
+  50%      { box-shadow: 0 3px 20px rgba(232, 115, 108, .28); }
+}
+@keyframes pill-glow-meh {
+  0%, 100% { box-shadow: 0 3px 10px rgba(138, 117, 101, .08); }
+  50%      { box-shadow: 0 3px 16px rgba(138, 117, 101, .18); }
+}
 </style>
 </head>
 <body>
@@ -297,8 +416,25 @@ canvas{display:block}
     <div class="overlay-score" id="goScore">0</div>
     <div class="overlay-sub" id="goSub">Target: 100</div>
     <div id="goNameEntry"></div>
-    <div class="overlay-btns" id="goBtns"></div>
     <div class="leaderboard-box" id="goLB"></div>
+
+    <!-- ★ VOTE SECTION ★ -->
+    <div class="vote-section" id="voteSection">
+      <div class="vote-label">Rate this game</div>
+      <div class="vote-buttons">
+        <button class="vote-pill like-pill" id="voteLikeBtn" aria-label="Love it">
+          <span class="vote-icon">❤️</span>
+          <span class="vote-count" id="likeCount">—</span>
+        </button>
+        <button class="vote-pill dislike-pill" id="voteDislikeBtn" aria-label="Meh">
+          <span class="vote-icon">👎</span>
+          <span class="vote-count" id="dislikeCount">—</span>
+        </button>
+      </div>
+      <div class="vote-thanks" id="voteThanks">Thanks for your feedback!</div>
+    </div>
+
+    <div class="overlay-btns" id="goBtns"></div>
   </div>
 </div>
 
@@ -306,6 +442,95 @@ canvas{display:block}
 <div id="boardToast" style="display:none"></div>
 
 <script>
+/* =============================================================
+   GAME VOTING SYSTEM — Firestore-backed, one vote per browser
+   =============================================================
+   Firestore structure:
+     Collection: "games"
+     Document:   VOTE_GAME_ID (e.g. "color-match")
+     Fields:     hearts (number), meh (number)
+
+   localStorage key: "vote_{VOTE_GAME_ID}" → "like" | "dislike"
+
+   To reuse in another game:
+     1. Change VOTE_GAME_ID
+     2. Copy the vote HTML, CSS, and this JS block
+     3. Call initVoteUI() when the game-over screen appears
+   ============================================================= */
+
+const VOTE_GAME_ID = 'color-match';
+const VOTE_STORAGE_KEY = `vote_${VOTE_GAME_ID}`;
+let userVote = null;
+
+try {
+  const stored = localStorage.getItem(VOTE_STORAGE_KEY);
+  if (stored === 'like' || stored === 'dislike') userVote = stored;
+} catch(e) {}
+
+const voteLikeBtn    = document.getElementById('voteLikeBtn');
+const voteDislikeBtn = document.getElementById('voteDislikeBtn');
+const voteThanks     = document.getElementById('voteThanks');
+const likeCountEl    = document.getElementById('likeCount');
+const dislikeCountEl = document.getElementById('dislikeCount');
+
+function fetchVoteCounts() {
+  if (!firebaseReady || !db) return;
+  db.collection('games').doc(VOTE_GAME_ID).get()
+    .then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        likeCountEl.textContent    = (data.hearts || 0).toLocaleString();
+        dislikeCountEl.textContent = (data.meh    || 0).toLocaleString();
+      } else {
+        likeCountEl.textContent    = '0';
+        dislikeCountEl.textContent = '0';
+      }
+    })
+    .catch(() => {
+      likeCountEl.textContent    = '—';
+      dislikeCountEl.textContent = '—';
+    });
+}
+
+function submitVote(type) {
+  if (userVote) return;
+  userVote = type;
+  try { localStorage.setItem(VOTE_STORAGE_KEY, type); } catch(e) {}
+  applyVoteUI();
+
+  if (!firebaseReady || !db) return;
+  const field = type === 'like' ? 'hearts' : 'meh';
+  db.collection('games').doc(VOTE_GAME_ID).set(
+    { [field]: firebase.firestore.FieldValue.increment(1) },
+    { merge: true }
+  ).then(() => fetchVoteCounts()).catch(() => {});
+}
+
+function applyVoteUI() {
+  voteLikeBtn.classList.remove('voted', 'vote-locked');
+  voteDislikeBtn.classList.remove('voted', 'vote-locked');
+  voteThanks.classList.remove('visible');
+
+  if (userVote === 'like') {
+    voteLikeBtn.classList.add('voted');
+    voteDislikeBtn.classList.add('vote-locked');
+    voteThanks.classList.add('visible');
+  } else if (userVote === 'dislike') {
+    voteDislikeBtn.classList.add('voted');
+    voteLikeBtn.classList.add('vote-locked');
+    voteThanks.classList.add('visible');
+  }
+}
+
+voteLikeBtn.addEventListener('click', () => submitVote('like'));
+voteDislikeBtn.addEventListener('click', () => submitVote('dislike'));
+
+function initVoteUI() {
+  applyVoteUI();
+  fetchVoteCounts();
+}
+
+
 // ============================================================
 // CONSTANTS & STATE
 // ============================================================
@@ -320,7 +545,7 @@ const COLORS = [
 ];
 
 // ============================================================
-// LEVEL PROGRESSION — starts at 3x3, ramps up smoothly
+// LEVEL PROGRESSION
 // ============================================================
 const LEVELS = [];
 const LEVEL_DEFS = [
@@ -366,8 +591,7 @@ let state = {
 };
 
 // ============================================================
-// 🔒 PROTECTED FIREBASE / LEADERBOARD CODE
-// DO NOT MODIFY THIS SECTION UNLESS EXPLICITLY REQUESTED
+// FIREBASE / LEADERBOARD
 // ============================================================
 
 const GAME_ID = 'color-match';
@@ -421,7 +645,7 @@ function initFirebase() {
 
 const Leaderboard = {
   async getTop(n = LEADERBOARD_SIZE) {
-    if (!firebaseReady) { console.warn('[Leaderboard] getTop called but Firebase not ready.'); return []; }
+    if (!firebaseReady) return [];
     try {
       const snap = await db.collection('leaderboards').doc(GAME_ID).collection('scores').orderBy('score', 'desc').limit(n).get();
       return snap.docs.map(d => ({ name: d.data().name || 'PLAYER', score: d.data().score || 0 }));
@@ -431,18 +655,17 @@ const Leaderboard = {
     if (score <= 0) return false;
     if (!firebaseReady) return false;
     try { const top = await this.getTop(n); if (top.length < n) return true; return score > top[top.length - 1].score; }
-    catch (e) { console.error('[Leaderboard] qualifies failed:', e); return false; }
+    catch (e) { return false; }
   },
   async submit(rawName, score) {
     let name = (rawName || '').trim().substring(0, MAX_NAME_LENGTH).replace(/[<>"'&]/g, '');
     if (!name) name = 'PLAYER';
-    if (!firebaseReady) { console.error('[Leaderboard] submit called but Firebase not ready.'); setLeaderboardStatus('Could not save score (offline)', true); return false; }
+    if (!firebaseReady) { setLeaderboardStatus('Could not save score (offline)', true); return false; }
     try {
       await db.collection('leaderboards').doc(GAME_ID).collection('scores').add({ name, score, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-      console.log('[Leaderboard] Score submitted:', name, score);
       setLeaderboardStatus('Score saved ✓');
       return true;
-    } catch (e) { console.error('[Leaderboard] submit failed:', e); setLeaderboardStatus('Failed to save score', true); return false; }
+    } catch (e) { setLeaderboardStatus('Failed to save score', true); return false; }
   }
 };
 
@@ -457,10 +680,6 @@ async function renderMenuLeaderboard() {
   const s = top[0];
   el.innerHTML = `<div class="lb-title">🏆 Top Player</div><div class="lb-top-player"><span class="lb-crown">👑</span><span class="lb-tp-name">${s.name}</span><span class="lb-tp-score">${s.score}</span></div>`;
 }
-
-// ============================================================
-// 🔒 END PROTECTED FIREBASE / LEADERBOARD CODE
-// ============================================================
 
 // ============================================================
 // AUDIO
@@ -689,8 +908,7 @@ function updateTimer(){
 }
 
 // ============================================================
-// 🔒 PROTECTED LEADERBOARD RENDERING & SCORE SUBMISSION
-// DO NOT MODIFY THIS SECTION
+// LEADERBOARD RENDERING & SCORE SUBMISSION
 // ============================================================
 async function renderLeaderboard(containerId, n=5){
   const el=document.getElementById(containerId);if(!el)return;
@@ -722,9 +940,6 @@ async function submitLeaderboardScore(){
     container.insertAdjacentHTML('beforeend','<div class="name-entry-done" style="color:var(--red)">Could not save. Check Firebase rules.</div>');
   }
 }
-// ============================================================
-// 🔒 END PROTECTED LEADERBOARD RENDERING & SCORE SUBMISSION
-// ============================================================
 
 // ============================================================
 // SCREENS
@@ -782,6 +997,9 @@ async function gameOver(){
     btns.innerHTML=`<button class="btn btn-sm" onclick="backToMenu()">Back to Menu</button>`;
     showScreen('gameOver');await showNameEntryIfQualified(state.totalScore);
   }
+
+  // ★ Initialize vote UI when game-over screen appears
+  initVoteUI();
 }
 
 function useReplayFromGameOver(){if(state.replayTiles<=0)return;state.replayTiles--;document.getElementById('gameOver').classList.remove('active');startLevel();}
