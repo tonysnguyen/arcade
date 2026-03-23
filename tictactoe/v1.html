@@ -196,8 +196,9 @@ body{background:radial-gradient(ellipse at center,#3a2a0a 0%,#180e02 100%);min-h
 /* =============================================================
    VOTING SYSTEM — Firestore-backed, one vote per browser
    =============================================================
-   Firestore: games / tic-tac-toe → { hearts, meh }
-   localStorage: vote_tic-tac-toe → "like" | "dislike"
+   Firestore path: games / tic-tac-toe
+   Fields:         hearts (number), meh (number)
+   localStorage:   vote_tic-tac-toe → "like" | "dislike"
    ============================================================= */
 const VOTE_GAME_ID = 'tic-tac-toe';
 const VOTE_STORAGE_KEY = `vote_${VOTE_GAME_ID}`;
@@ -212,12 +213,16 @@ const firebaseConfig = {
   messagingSenderId: "88041829355",
   appId: "1:88041829355:web:56d7048e7c842d14e99fae"
 };
+
 let voteDb = null;
 try {
+  if (typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
   if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   voteDb = firebase.firestore();
-  console.log('[Vote] Firebase connected, db:', !!voteDb);
-} catch(e) { console.warn('[Vote] Firebase init failed:', e.message); }
+  console.log('[Vote] Firebase connected ✓  db:', !!voteDb);
+} catch(e) {
+  console.error('[Vote] Firebase init failed:', e.message);
+}
 
 const voteLikeBtn    = document.getElementById('voteLikeBtn');
 const voteDislikeBtn = document.getElementById('voteDislikeBtn');
@@ -226,32 +231,55 @@ const likeCountEl    = document.getElementById('likeCount');
 const dislikeCountEl = document.getElementById('dislikeCount');
 
 function fetchVoteCounts() {
-  if (!voteDb) { console.warn('[Vote] No DB connection'); return; }
+  if (!voteDb) { console.warn('[Vote] fetchVoteCounts skipped — no DB'); return; }
+  console.log('[Vote] Fetching counts from games/' + VOTE_GAME_ID + '...');
   voteDb.collection('games').doc(VOTE_GAME_ID).get()
-    .then(doc => {
+    .then(function(doc) {
       if (doc.exists) {
         const d = doc.data();
+        console.log('[Vote] Fetched data:', d);
         likeCountEl.textContent    = (d.hearts || 0).toLocaleString();
         dislikeCountEl.textContent = (d.meh    || 0).toLocaleString();
       } else {
+        console.log('[Vote] Doc games/' + VOTE_GAME_ID + ' does not exist yet — showing 0');
         likeCountEl.textContent = '0';
         dislikeCountEl.textContent = '0';
       }
-    }).catch(err => { console.warn('[Vote] Fetch failed:', err); likeCountEl.textContent = '—'; dislikeCountEl.textContent = '—'; });
+    })
+    .catch(function(err) {
+      console.error('[Vote] Fetch failed:', err);
+      likeCountEl.textContent = '—';
+      dislikeCountEl.textContent = '—';
+    });
 }
 
 function submitVote(type) {
-  if (userVote) return;
+  if (userVote) { console.log('[Vote] Already voted:', userVote); return; }
   userVote = type;
   try { localStorage.setItem(VOTE_STORAGE_KEY, type); } catch(e) {}
   applyVoteUI();
-  if (!voteDb) { console.warn('[Vote] No DB — vote saved locally only'); return; }
+
+  if (!voteDb) {
+    console.error('[Vote] No DB connection — vote saved locally only');
+    alert('Vote failed — Firebase not connected. Check console.');
+    return;
+  }
+
   const field = type === 'like' ? 'hearts' : 'meh';
+  console.log('[Vote] Writing', field, '+1 to games/' + VOTE_GAME_ID);
+
   voteDb.collection('games').doc(VOTE_GAME_ID).set(
     { [field]: firebase.firestore.FieldValue.increment(1) },
     { merge: true }
-  ).then(() => { console.log('[Vote] Saved to Firestore'); fetchVoteCounts(); })
-   .catch(err => { console.warn('[Vote] Save failed:', err); });
+  )
+  .then(function() {
+    console.log('[Vote] Saved to Firestore ✓');
+    fetchVoteCounts();
+  })
+  .catch(function(err) {
+    console.error('[Vote] Save failed:', err);
+    alert('Vote failed. Check console.');
+  });
 }
 
 function applyVoteUI() {
@@ -269,10 +297,23 @@ function applyVoteUI() {
   }
 }
 
-voteLikeBtn.addEventListener('click', () => submitVote('like'));
-voteDislikeBtn.addEventListener('click', () => submitVote('dislike'));
+voteLikeBtn.addEventListener('click', function() { submitVote('like'); });
+voteDislikeBtn.addEventListener('click', function() { submitVote('dislike'); });
 
-function initVoteUI() { applyVoteUI(); fetchVoteCounts(); }
+function initVoteUI() {
+  console.log('[Vote] initVoteUI called — userVote:', userVote, ' db:', !!voteDb);
+  applyVoteUI();
+  fetchVoteCounts();
+}
+
+/* Debug helper — call resetVoteDebug() in console to clear local vote and re-test */
+function resetVoteDebug() {
+  try { localStorage.removeItem(VOTE_STORAGE_KEY); } catch(e) {}
+  userVote = null;
+  applyVoteUI();
+  fetchVoteCounts();
+  console.log('[Vote] Local vote cleared for', VOTE_STORAGE_KEY);
+}
 </script>
 
 <script>
