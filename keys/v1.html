@@ -95,6 +95,37 @@
   #combo-display.tier2 { font-size: 13px; opacity: 0.85; color: var(--perfect-color); text-shadow: 0 0 12px rgba(232,213,176,0.25); }
   #combo-display.tier3 { font-size: 14px; opacity: 1; color: var(--text-bright); text-shadow: 0 0 18px rgba(232,213,176,0.35), 0 0 40px rgba(201,168,124,0.15); }
 
+  /* Flow indicator — subtle bar under header */
+  #flow-bar {
+    position: absolute; top: 50px; left: 0; right: 0;
+    height: 2px; z-index: 19;
+    background: transparent;
+    pointer-events: none;
+  }
+  #flow-bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+    transition: width 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* Phrase complete popup */
+  .phrase-popup {
+    position: absolute; left: 50%; top: 40%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--accent); opacity: 0.7;
+    pointer-events: none; z-index: 30;
+    animation: phraseFloat 0.8s ease-out forwards;
+  }
+  @keyframes phraseFloat {
+    0% { opacity: 0.7; transform: translateX(-50%) translateY(0) scale(1); }
+    30% { opacity: 0.8; transform: translateX(-50%) translateY(-6px) scale(1.04); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-28px) scale(1); }
+  }
+
   /* ═══════════════════════════════════════════════════════
      PLAY AREA
      ═══════════════════════════════════════════════════════ */
@@ -319,6 +350,7 @@
     <div class="stat"><div class="stat-label">Streak</div><div class="stat-value" id="streak-val">0</div></div>
   </div>
   <div id="combo-display"></div>
+  <div id="flow-bar"><div id="flow-bar-fill"></div></div>
   <div id="play-area"><canvas id="gameCanvas"></canvas></div>
   <div id="keys"></div>
 </div>
@@ -514,27 +546,78 @@ const state = {
   keyStates:[false,false,false,false],
   holdActive:[null,null,null,null],
   currentGoal:null, lvlHoldsCompleted:0, lvlHoldsTotal:0,
+  // Flow state: 0-1, builds from hits, decays on miss
+  flow: 0, flowTarget: 0,
+  // Phrase tracking
+  phraseNoteIndex: 0, phraseLength: 0, phraseMisses: 0,
 };
 
 /* ═══════════════════════════════════════════════════════════════
    ██  LEVEL GENERATION  ██
    ═══════════════════════════════════════════════════════════════ */
 function generateLevel(lvl) {
-  const q=[], nc=18+lvl*5, bi=Math.max(380,850-lvl*50);
+  const q=[];
+  const bi=Math.max(380,850-lvl*50);
   const aH=lvl>=3, aC=lvl>=4;
-  const ph=[[0,1,2,1],[0,2,1,3],[2,1,0,1],[0,0,2,3],[3,2,1,0],[0,1,3,2],[1,3,1,0],[0,2,3,2]];
-  const pp=[]; const si=(lvl-1)%8;
-  pp.push(ph[si],ph[(si+2)%8]); if(lvl>=3) pp.push(ph[(si+4)%8]);
-  let t=1600, pi=0, np=0;
-  for(let i=0;i<nc;i++){
-    const p=pp[pi%pp.length], ln=p[np%p.length];
-    const e={time:t,lanes:[ln],isHold:false,holdDuration:0};
-    if(aC&&Math.random()<0.1+lvl*0.015) e.lanes.push((ln+2)%4);
-    if(aH&&e.lanes.length===1&&Math.random()<0.1+lvl*0.012){e.isHold=true;e.holdDuration=350+Math.random()*350;}
-    q.push(e); np++;
-    if(np>=p.length){np=0;pi++;t+=bi*0.4;}
-    t+=bi+(i%2===0?0:bi*0.08)+(Math.random()-0.5)*bi*0.2;
+
+  // Musical phrase library
+  const phrases=[
+    [0,1,2,1],[0,2,1,3],[2,1,0,1],[0,0,2,3],
+    [3,2,1,0],[0,1,3,2],[1,3,1,0],[0,2,3,2],
+  ];
+  const si=(lvl-1)%8;
+  const phraseA=phrases[si];
+  const phraseB=phrases[(si+2)%8];
+  const phraseC=phrases[(si+4)%8];
+
+  // Shape the level as a musical experience:
+  // Section 1: Intro — one simple phrase, relaxed tempo
+  // Section 2: Repeat — same phrase, player gains confidence
+  // Section 3: Development — introduce second phrase, slightly tighter
+  // Section 4: Build — mix phrases, tighter timing, optional chords/holds
+  // Section 5: Release/Finish — return to phrase A, resolve
+
+  const sections = [
+    { name:'intro',   phrase:phraseA, repeats:1, tempoMul:1.15, density:'sparse', canHold:false, canChord:false },
+    { name:'repeat',  phrase:phraseA, repeats:1, tempoMul:1.0,  density:'normal', canHold:false, canChord:false },
+    { name:'develop', phrase:phraseB, repeats:1, tempoMul:1.0,  density:'normal', canHold:aH,    canChord:false },
+    { name:'build',   phrase:phraseC, repeats: lvl>=3?2:1, tempoMul:0.9, density:'tight', canHold:aH, canChord:aC },
+    { name:'release', phrase:phraseA, repeats:1, tempoMul:1.05, density:'normal', canHold:false, canChord:false },
+  ];
+
+  let t=1400; // initial delay
+
+  for(const sec of sections) {
+    for(let rep=0; rep<sec.repeats; rep++) {
+      const ph=sec.phrase;
+      for(let ni=0; ni<ph.length; ni++) {
+        const ln=ph[ni];
+        const e={time:t, lanes:[ln], isHold:false, holdDuration:0, phraseStart:ni===0, phraseEnd:ni===ph.length-1, phraseLen:ph.length};
+
+        // Chords: only in build sections on later levels
+        if(sec.canChord && Math.random()<0.12+lvl*0.01) {
+          e.lanes.push((ln+2)%4);
+        }
+        // Hold notes: occasional in development/build
+        if(sec.canHold && e.lanes.length===1 && Math.random()<0.1+lvl*0.01) {
+          e.isHold=true;
+          e.holdDuration=350+Math.random()*350;
+        }
+
+        q.push(e);
+
+        // Timing: base interval scaled by section tempo
+        const interval = bi * sec.tempoMul;
+        const swing = (ni%2===0) ? 0 : interval*0.06;
+        t += interval + swing + (Math.random()-0.5)*interval*0.12;
+      }
+      // Breath between phrase repeats
+      t += bi * 0.5;
+    }
+    // Longer breath between sections
+    t += bi * 0.8;
   }
+
   return q;
 }
 
@@ -579,6 +662,10 @@ function checkHit(li){
   audio.playNote(LANES[li].freq,r,best.isHold?0.65:0.4);
   spawnParticles(laneXs[li],strikeY,LANES[li].rgb,r);
   triggerLaneFlash(li,r); showTimingPopup(laneXs[li],strikeY-35,r);
+  onNoteHit(r);
+  // Find the spawn queue entry for phrase tracking
+  const qEntry = state.spawnQueue[Math.max(0,state.queueIndex-1)];
+  checkPhraseCompletion(qEntry);
   const ke=document.querySelectorAll('.piano-key')[li];
   ke.classList.remove('hit-perfect','hit-good'); void ke.offsetWidth;
   ke.classList.add(r==='perfect'?'hit-perfect':'hit-good');
@@ -588,7 +675,9 @@ function checkHit(li){
 function handleMiss(n){
   if(n.scored) return; n.scored=true; n.missed=true;
   state.lvlMisses++;state.streak=0;state.combo=0;
-  audio.playMiss(); showTimingPopup(laneXs[n.lane],strikeY-35,'miss'); updateUI();
+  audio.playMiss(); showTimingPopup(laneXs[n.lane],strikeY-35,'miss');
+  onNoteMiss(); onPhraseMiss();
+  updateUI();
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -610,6 +699,89 @@ function drawParticles(){for(const p of state.particles){ctx.globalAlpha=p.life*
 function triggerLaneFlash(li,r){const ip=r==='perfect';state.laneFlashes.push({lane:li,life:1,decay:ip?0.015:0.028,intensity:ip?0.45:0.22,height:ip?140:95});}
 function updateLaneFlashes(){for(let i=state.laneFlashes.length-1;i>=0;i--){state.laneFlashes[i].life-=state.laneFlashes[i].decay;if(state.laneFlashes[i].life<=0)state.laneFlashes.splice(i,1);}}
 function showTimingPopup(x,y,r){const el=document.createElement('div');el.className=`timing-popup ${r}`;el.textContent={perfect:'PERFECT',good:'GOOD',miss:'MISS',held:'HELD'}[r]||r.toUpperCase();el.style.left=x+'px';el.style.top=y+'px';document.getElementById('play-area').appendChild(el);setTimeout(()=>el.remove(),700);}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  FLOW STATE  ██
+   Builds from successful hits, decays on miss.
+   When high, enhances visuals and music presence.
+   ═══════════════════════════════════════════════════════════════ */
+function onNoteHit(rating) {
+  // Build flow — perfect builds faster
+  const gain = rating === 'perfect' ? 0.08 : 0.04;
+  state.flowTarget = Math.min(1, state.flowTarget + gain);
+}
+
+function onNoteMiss() {
+  // Drop flow significantly
+  state.flowTarget = Math.max(0, state.flowTarget - 0.15);
+}
+
+function updateFlow(dt) {
+  // Smooth interpolation toward target
+  const speed = state.flowTarget > state.flow ? 0.003 : 0.002;
+  state.flow += (state.flowTarget - state.flow) * Math.min(1, speed * dt);
+  state.flow = Math.max(0, Math.min(1, state.flow));
+
+  // Natural decay when not hitting
+  state.flowTarget = Math.max(0, state.flowTarget - 0.0001 * dt);
+
+  // Update audio presence based on flow
+  if (audio.ready && audio.bgGain) {
+    // Background music gets louder and brighter with flow
+    const bgVol = 0.10 + state.flow * 0.10;
+    audio.bgGain.gain.setTargetAtTime(bgVol, audio.ctx.currentTime, 0.3);
+  }
+}
+
+function getFlowIntensity() {
+  // Returns 0-1 for visual modulation
+  return state.flow;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  PHRASE COMPLETION REWARDS  ██
+   Detect clean phrase completion and reward the player
+   ═══════════════════════════════════════════════════════════════ */
+function checkPhraseCompletion(noteEntry) {
+  if (!noteEntry) return;
+  state.phraseNoteIndex++;
+
+  if (noteEntry.phraseEnd && state.phraseNoteIndex >= (noteEntry.phraseLen || 4)) {
+    // Phrase completed! Check if it was clean
+    if (state.phraseMisses === 0) {
+      triggerPhraseReward();
+    }
+    // Reset for next phrase
+    state.phraseNoteIndex = 0;
+    state.phraseMisses = 0;
+  }
+}
+
+function onPhraseMiss() {
+  state.phraseMisses++;
+}
+
+function triggerPhraseReward() {
+  // Bonus points
+  state.score += 25;
+  // Extra flow boost
+  state.flowTarget = Math.min(1, state.flowTarget + 0.06);
+  // Subtle visual reward: flash all lanes softly
+  for (let i = 0; i < 4; i++) {
+    state.laneFlashes.push({
+      lane: i, life: 1,
+      decay: 0.04,
+      intensity: 0.08 + state.flow * 0.08,
+      height: 60,
+    });
+  }
+  // Show a subtle phrase-complete popup
+  const el = document.createElement('div');
+  el.className = 'phrase-popup';
+  el.textContent = '✦';
+  document.getElementById('play-area').appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
 function updateUI(){
   document.getElementById('score-val').textContent=state.score.toLocaleString();
   document.getElementById('hits-val').textContent=state.hits;
@@ -618,6 +790,9 @@ function updateUI(){
   const c=document.getElementById('combo-display');
   if(state.combo>=5){c.textContent=`${state.combo}× combo`;c.classList.add('visible');c.classList.toggle('tier2',state.combo>=10&&state.combo<20);c.classList.toggle('tier3',state.combo>=20);if(state.combo<10)c.classList.remove('tier2','tier3');}
   else c.classList.remove('visible','tier2','tier3');
+  // Flow bar
+  const fb=document.getElementById('flow-bar-fill');
+  if(fb){fb.style.width=Math.round(state.flow*100)+'%';fb.style.opacity=0.3+state.flow*0.5;}
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -627,77 +802,88 @@ function drawRoundRect(c,x,y,w,h,r){r=Math.min(r,w/2,h/2);if(r<0)r=0;if(w<=0||h<
 
 function draw(ts){
   ctx.clearRect(0,0,W,H); ctx.fillStyle='#08080e'; ctx.fillRect(0,0,W,H);
+  const fl = getFlowIntensity(); // 0-1 flow modulation
   for(let i=0;i<4;i++){
     const x=laneXs[i],c=LANES[i].color;
-    const lg=ctx.createLinearGradient(0,0,0,H);lg.addColorStop(0,'transparent');lg.addColorStop(0.4,c+'06');lg.addColorStop(0.85,c+'0c');lg.addColorStop(1,c+'18');
+    // Lane glow intensifies with flow
+    const laneAlphaBase = 0x06 + Math.round(fl * 0x08);
+    const laneAlphaMid = 0x0c + Math.round(fl * 0x0a);
+    const laneAlphaBot = 0x18 + Math.round(fl * 0x10);
+    const lg=ctx.createLinearGradient(0,0,0,H);
+    lg.addColorStop(0,'transparent');
+    lg.addColorStop(0.4,c+laneAlphaBase.toString(16).padStart(2,'0'));
+    lg.addColorStop(0.85,c+laneAlphaMid.toString(16).padStart(2,'0'));
+    lg.addColorStop(1,c+laneAlphaBot.toString(16).padStart(2,'0'));
     ctx.fillStyle=lg;ctx.fillRect(x-laneW*0.38,0,laneW*0.76,H);
-    ctx.strokeStyle=c+'0a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+    ctx.strokeStyle=c+(0x0a+Math.round(fl*0x08)).toString(16).padStart(2,'0');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
     for(const f of state.laneFlashes){if(f.lane!==i)continue;const fh=f.height||80,ha=Math.min(255,Math.round(f.life*f.intensity*255)).toString(16).padStart(2,'0');const fg=ctx.createLinearGradient(0,strikeY-fh,0,strikeY+10);fg.addColorStop(0,c+'00');fg.addColorStop(0.5,c+ha);fg.addColorStop(1,c+'00');ctx.fillStyle=fg;ctx.fillRect(x-laneW*0.45,strikeY-fh,laneW*0.9,fh+10);}
   }
-  const sl=ctx.createLinearGradient(0,0,W,0);sl.addColorStop(0,'rgba(255,255,255,0)');sl.addColorStop(0.15,'rgba(255,255,255,0.08)');sl.addColorStop(0.5,'rgba(255,255,255,0.12)');sl.addColorStop(0.85,'rgba(255,255,255,0.08)');sl.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=sl;ctx.fillRect(0,strikeY-1,W,2);
+  const slAlpha = 0.08 + fl * 0.06;
+  const slPeak = 0.12 + fl * 0.08;
+  const sl=ctx.createLinearGradient(0,0,W,0);sl.addColorStop(0,'rgba(255,255,255,0)');sl.addColorStop(0.15,`rgba(255,255,255,${slAlpha})`);sl.addColorStop(0.5,`rgba(255,255,255,${slPeak})`);sl.addColorStop(0.85,`rgba(255,255,255,${slAlpha})`);sl.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=sl;ctx.fillRect(0,strikeY-1,W,2);
   for(let i=0;i<4;i++){const x=laneXs[i],a=state.keyStates[i],c=LANES[i].color;ctx.beginPath();ctx.arc(x,strikeY,a?7:4,0,Math.PI*2);ctx.fillStyle=a?c+'bb':c+'30';ctx.fill();if(a){ctx.beginPath();ctx.arc(x,strikeY,16,0,Math.PI*2);ctx.fillStyle=c+'15';ctx.fill();}}
   for(const n of state.notes){
     if(n.hit&&!n.isHold)continue;if(n.hit&&n.holdCompleted)continue;
     const x=laneXs[n.lane],c=LANES[n.lane];ctx.globalAlpha=n.missed?0.15:1;
     if(n.isHold){const ct=Math.max(-10,n.y),cb=Math.min(strikeY+orbR,n.y+n.holdLength);if(cb>ct){
       const len=cb-ct;
-      // --- Atmospheric outer glow (wide, very soft) ---
+      const fadeTop=Math.min(40,len*0.2)/len;
+      const fadeBot=1-Math.min(35,len*0.15)/len;
+      // --- Atmospheric outer glow (smooth gradient, no banding) ---
       const aw=orbR*2.2;
-      for(let s=0;s<len;s+=3){
-        const sy=ct+s, t=s/len;
-        // Feathered alpha: fade at both ends
-        const edgeFade=Math.min(t*4, (1-t)*4, 1);
-        const a=Math.round(edgeFade*18);
-        if(a<=0) continue;
-        const ha=a.toString(16).padStart(2,'0');
-        ctx.fillStyle=c.color+ha;
-        ctx.fillRect(x-aw,sy,aw*2,4);
-      }
-      // --- Main trail body (narrower, smooth gradient) ---
-      const tw=orbR*0.6;
+      const ag=ctx.createLinearGradient(0,ct,0,cb);
+      ag.addColorStop(0,c.color+'00');
+      ag.addColorStop(fadeTop,c.color+'0a');
+      ag.addColorStop(0.4,c.color+'10');
+      ag.addColorStop(0.7,c.color+'12');
+      ag.addColorStop(fadeBot,c.color+'0c');
+      ag.addColorStop(1,c.color+'00');
+      ctx.fillStyle=ag;
+      drawRoundRect(ctx,x-aw,ct,aw*2,len,aw);ctx.fill();
+      // --- Main trail body (soft, translucent) ---
+      const tw=orbR*0.55;
       const tg=ctx.createLinearGradient(0,ct,0,cb);
-      // Fade in at tail top, brighten toward head
-      const fadeTop=Math.min(30,len*0.15)/len;
-      const fadeBot=1-Math.min(30,len*0.1)/len;
       tg.addColorStop(0,c.color+'00');
-      tg.addColorStop(fadeTop,c.color+'35');
-      tg.addColorStop(0.5,c.color+'55');
-      tg.addColorStop(fadeBot,c.color+'65');
+      tg.addColorStop(fadeTop,c.color+'22');
+      tg.addColorStop(0.45,c.color+'38');
+      tg.addColorStop(0.75,c.color+'45');
+      tg.addColorStop(fadeBot,c.color+'40');
       tg.addColorStop(1,c.color+'00');
       ctx.fillStyle=tg;
       drawRoundRect(ctx,x-tw,ct,tw*2,len,tw);ctx.fill();
-      // --- Bright inner core line ---
-      const cw=orbR*0.15;
+      // --- Inner core line (brightest near head, fades toward tail) ---
+      const cw=orbR*0.12;
       const cg=ctx.createLinearGradient(0,ct,0,cb);
-      cg.addColorStop(0,c.color+'00');
-      cg.addColorStop(fadeTop,'rgba(255,255,255,0.12)');
-      cg.addColorStop(0.5,'rgba(255,255,255,0.22)');
-      cg.addColorStop(fadeBot,'rgba(255,255,255,0.18)');
-      cg.addColorStop(1,c.color+'00');
+      cg.addColorStop(0,'rgba(255,255,255,0)');
+      cg.addColorStop(fadeTop,'rgba(255,255,255,0.04)');
+      cg.addColorStop(0.5,'rgba(255,255,255,0.1)');
+      cg.addColorStop(0.8,'rgba(255,255,255,0.2)');
+      cg.addColorStop(fadeBot,'rgba(255,255,255,0.22)');
+      cg.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=cg;
       drawRoundRect(ctx,x-cw,ct,cw*2,len,cw);ctx.fill();
-      // --- Edge glow lines (soft flanking highlights) ---
-      const ew=orbR*0.9;
+      // --- Soft flanking glow ---
+      const ew=orbR*1.1;
       const eg=ctx.createLinearGradient(0,ct,0,cb);
       eg.addColorStop(0,c.color+'00');
-      eg.addColorStop(fadeTop,c.color+'0c');
-      eg.addColorStop(0.5,c.color+'14');
-      eg.addColorStop(fadeBot,c.color+'10');
+      eg.addColorStop(fadeTop,c.color+'06');
+      eg.addColorStop(0.5,c.color+'0a');
+      eg.addColorStop(fadeBot,c.color+'08');
       eg.addColorStop(1,c.color+'00');
       ctx.fillStyle=eg;
       drawRoundRect(ctx,x-ew,ct,ew*2,len,ew);ctx.fill();
       // --- Active hold: luminous consumed section ---
       if(n.holdActive&&state.keyStates[n.lane]){const cT=Math.max(ct,n.y),cB=strikeY;if(cB>cT){
-        const pu=0.5+Math.sin(ts*0.005)*0.15,pw=orbR*0.55;
+        const pu=0.5+Math.sin(ts*0.005)*0.15,pw=orbR*0.5;
         const hp=Math.round(pu*255).toString(16).padStart(2,'0');
         const pg=ctx.createLinearGradient(0,cT,0,cB);
-        pg.addColorStop(0,c.color+'08');pg.addColorStop(0.3,c.color+hp);pg.addColorStop(1,c.color+hp);
+        pg.addColorStop(0,c.color+'05');pg.addColorStop(0.3,c.color+hp);pg.addColorStop(1,c.color+hp);
         ctx.fillStyle=pg;drawRoundRect(ctx,x-pw,cT,pw*2,cB-cT,pw);ctx.fill();
-        // Bright active core
-        const acw=orbR*0.12;
-        ctx.fillStyle='rgba(255,255,255,'+((pu*0.3).toFixed(2))+')';
+        // Active core glow
+        const acw=orbR*0.1;
+        ctx.fillStyle='rgba(255,255,255,'+((pu*0.25).toFixed(2))+')';
         drawRoundRect(ctx,x-acw,cT,acw*2,cB-cT,acw);ctx.fill();
-        // Strike-point glow node
+        // Strike-point radial node
         ctx.beginPath();ctx.arc(x,strikeY,orbR*0.55,0,Math.PI*2);
         const ng=ctx.createRadialGradient(x,strikeY,0,x,strikeY,orbR*0.55);
         ng.addColorStop(0,c.color+'70');ng.addColorStop(1,c.color+'00');
@@ -705,10 +891,11 @@ function draw(ts){
       }}
     }}const oY=n.isHold?n.y+n.holdLength:n.y;
     if(oY>-orbR*3&&oY<H+orbR){
-      // Wide outer halo — smoother multi-stop fade
-      const gR=orbR*3.8;
+      // Wide outer halo — smoother multi-stop fade, enhanced by flow
+      const gR=orbR*(3.8+fl*1.2);
+      const hAlpha=0x45+Math.round(fl*0x1a);
       const gg=ctx.createRadialGradient(x,oY,0,x,oY,gR);
-      gg.addColorStop(0,c.color+'45');
+      gg.addColorStop(0,c.color+hAlpha.toString(16).padStart(2,'0'));
       gg.addColorStop(0.15,c.color+'30');
       gg.addColorStop(0.35,c.color+'18');
       gg.addColorStop(0.6,c.color+'08');
@@ -731,14 +918,20 @@ function draw(ts){
       // Hot core dot
       ctx.fillStyle='rgba(255,255,255,0.7)';
       ctx.beginPath();ctx.arc(x-orbR*0.08,oY-orbR*0.1,orbR*0.1,0,Math.PI*2);ctx.fill();
-      // If this is a hold note head, add a soft bridge glow downward into the trail
+      // If this is a hold note head, blend into trail with elliptical radial glow
       if(n.isHold&&!n.holdCompleted){
-        const bridgeH=orbR*1.5;
-        const brg=ctx.createLinearGradient(0,oY,0,oY+bridgeH);
-        brg.addColorStop(0,c.color+'40');brg.addColorStop(1,c.color+'00');
-        ctx.fillStyle=brg;
-        const bw=orbR*0.5;
-        ctx.fillRect(x-bw,oY,bw*2,bridgeH);
+        ctx.save();
+        const bh=orbR*2.2;
+        const bw=orbR*0.8;
+        ctx.beginPath();
+        ctx.ellipse(x,oY+orbR*0.3,bw,bh,0,0,Math.PI*2);
+        const brg=ctx.createRadialGradient(x,oY+orbR*0.3,0,x,oY+orbR*0.3,bh);
+        brg.addColorStop(0,c.color+'38');
+        brg.addColorStop(0.3,c.color+'20');
+        brg.addColorStop(0.7,c.color+'0a');
+        brg.addColorStop(1,c.color+'00');
+        ctx.fillStyle=brg;ctx.fill();
+        ctx.restore();
       }
     }
     ctx.globalAlpha=1;
@@ -762,7 +955,7 @@ function gameLoop(ts){
       if(n.holdActive&&!state.keyStates[n.lane]){n.holdActive=false;n.holdCompleted=true;state.holdActive[n.lane]=null;}}
     else{n.y+=sp*dt;if(n.y>H+120)state.notes.splice(i,1);}
   }
-  updateParticles();updateLaneFlashes();
+  updateParticles();updateLaneFlashes();updateFlow(dt);
   if(state.queueIndex>=state.spawnQueue.length&&state.notes.length===0){endLevel();return;}
   draw(ts);requestAnimationFrame(gameLoop);
 }
@@ -810,6 +1003,8 @@ function startLevel(l){
   state.notes=[];state.particles=[];state.laneFlashes=[];
   state.lvlPerfects=0;state.lvlGoods=0;state.lvlMisses=0;state.lvlHits=0;state.lvlBestStreak=0;
   state.streak=0;state.combo=0;state.lvlHoldsCompleted=0;
+  state.flow=0;state.flowTarget=0;
+  state.phraseNoteIndex=0;state.phraseLength=0;state.phraseMisses=0;
   state.spawnQueue=generateLevel(l); state.queueIndex=0;
   state.totalLevelNotes=state.spawnQueue.reduce((s,e)=>s+e.lanes.length,0);
   state.lvlHoldsTotal=state.spawnQueue.filter(e=>e.isHold).length;
