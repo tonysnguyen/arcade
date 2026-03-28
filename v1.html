@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Keys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════
+     RESET & BASE
+     ═══════════════════════════════════════════════════════ */
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    background: #08080e;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    color: #d8d5cf;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     CSS VARIABLES
+     ═══════════════════════════════════════════════════════ */
+  :root {
+    --lane-0: #c9a87c;
+    --lane-1: #8fb5a3;
+    --lane-2: #a3a0c7;
+    --lane-3: #b8898e;
+    --bg-deep: #08080e;
+    --bg-surface: #0e0e16;
+    --key-ivory: #ede9df;
+    --key-pressed: #d9d4c8;
+    --key-shadow: #a8a49a;
+    --header-bg: rgba(8,8,14,0.88);
+    --text-dim: rgba(216,213,207,0.35);
+    --text-mid: rgba(216,213,207,0.6);
+    --text-bright: #ede9df;
+    --accent: #c9a87c;
+    --perfect-color: #e8d5b0;
+    --good-color: #8fb5a3;
+    --miss-color: #8a5a5a;
+    --star-filled: #c9a87c;
+    --star-empty: rgba(255,255,255,0.1);
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     GAME CONTAINER
+     ═══════════════════════════════════════════════════════ */
+  #game {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    max-width: 520px; margin: 0 auto;
+    background: var(--bg-deep);
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     HEADER BAR
+     ═══════════════════════════════════════════════════════ */
+  #header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px;
+    background: var(--header-bg);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    z-index: 20; min-height: 50px;
+  }
+  .stat { text-align: center; flex: 1; }
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--text-dim); margin-bottom: 1px;
+  }
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 17px; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-mid); letter-spacing: -0.3px;
+  }
+  #combo-display {
+    position: absolute; top: 56px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0; transition: opacity 0.3s, font-size 0.3s, color 0.3s, text-shadow 0.3s;
+    z-index: 20; text-shadow: none;
+  }
+  #combo-display.visible { opacity: 0.7; }
+  #combo-display.tier2 { font-size: 13px; opacity: 0.85; color: var(--perfect-color); text-shadow: 0 0 12px rgba(232,213,176,0.25); }
+  #combo-display.tier3 { font-size: 14px; opacity: 1; color: var(--text-bright); text-shadow: 0 0 18px rgba(232,213,176,0.35), 0 0 40px rgba(201,168,124,0.15); }
+
+  /* ═══════════════════════════════════════════════════════
+     PLAY AREA
+     ═══════════════════════════════════════════════════════ */
+  #play-area { flex: 1; position: relative; overflow: hidden; }
+  #gameCanvas { display: block; width: 100%; height: 100%; }
+
+  /* ═══════════════════════════════════════════════════════
+     PIANO KEYS
+     ═══════════════════════════════════════════════════════ */
+  #keys {
+    display: flex; gap: 5px;
+    padding: 0 8px 14px 8px;
+    background: linear-gradient(to bottom, transparent 0%, var(--bg-deep) 30%);
+    z-index: 10; padding-top: 6px;
+  }
+  .piano-key {
+    flex: 1; height: 105px;
+    border-radius: 4px 4px 14px 14px;
+    background: linear-gradient(180deg, var(--key-ivory) 0%, #e2ded4 100%);
+    border: none; cursor: pointer; position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; padding-bottom: 16px;
+    box-shadow: 0 5px 0 0 var(--key-shadow), 0 7px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -3px 6px rgba(0,0,0,0.04);
+    transition: transform 0.05s ease, box-shadow 0.05s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .piano-key .note-name { font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; color: #777; letter-spacing: 1px; }
+  .piano-key .lane-indicator { width: 20px; height: 3px; border-radius: 2px; margin-bottom: 8px; opacity: 0.5; }
+  .piano-key.active {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 0 var(--key-shadow), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 3px rgba(0,0,0,0.04);
+    background: linear-gradient(180deg, var(--key-pressed) 0%, #ccc8bc 100%);
+  }
+  .piano-key .glow-overlay { position: absolute; inset: 0; border-radius: 4px 4px 14px 14px; opacity: 0; pointer-events: none; }
+  .piano-key.hit-perfect .glow-overlay { animation: keyGlowPerfect 0.45s ease-out forwards; }
+  .piano-key.hit-good .glow-overlay { animation: keyGlowGood 0.35s ease-out forwards; }
+  @keyframes keyGlowPerfect { 0% { opacity: 0.85; } 30% { opacity: 0.5; } 100% { opacity: 0; } }
+  @keyframes keyGlowGood { 0% { opacity: 0.4; } 100% { opacity: 0; } }
+
+  /* ═══════════════════════════════════════════════════════
+     TIMING POPUPS
+     ═══════════════════════════════════════════════════════ */
+  .timing-popup { position: absolute; left: 50%; transform: translateX(-50%); font-family: 'DM Mono', monospace; font-weight: 500; letter-spacing: 4px; text-transform: uppercase; pointer-events: none; z-index: 30; }
+  .timing-popup.perfect { font-size: 13px; color: var(--perfect-color); text-shadow: 0 0 20px rgba(232,213,176,0.6), 0 0 40px rgba(201,168,124,0.2); animation: popFloatPerfect 0.7s ease-out forwards; }
+  .timing-popup.good { font-size: 11px; color: var(--good-color); text-shadow: 0 0 10px rgba(143,181,163,0.3); animation: popFloat 0.55s ease-out forwards; }
+  .timing-popup.held { font-size: 12px; color: var(--perfect-color); text-shadow: 0 0 14px rgba(232,213,176,0.4); animation: popFloat 0.6s ease-out forwards; }
+  .timing-popup.miss { font-size: 11px; color: var(--miss-color); text-shadow: none; animation: popFloat 0.55s ease-out forwards; }
+  @keyframes popFloat { 0% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-32px); } }
+  @keyframes popFloatPerfect { 0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } 15% { transform: translateX(-50%) translateY(-4px) scale(1.08); } 100% { opacity: 0; transform: translateX(-50%) translateY(-38px) scale(1); } }
+
+  /* ═══════════════════════════════════════════════════════
+     OVERLAYS — shared base
+     ═══════════════════════════════════════════════════════ */
+  .overlay {
+    position: fixed; inset: 0;
+    max-width: 520px; margin: 0 auto;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(8,8,14,0.94);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    z-index: 100; padding: 36px;
+    text-align: center;
+    transition: opacity 0.5s ease;
+    overflow-y: auto;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .overlay h1 { font-size: 52px; font-weight: 300; letter-spacing: 12px; text-transform: uppercase; color: var(--text-bright); margin-bottom: 0; }
+  .overlay .subtitle { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 5px; text-transform: uppercase; margin-bottom: 40px; margin-top: 6px; }
+
+  /* Buttons */
+  .btn {
+    padding: 15px 52px; border: none; border-radius: 50px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    letter-spacing: 3px; text-transform: uppercase; cursor: pointer;
+    background: var(--key-ivory); color: #1a1a1a;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    transition: transform 0.12s, box-shadow 0.12s;
+    -webkit-tap-highlight-color: transparent; margin-top: 6px;
+  }
+  .btn:active { transform: scale(0.96); box-shadow: 0 1px 10px rgba(0,0,0,0.2); }
+  .btn-ghost { background: transparent; color: var(--text-dim); box-shadow: none; border: 1px solid rgba(255,255,255,0.08); margin-top: 10px; }
+  .btn-sm { padding: 10px 32px; font-size: 12px; letter-spacing: 2px; }
+
+  /* ═══════════════════════════════════════════════════════
+     START SCREEN
+     ═══════════════════════════════════════════════════════ */
+  .start-desc { font-size: 13px; color: var(--text-dim); max-width: 260px; line-height: 1.7; margin-bottom: 32px; font-weight: 300; }
+  .start-keys-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.2); letter-spacing: 2px; margin-top: 20px; }
+
+  /* ═══════════════════════════════════════════════════════
+     LEVEL SELECT
+     ═══════════════════════════════════════════════════════ */
+  .ls-heading {
+    font-size: 20px; font-weight: 300;
+    letter-spacing: 6px; text-transform: uppercase;
+    color: var(--text-mid); margin-bottom: 28px;
+  }
+  .level-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; width: 100%; max-width: 320px; margin-bottom: 28px;
+  }
+  .level-cell {
+    aspect-ratio: 1; border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .level-cell:active { transform: scale(0.95); }
+  .level-cell.unlocked:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+  .level-cell.locked { opacity: 0.3; cursor: default; }
+  .level-cell.locked:active { transform: none; }
+  .level-cell .lc-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px; font-weight: 500; color: var(--text-mid); line-height: 1;
+  }
+  .level-cell.locked .lc-num { color: var(--text-dim); }
+  .level-cell .lc-lock { font-size: 12px; color: var(--text-dim); margin-top: 3px; opacity: 0.6; }
+  .level-cell .lc-stars { display: flex; gap: 2px; margin-top: 4px; }
+  .level-cell .lc-stars .star { font-size: 8px; }
+  .level-cell .lc-stars .star.filled { color: var(--star-filled); }
+  .level-cell .lc-stars .star.empty { color: var(--star-empty); }
+  .ls-back {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; border: none; background: none;
+    padding: 8px 16px; -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     LEVEL INTRO
+     ═══════════════════════════════════════════════════════ */
+  .intro-level-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .intro-goal-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .intro-goal {
+    font-size: 14px; color: var(--text-mid);
+    font-weight: 300; margin-bottom: 32px; max-width: 260px; line-height: 1.5;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     END SCREEN
+     ═══════════════════════════════════════════════════════ */
+  .end-heading { font-size: 24px; font-weight: 300; letter-spacing: 6px; text-transform: uppercase; color: var(--text-mid); margin-bottom: 2px; }
+  .end-grade {
+    font-family: 'DM Mono', monospace;
+    font-size: 52px; font-weight: 500; color: var(--text-bright);
+    letter-spacing: 2px; margin: 2px 0 0; line-height: 1;
+  }
+  .end-stars { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .end-stars .estar { font-size: 22px; }
+  .end-stars .estar.filled { color: var(--star-filled); }
+  .end-stars .estar.empty { color: var(--star-empty); }
+  .end-score-row {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; color: var(--text-dim); letter-spacing: 2px; margin: 4px 0 10px;
+  }
+  .end-score-row span { color: var(--text-mid); font-weight: 500; }
+  .result-row { display: flex; gap: 28px; margin: 8px 0 12px; }
+  .result-item { text-align: center; }
+  .result-item .val { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; }
+  .result-item .lbl { font-family: 'DM Mono', monospace; font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
+  .streak-line { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 2px; margin-bottom: 4px; }
+  .streak-line span { color: var(--accent); font-weight: 500; }
+  .end-goal { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; margin-bottom: 18px; text-transform: uppercase; }
+  .end-goal.completed { color: var(--good-color); }
+  .end-goal.failed { color: var(--text-dim); }
+  .level-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+  .end-btns { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+  /* ═══════════════════════════════════════════════════════
+     MOBILE SAFE AREA
+     ═══════════════════════════════════════════════════════ */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    #keys { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="header">
+    <div class="stat"><div class="stat-label">Score</div><div class="stat-value" id="score-val">0</div></div>
+    <div class="stat"><div class="stat-label">Hits</div><div class="stat-value" id="hits-val">0</div></div>
+    <div class="stat"><div class="stat-label">Level</div><div class="stat-value" id="level-val">1</div></div>
+    <div class="stat"><div class="stat-label">Streak</div><div class="stat-value" id="streak-val">0</div></div>
+  </div>
+  <div id="combo-display"></div>
+  <div id="play-area"><canvas id="gameCanvas"></canvas></div>
+  <div id="keys"></div>
+</div>
+
+<!-- START -->
+<div class="overlay" id="start-screen">
+  <h1>Keys</h1>
+  <div class="subtitle">rhythm &amp; tone</div>
+  <p class="start-desc">Tap each key as the notes reach the line.<br>Time your hits. Feel the rhythm.</p>
+  <button class="btn" id="btn-start">Play</button>
+  <div class="start-keys-hint">Desktop: D F J K</div>
+</div>
+
+<!-- LEVEL SELECT -->
+<div class="overlay hidden" id="level-select-screen">
+  <div class="ls-heading">Select Level</div>
+  <div class="level-grid" id="level-grid"></div>
+  <button class="ls-back" id="btn-ls-back">← Back</button>
+</div>
+
+<!-- LEVEL INTRO -->
+<div class="overlay hidden" id="intro-screen">
+  <div class="intro-level-num" id="intro-lvl-num">Level 1</div>
+  <div class="intro-goal-label">Goal</div>
+  <div class="intro-goal" id="intro-goal-text">—</div>
+  <button class="btn" id="btn-intro-go">Begin</button>
+</div>
+
+<!-- END SCREEN -->
+<div class="overlay hidden" id="end-screen">
+  <div class="end-heading" id="end-title">Level Complete</div>
+  <div class="end-grade" id="end-grade">A</div>
+  <div class="end-stars" id="end-stars"></div>
+  <div class="end-score-row">Score <span id="end-score">0</span></div>
+  <div class="level-label" id="end-level-label">Level 1</div>
+  <div class="result-row">
+    <div class="result-item"><div class="val" id="end-perfect" style="color:var(--perfect-color)">0</div><div class="lbl">Perfect</div></div>
+    <div class="result-item"><div class="val" id="end-good" style="color:var(--good-color)">0</div><div class="lbl">Good</div></div>
+    <div class="result-item"><div class="val" id="end-miss" style="color:var(--miss-color)">0</div><div class="lbl">Missed</div></div>
+  </div>
+  <div class="streak-line">Best streak <span id="end-streak">0</span></div>
+  <div class="end-goal" id="end-goal"></div>
+  <div class="end-btns">
+    <button class="btn" id="btn-next">Continue</button>
+    <button class="btn btn-ghost btn-sm" id="btn-retry">Retry</button>
+    <button class="btn btn-ghost btn-sm" id="btn-levels">Levels</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ██  CONSTANTS  ██
+   ═══════════════════════════════════════════════════════════════ */
+const MAX_LEVELS = 20;
+const SAVE_KEY = 'keys_progress_v1';
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  PROGRESSION STORAGE  ██
+   ═══════════════════════════════════════════════════════════════ */
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d && d.levels && typeof d.unlocked === 'number') return d;
+    }
+  } catch (_) {}
+  return { unlocked: 1, levels: {} };
+}
+function saveProgress(p) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(p)); } catch(_){} }
+function getLevelData(p, lvl) { return p.levels[lvl] || { stars: 0, grade: '' }; }
+function updateLevelData(p, lvl, stars, grade) {
+  const ex = getLevelData(p, lvl);
+  p.levels[lvl] = { stars: Math.max(ex.stars, stars), grade: betterGrade(ex.grade, grade) };
+  if (stars > 0 && lvl >= p.unlocked && lvl < MAX_LEVELS) p.unlocked = lvl + 1;
+  saveProgress(p);
+}
+function betterGrade(a, b) {
+  const o = ['','D','C','B','A','S'];
+  return o.indexOf(b) > o.indexOf(a) ? b : a;
+}
+let progress = loadProgress();
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LEVEL GOALS  ██
+   ═══════════════════════════════════════════════════════════════ */
+const GOAL_TEMPLATES = [
+  { text: l => `Get ${5+l*2} Perfects`,        check: (s,l) => s.lvlPerfects >= 5+l*2 },
+  { text: l => `Reach ${8+l} Combo`,            check: (s,l) => s.lvlBestStreak >= 8+l },
+  { text: () => `Miss 3 or fewer`,              check: s => s.lvlMisses <= 3 },
+  { text: () => `Finish with no misses`,         check: s => s.lvlMisses === 0 },
+  { text: () => `90% accuracy or higher`,        check: s => { const t=s.lvlPerfects+s.lvlGoods+s.lvlMisses; return t>0&&(s.lvlPerfects+s.lvlGoods)/t>=0.9; } },
+  { text: () => `Get a 10+ streak`,              check: s => s.lvlBestStreak >= 10 },
+];
+function getGoalForLevel(lvl) {
+  const t = GOAL_TEMPLATES[(lvl-1) % GOAL_TEMPLATES.length];
+  return { text: t.text(lvl), check: s => t.check(s, lvl) };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  GRADING & STARS  ██
+   ═══════════════════════════════════════════════════════════════ */
+function calcAccuracy(s) {
+  const t = s.lvlPerfects + s.lvlGoods + s.lvlMisses;
+  return t > 0 ? (s.lvlPerfects + s.lvlGoods) / t : 0;
+}
+function calcStars(acc) { return acc >= 0.9 ? 3 : acc >= 0.75 ? 2 : acc >= 0.5 ? 1 : 0; }
+function calcGrade(acc, pr) {
+  if (acc >= 0.95 && pr >= 0.7) return 'S';
+  if (acc >= 0.9) return 'A';
+  if (acc >= 0.75) return 'B';
+  if (acc >= 0.5) return 'C';
+  return 'D';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  AUDIO ENGINE  ██
+   ═══════════════════════════════════════════════════════════════ */
+class AudioEngine {
+  constructor() { this.ctx=null; this.ready=false; this.bgInterval=null; this.masterGain=null; this.bgGain=null; this.fxGain=null; }
+  init() {
+    if (this.ready) { this.ensureResumed(); return; }
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.ctx.createGain(); this.masterGain.gain.value = 0.8; this.masterGain.connect(this.ctx.destination);
+      this.bgGain = this.ctx.createGain(); this.bgGain.gain.value = 0.12;
+      const bf = this.ctx.createBiquadFilter(); bf.type='lowpass'; bf.frequency.value=900; bf.Q.value=0.5;
+      this.bgGain.connect(bf); bf.connect(this.masterGain);
+      this.fxGain = this.ctx.createGain(); this.fxGain.gain.value = 0.45; this.fxGain.connect(this.masterGain);
+      this.ready = true; this.ensureResumed();
+    } catch(e) { console.warn('Web Audio not available'); }
+  }
+  ensureResumed() { if (this.ctx && this.ctx.state==='suspended') this.ctx.resume().catch(()=>{}); }
+  startBackground() {
+    if (!this.ready) return; this.ensureResumed(); this.stopBackground();
+    const fr=[130.81,146.83,164.81,196.00]; let i=0;
+    const p=()=>{ if(!this.ready) return; this._bgPad(fr[i++%4]); };
+    p(); this.bgInterval = setInterval(p, 1200);
+  }
+  _bgPad(f) {
+    this.ensureResumed(); const c=this.ctx, n=c.currentTime;
+    const o1=c.createOscillator(), o2=c.createOscillator(), g=c.createGain();
+    o1.type='sine'; o1.frequency.value=f; o2.type='triangle'; o2.frequency.value=f*1.002;
+    o1.connect(g); o2.connect(g); g.connect(this.bgGain);
+    g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(0.3,n+0.15);
+    g.gain.exponentialRampToValueAtTime(0.08,n+0.8); g.gain.exponentialRampToValueAtTime(0.001,n+1.4);
+    o1.start(n); o2.start(n); o1.stop(n+1.5); o2.stop(n+1.5);
+  }
+  stopBackground() { if(this.bgInterval){clearInterval(this.bgInterval);this.bgInterval=null;} }
+  playNote(freq, rating='good', dur=0.4) {
+    if(!this.ready) return; this.ensureResumed();
+    const c=this.ctx, n=c.currentTime, ip=rating==='perfect';
+    const vol=ip?0.62:0.42, br=ip?3600:2200, at=ip?0.006:0.018;
+    const o1=c.createOscillator(), o2=c.createOscillator(), g=c.createGain(), fl=c.createBiquadFilter();
+    o1.type='triangle'; o1.frequency.value=freq; o2.type='sine'; o2.frequency.value=freq*2;
+    fl.type='lowpass'; fl.frequency.value=br; fl.Q.value=ip?1.2:0.7;
+    o1.connect(fl); o2.connect(fl);
+    if(ip){ const o3=c.createOscillator(),sg=c.createGain(); o3.type='sine'; o3.frequency.value=freq*3;
+      sg.gain.setValueAtTime(0,n); sg.gain.linearRampToValueAtTime(0.08,n+0.01); sg.gain.exponentialRampToValueAtTime(0.001,n+dur*0.5);
+      o3.connect(sg); sg.connect(fl); o3.start(n); o3.stop(n+dur+0.05); }
+    fl.connect(g); g.connect(this.fxGain);
+    g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(vol,n+at);
+    g.gain.exponentialRampToValueAtTime(vol*0.35,n+dur*0.3); g.gain.exponentialRampToValueAtTime(0.001,n+dur);
+    o1.start(n); o2.start(n); o1.stop(n+dur+0.05); o2.stop(n+dur+0.05);
+  }
+  playMiss() {
+    if(!this.ready) return; this.ensureResumed();
+    const c=this.ctx, n=c.currentTime, o=c.createOscillator(), g=c.createGain();
+    o.type='sine'; o.frequency.value=140; g.gain.setValueAtTime(0.04,n); g.gain.exponentialRampToValueAtTime(0.001,n+0.12);
+    o.connect(g); g.connect(this.fxGain); o.start(n); o.stop(n+0.15);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LANE CONFIG  ██
+   ═══════════════════════════════════════════════════════════════ */
+const LANES = [
+  { note:'C', freq:261.63, color:'#c9a87c', rgb:[201,168,124] },
+  { note:'D', freq:293.66, color:'#8fb5a3', rgb:[143,181,163] },
+  { note:'E', freq:329.63, color:'#a3a0c7', rgb:[163,160,199] },
+  { note:'G', freq:392.00, color:'#b8898e', rgb:[184,137,142] },
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  GAME STATE  ██
+   ═══════════════════════════════════════════════════════════════ */
+const state = {
+  phase:'start', score:0, hits:0, level:1,
+  streak:0, bestStreak:0, combo:0,
+  lvlPerfects:0, lvlGoods:0, lvlMisses:0, lvlHits:0, lvlBestStreak:0,
+  notes:[], particles:[], laneFlashes:[],
+  spawnQueue:[], queueIndex:0, totalLevelNotes:0,
+  keyStates:[false,false,false,false],
+  holdActive:[null,null,null,null],
+  currentGoal:null, lvlHoldsCompleted:0, lvlHoldsTotal:0,
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LEVEL GENERATION  ██
+   ═══════════════════════════════════════════════════════════════ */
+function generateLevel(lvl) {
+  const q=[], nc=18+lvl*5, bi=Math.max(380,850-lvl*50);
+  const aH=lvl>=3, aC=lvl>=4;
+  const ph=[[0,1,2,1],[0,2,1,3],[2,1,0,1],[0,0,2,3],[3,2,1,0],[0,1,3,2],[1,3,1,0],[0,2,3,2]];
+  const pp=[]; const si=(lvl-1)%8;
+  pp.push(ph[si],ph[(si+2)%8]); if(lvl>=3) pp.push(ph[(si+4)%8]);
+  let t=1600, pi=0, np=0;
+  for(let i=0;i<nc;i++){
+    const p=pp[pi%pp.length], ln=p[np%p.length];
+    const e={time:t,lanes:[ln],isHold:false,holdDuration:0};
+    if(aC&&Math.random()<0.1+lvl*0.015) e.lanes.push((ln+2)%4);
+    if(aH&&e.lanes.length===1&&Math.random()<0.1+lvl*0.012){e.isHold=true;e.holdDuration=350+Math.random()*350;}
+    q.push(e); np++;
+    if(np>=p.length){np=0;pi++;t+=bi*0.4;}
+    t+=bi+(i%2===0?0:bi*0.08)+(Math.random()-0.5)*bi*0.2;
+  }
+  return q;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  CANVAS  ██
+   ═══════════════════════════════════════════════════════════════ */
+const canvas=document.getElementById('gameCanvas'), ctx=canvas.getContext('2d'), audio=new AudioEngine();
+let W,H,laneW,laneXs,strikeY,orbR;
+function resize(){
+  const a=document.getElementById('play-area'), d=window.devicePixelRatio||1;
+  W=a.clientWidth; H=a.clientHeight;
+  canvas.width=W*d; canvas.height=H*d;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(d,0,0,d,0,0);
+  laneW=W/4; laneXs=LANES.map((_,i)=>laneW*i+laneW/2);
+  strikeY=H-60; orbR=Math.min(24,laneW*0.24);
+}
+window.addEventListener('resize',resize);
+function fallSpeed(){return 0.17+state.level*0.016;}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  SPAWN / HIT / MISS  ██
+   ═══════════════════════════════════════════════════════════════ */
+function spawnFromQueue(el){
+  while(state.queueIndex<state.spawnQueue.length){
+    const e=state.spawnQueue[state.queueIndex]; if(e.time>el) break;
+    for(const ln of e.lanes) state.notes.push({lane:ln,y:-orbR*2.5,speed:fallSpeed(),hit:false,missed:false,isHold:e.isHold,holdLength:e.isHold?e.holdDuration*fallSpeed():0,holdCompleted:false,holdActive:false,scored:false});
+    state.queueIndex++;
+  }
+}
+const PW=40, GW=72, MW=95;
+function checkHit(li){
+  let best=null,bd=Infinity;
+  for(const n of state.notes){if(n.lane!==li||n.hit||n.missed) continue; const d=Math.abs((n.isHold?n.y+n.holdLength:n.y)-strikeY); if(d<MW&&d<bd){best=n;bd=d;}}
+  if(!best) return;
+  best.hit=true; let r,pts;
+  if(bd<=PW){r='perfect';pts=100;state.lvlPerfects++;}else if(bd<=GW){r='good';pts=60;state.lvlGoods++;}else{r='good';pts=30;state.lvlGoods++;}
+  state.streak++;state.combo++;state.lvlHits++;state.hits++;
+  if(state.streak>state.bestStreak) state.bestStreak=state.streak;
+  if(state.streak>state.lvlBestStreak) state.lvlBestStreak=state.streak;
+  state.score+=pts*(state.combo>=20?3:state.combo>=10?2:1);
+  audio.playNote(LANES[li].freq,r,best.isHold?0.65:0.4);
+  spawnParticles(laneXs[li],strikeY,LANES[li].rgb,r);
+  triggerLaneFlash(li,r); showTimingPopup(laneXs[li],strikeY-35,r);
+  const ke=document.querySelectorAll('.piano-key')[li];
+  ke.classList.remove('hit-perfect','hit-good'); void ke.offsetWidth;
+  ke.classList.add(r==='perfect'?'hit-perfect':'hit-good');
+  if(best.isHold){best.holdActive=true;state.holdActive[li]=best;}
+  updateUI();
+}
+function handleMiss(n){
+  if(n.scored) return; n.scored=true; n.missed=true;
+  state.lvlMisses++;state.streak=0;state.combo=0;
+  audio.playMiss(); showTimingPopup(laneXs[n.lane],strikeY-35,'miss'); updateUI();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  PARTICLES / LANE FLASH / POPUPS / UI  ██
+   ═══════════════════════════════════════════════════════════════ */
+function spawnParticles(x,y,rgb,r){
+  const ip=r==='perfect',cnt=ip?18:8,sm=ip?1.4:1,sb=ip?2:1.5,sr=ip?3.5:3;
+  for(let i=0;i<cnt;i++){const a=Math.random()*Math.PI*2,sp=(0.8+Math.random()*2.2)*sm;
+    state.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.4,life:1,decay:0.016+Math.random()*0.02,r:rgb[0],g:rgb[1],b:rgb[2],size:sb+Math.random()*sr});}
+  if(ip) for(let i=0;i<5;i++){const a=Math.random()*Math.PI*2,sp=0.6+Math.random()*1.8;
+    state.particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.6,life:1,decay:0.03+Math.random()*0.02,r:240,g:235,b:220,size:1.5+Math.random()*2});}
+}
+function updateParticles(){for(let i=state.particles.length-1;i>=0;i--){const p=state.particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.04;p.life-=p.decay;if(p.life<=0)state.particles.splice(i,1);}}
+function drawParticles(){for(const p of state.particles){ctx.globalAlpha=p.life*0.7;ctx.fillStyle=`rgb(${p.r},${p.g},${p.b})`;ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+function triggerLaneFlash(li,r){const ip=r==='perfect';state.laneFlashes.push({lane:li,life:1,decay:ip?0.018:0.035,intensity:ip?0.35:0.14,height:ip?120:80});}
+function updateLaneFlashes(){for(let i=state.laneFlashes.length-1;i>=0;i--){state.laneFlashes[i].life-=state.laneFlashes[i].decay;if(state.laneFlashes[i].life<=0)state.laneFlashes.splice(i,1);}}
+function showTimingPopup(x,y,r){const el=document.createElement('div');el.className=`timing-popup ${r}`;el.textContent={perfect:'PERFECT',good:'GOOD',miss:'MISS',held:'HELD'}[r]||r.toUpperCase();el.style.left=x+'px';el.style.top=y+'px';document.getElementById('play-area').appendChild(el);setTimeout(()=>el.remove(),700);}
+function updateUI(){
+  document.getElementById('score-val').textContent=state.score.toLocaleString();
+  document.getElementById('hits-val').textContent=state.hits;
+  document.getElementById('level-val').textContent=state.level;
+  document.getElementById('streak-val').textContent=state.streak;
+  const c=document.getElementById('combo-display');
+  if(state.combo>=5){c.textContent=`${state.combo}× combo`;c.classList.add('visible');c.classList.toggle('tier2',state.combo>=10&&state.combo<20);c.classList.toggle('tier3',state.combo>=20);if(state.combo<10)c.classList.remove('tier2','tier3');}
+  else c.classList.remove('visible','tier2','tier3');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  DRAWING  ██
+   ═══════════════════════════════════════════════════════════════ */
+function drawRoundRect(c,x,y,w,h,r){r=Math.min(r,w/2,h/2);if(r<0)r=0;if(w<=0||h<=0)return;c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.arcTo(x+w,y,x+w,y+r,r);c.lineTo(x+w,y+h-r);c.arcTo(x+w,y+h,x+w-r,y+h,r);c.lineTo(x+r,y+h);c.arcTo(x,y+h,x,y+h-r,r);c.lineTo(x,y+r);c.arcTo(x,y,x+r,y,r);c.closePath();}
+
+function draw(ts){
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#08080e'; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<4;i++){
+    const x=laneXs[i],c=LANES[i].color;
+    const lg=ctx.createLinearGradient(0,0,0,H);lg.addColorStop(0,'transparent');lg.addColorStop(0.4,c+'06');lg.addColorStop(0.85,c+'0c');lg.addColorStop(1,c+'18');
+    ctx.fillStyle=lg;ctx.fillRect(x-laneW*0.38,0,laneW*0.76,H);
+    ctx.strokeStyle=c+'0a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
+    for(const f of state.laneFlashes){if(f.lane!==i)continue;const fh=f.height||80,ha=Math.min(255,Math.round(f.life*f.intensity*255)).toString(16).padStart(2,'0');const fg=ctx.createLinearGradient(0,strikeY-fh,0,strikeY+10);fg.addColorStop(0,c+'00');fg.addColorStop(0.5,c+ha);fg.addColorStop(1,c+'00');ctx.fillStyle=fg;ctx.fillRect(x-laneW*0.45,strikeY-fh,laneW*0.9,fh+10);}
+  }
+  const sl=ctx.createLinearGradient(0,0,W,0);sl.addColorStop(0,'rgba(255,255,255,0)');sl.addColorStop(0.15,'rgba(255,255,255,0.08)');sl.addColorStop(0.5,'rgba(255,255,255,0.12)');sl.addColorStop(0.85,'rgba(255,255,255,0.08)');sl.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=sl;ctx.fillRect(0,strikeY-1,W,2);
+  for(let i=0;i<4;i++){const x=laneXs[i],a=state.keyStates[i],c=LANES[i].color;ctx.beginPath();ctx.arc(x,strikeY,a?7:4,0,Math.PI*2);ctx.fillStyle=a?c+'bb':c+'30';ctx.fill();if(a){ctx.beginPath();ctx.arc(x,strikeY,16,0,Math.PI*2);ctx.fillStyle=c+'15';ctx.fill();}}
+  for(const n of state.notes){
+    if(n.hit&&!n.isHold)continue;if(n.hit&&n.holdCompleted)continue;
+    const x=laneXs[n.lane],c=LANES[n.lane];ctx.globalAlpha=n.missed?0.15:1;
+    if(n.isHold){const ct=Math.max(-10,n.y),cb=Math.min(strikeY+orbR,n.y+n.holdLength);if(cb>ct){const bw=orbR*1.1;ctx.fillStyle=c.color+'18';drawRoundRect(ctx,x-bw,ct,bw*2,cb-ct,bw);ctx.fill();const tw=orbR*0.85,tg=ctx.createLinearGradient(0,ct,0,cb);tg.addColorStop(0,c.color+'25');tg.addColorStop(0.5,c.color+'50');tg.addColorStop(1,c.color+'60');ctx.fillStyle=tg;drawRoundRect(ctx,x-tw,ct,tw*2,cb-ct,tw);ctx.fill();ctx.fillStyle=c.color+'40';const iw=orbR*0.25;drawRoundRect(ctx,x-iw,ct,iw*2,cb-ct,iw);ctx.fill();if(n.holdActive&&state.keyStates[n.lane]){const cT=Math.max(ct,n.y),cB=strikeY;if(cB>cT){const pu=0.45+Math.sin(ts*0.005)*0.12,pw=orbR*0.7,hp=Math.round(pu*255).toString(16).padStart(2,'0'),pg=ctx.createLinearGradient(0,cT,0,cB);pg.addColorStop(0,c.color+'15');pg.addColorStop(0.6,c.color+hp);pg.addColorStop(1,c.color+hp);ctx.fillStyle=pg;drawRoundRect(ctx,x-pw,cT,pw*2,cB-cT,pw);ctx.fill();ctx.beginPath();ctx.arc(x,strikeY,orbR*0.5,0,Math.PI*2);ctx.fillStyle=c.color+'60';ctx.fill();}}if(ct>0){ctx.beginPath();ctx.arc(x,ct+4,orbR*0.3,0,Math.PI*2);ctx.fillStyle=c.color+'50';ctx.fill();}}}
+    const oY=n.isHold?n.y+n.holdLength:n.y;
+    if(oY>-orbR*3&&oY<H+orbR){const gR=orbR*2.5,gg=ctx.createRadialGradient(x,oY,0,x,oY,gR);gg.addColorStop(0,c.color+'28');gg.addColorStop(1,c.color+'00');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(x,oY,gR,0,Math.PI*2);ctx.fill();const og=ctx.createRadialGradient(x-orbR*0.2,oY-orbR*0.2,0,x,oY,orbR);og.addColorStop(0,'#ffffffcc');og.addColorStop(0.3,c.color+'ee');og.addColorStop(1,c.color+'88');ctx.fillStyle=og;ctx.beginPath();ctx.arc(x,oY,orbR,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(255,255,255,0.35)';ctx.beginPath();ctx.arc(x-orbR*0.18,oY-orbR*0.22,orbR*0.28,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=1;
+  }
+  drawParticles();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  GAME LOOP  ██
+   ═══════════════════════════════════════════════════════════════ */
+let lastTime=0,elapsed=0;
+function gameLoop(ts){
+  if(state.phase!=='playing') return;
+  if(!lastTime) lastTime=ts; const dt=Math.min(ts-lastTime,33); lastTime=ts; elapsed+=dt;
+  spawnFromQueue(elapsed); const sp=fallSpeed();
+  for(let i=state.notes.length-1;i>=0;i--){
+    const n=state.notes[i];
+    if(!n.hit){n.y+=sp*dt;if((n.isHold?n.y+n.holdLength:n.y)>strikeY+MW) handleMiss(n);if(n.y>H+120)state.notes.splice(i,1);}
+    else if(n.isHold&&!n.holdCompleted){n.y+=sp*dt;
+      if(n.y>=strikeY){n.holdCompleted=true;if(n.holdActive){state.score+=50;state.lvlGoods++;state.lvlHoldsCompleted++;spawnParticles(laneXs[n.lane],strikeY,LANES[n.lane].rgb,'good');triggerLaneFlash(n.lane,'good');showTimingPopup(laneXs[n.lane],strikeY-35,'held');state.holdActive[n.lane]=null;}}
+      if(n.holdActive&&!state.keyStates[n.lane]){n.holdActive=false;n.holdCompleted=true;state.holdActive[n.lane]=null;}}
+    else{n.y+=sp*dt;if(n.y>H+120)state.notes.splice(i,1);}
+  }
+  updateParticles();updateLaneFlashes();
+  if(state.queueIndex>=state.spawnQueue.length&&state.notes.length===0){endLevel();return;}
+  draw(ts);requestAnimationFrame(gameLoop);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  SCREEN MANAGEMENT  ██
+   ═══════════════════════════════════════════════════════════════ */
+function hideAll(){['start-screen','level-select-screen','intro-screen','end-screen'].forEach(id=>document.getElementById(id).classList.add('hidden'));}
+function showScreen(id){hideAll();document.getElementById(id).classList.remove('hidden');}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LEVEL SELECT  ██
+   ═══════════════════════════════════════════════════════════════ */
+function renderLevelSelect(){
+  progress=loadProgress();
+  const g=document.getElementById('level-grid'); g.innerHTML='';
+  for(let l=1;l<=MAX_LEVELS;l++){
+    const u=l<=progress.unlocked, d=getLevelData(progress,l);
+    const c=document.createElement('div'); c.className=`level-cell ${u?'unlocked':'locked'}`;
+    if(u){
+      let sh=''; for(let s=1;s<=3;s++) sh+=`<span class="star ${s<=d.stars?'filled':'empty'}">★</span>`;
+      c.innerHTML=`<div class="lc-num">${l}</div><div class="lc-stars">${sh}</div>`;
+      c.addEventListener('click',()=>showIntro(l));
+    } else { c.innerHTML=`<div class="lc-num">${l}</div><div class="lc-lock">⬡</div>`; }
+    g.appendChild(c);
+  }
+}
+function showLevelSelect(){state.phase='levelselect';renderLevelSelect();showScreen('level-select-screen');}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LEVEL INTRO  ██
+   ═══════════════════════════════════════════════════════════════ */
+function showIntro(l){
+  state.level=l; state.currentGoal=getGoalForLevel(l); state.phase='intro';
+  document.getElementById('intro-lvl-num').textContent=`Level ${l}`;
+  document.getElementById('intro-goal-text').textContent=state.currentGoal.text;
+  showScreen('intro-screen');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  LEVEL START / END  ██
+   ═══════════════════════════════════════════════════════════════ */
+function startLevel(l){
+  state.phase='playing'; state.level=l;
+  state.notes=[];state.particles=[];state.laneFlashes=[];
+  state.lvlPerfects=0;state.lvlGoods=0;state.lvlMisses=0;state.lvlHits=0;state.lvlBestStreak=0;
+  state.streak=0;state.combo=0;state.lvlHoldsCompleted=0;
+  state.spawnQueue=generateLevel(l); state.queueIndex=0;
+  state.totalLevelNotes=state.spawnQueue.reduce((s,e)=>s+e.lanes.length,0);
+  state.lvlHoldsTotal=state.spawnQueue.filter(e=>e.isHold).length;
+  state.holdActive=[null,null,null,null]; lastTime=0; elapsed=0;
+  if(!state.currentGoal) state.currentGoal=getGoalForLevel(l);
+  updateUI(); hideAll();
+  audio.init(); audio.startBackground();
+  requestAnimationFrame(gameLoop);
+}
+
+function endLevel(){
+  state.phase='ended'; audio.stopBackground();
+  const acc=calcAccuracy(state), tot=state.lvlPerfects+state.lvlGoods+state.lvlMisses;
+  const pr=tot>0?state.lvlPerfects/tot:0;
+  const stars=calcStars(acc), grade=calcGrade(acc,pr), pass=stars>0;
+  const goalOk=state.currentGoal?state.currentGoal.check(state):false;
+  if(pass) updateLevelData(progress,state.level,stars,grade);
+
+  document.getElementById('end-title').textContent=pass?'Level Complete':'Try Again';
+  document.getElementById('end-grade').textContent=grade;
+  document.getElementById('end-grade').style.color=grade==='S'?'var(--accent)':grade==='D'?'var(--miss-color)':'var(--text-bright)';
+  const se=document.getElementById('end-stars');se.innerHTML='';
+  for(let s=1;s<=3;s++){const sp=document.createElement('span');sp.className=`estar ${s<=stars?'filled':'empty'}`;sp.textContent='★';se.appendChild(sp);}
+  document.getElementById('end-score').textContent=state.score.toLocaleString();
+  document.getElementById('end-level-label').textContent=`Level ${state.level}`;
+  document.getElementById('end-perfect').textContent=state.lvlPerfects;
+  document.getElementById('end-good').textContent=state.lvlGoods;
+  document.getElementById('end-miss').textContent=state.lvlMisses;
+  document.getElementById('end-streak').textContent=state.lvlBestStreak;
+  const ge=document.getElementById('end-goal');
+  if(state.currentGoal){ge.textContent=(goalOk?'✓ ':'✗ ')+state.currentGoal.text;ge.className=`end-goal ${goalOk?'completed':'failed'}`;}else ge.textContent='';
+  const bn=document.getElementById('btn-next');
+  if(pass&&state.level<MAX_LEVELS){bn.textContent='Continue';bn.style.display='';bn.onclick=()=>showIntro(state.level+1);}
+  else if(pass){bn.textContent='Complete';bn.style.display='';bn.onclick=()=>showLevelSelect();}
+  else bn.style.display='none';
+  showScreen('end-screen');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  PIANO KEYS  ██
+   ═══════════════════════════════════════════════════════════════ */
+function buildKeys(){
+  const co=document.getElementById('keys'); co.innerHTML='';
+  LANES.forEach((l,i)=>{
+    const k=document.createElement('button'); k.className='piano-key';
+    k.innerHTML=`<div class="lane-indicator" style="background:${l.color}"></div><div class="note-name">${l.note}</div><div class="glow-overlay" style="background:radial-gradient(ellipse at center bottom,${l.color}50 0%,transparent 65%)"></div>`;
+    k.addEventListener('pointerdown',e=>{e.preventDefault();k.setPointerCapture(e.pointerId);pressKey(i);});
+    k.addEventListener('pointerup',e=>{e.preventDefault();try{k.releasePointerCapture(e.pointerId);}catch(_){}releaseKey(i);});
+    k.addEventListener('pointercancel',e=>{try{k.releasePointerCapture(e.pointerId);}catch(_){}releaseKey(i);});
+    k.addEventListener('pointerleave',()=>{if(state.keyStates[i])releaseKey(i);});
+    co.appendChild(k);
+  });
+}
+function pressKey(i){if(state.phase!=='playing')return;audio.init();state.keyStates[i]=true;document.querySelectorAll('.piano-key')[i].classList.add('active');checkHit(i);}
+function releaseKey(i){state.keyStates[i]=false;const ks=document.querySelectorAll('.piano-key');if(ks[i])ks[i].classList.remove('active');}
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  KEYBOARD / FOCUS / ZOOM  ██
+   ═══════════════════════════════════════════════════════════════ */
+const KM={d:0,f:1,j:2,k:3};
+document.addEventListener('keydown',e=>{if(e.repeat)return;const l=KM[e.key.toLowerCase()];if(l!==undefined)pressKey(l);});
+document.addEventListener('keyup',e=>{const l=KM[e.key.toLowerCase()];if(l!==undefined)releaseKey(l);});
+window.addEventListener('blur',()=>{for(let i=0;i<4;i++)releaseKey(i);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)for(let i=0;i<4;i++)releaseKey(i);});
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('gesturechange',e=>e.preventDefault());
+
+/* ═══════════════════════════════════════════════════════════════
+   ██  INIT & WIRING  ██
+   ═══════════════════════════════════════════════════════════════ */
+buildKeys(); resize(); draw(0);
+
+document.getElementById('btn-start').addEventListener('click',()=>{audio.init();state.score=0;state.hits=0;showLevelSelect();});
+document.getElementById('btn-ls-back').addEventListener('click',()=>{showScreen('start-screen');state.phase='start';});
+document.getElementById('btn-intro-go').addEventListener('click',()=>startLevel(state.level));
+document.getElementById('btn-retry').addEventListener('click',()=>{state.currentGoal=getGoalForLevel(state.level);startLevel(state.level);});
+document.getElementById('btn-levels').addEventListener('click',()=>showLevelSelect());
+</script>
+</body>
+</html>
