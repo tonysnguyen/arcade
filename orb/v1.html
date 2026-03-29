@@ -106,15 +106,17 @@ const STATE={TITLE:0,LEVEL_INTRO:1,PLAYING:2,LEVEL_COMPLETE:3,COMPLETING:4};
 // ============================================================
 //  FIREBASE SETUP
 // ============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
-  authDomain: "tony-arcade.firebaseapp.com",
-  projectId: "tony-arcade",
-  storageBucket: "tony-arcade.firebasestorage.app",
-  messagingSenderId: "88041829355",
-  appId: "1:88041829355:web:56d7048e7c842d14e99fae",
-  measurementId: "G-RVYF35QB7W"
+const firebaseConfig={
+  // ⚠️ Fill in your Firebase project config:
+  apiKey:"YOUR_API_KEY",
+  authDomain:"YOUR_PROJECT.firebaseapp.com",
+  projectId:"YOUR_PROJECT_ID",
 };
+let db=null;
+try{
+  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+  db=firebase.firestore();
+}catch(e){console.warn('Firebase init failed:',e);}
 
 // ============================================================
 //  GAME ID (shared by reactions)
@@ -136,6 +138,7 @@ let trailingOrbs=[]; // extra orbs that follow behind the active orb at higher l
 let fgOcclusionZones=[];
 let currentSpawnDelay=1200;
 let levelTimer=0;        // counts DOWN — seconds remaining
+let containerTierWins={}; // tracks wins per container count for gradual speed ramp
 let levelTimerMax=0;     // set per level
 let damageFlashTimer=0;  // full-screen damage overlay
 
@@ -145,7 +148,11 @@ let damageFlashTimer=0;  // full-screen damage overlay
 function getLevelConfig(lvl){
   const numContainers=lvl<=2?2:lvl<=4?3:lvl<=7?4:5;
   const fillTarget=Math.min(3+Math.floor((lvl-1)/2),8);
-  const baseSpeed=lvl<=3?6+lvl*0.4:7.2+(lvl-3)*0.55;
+  // Base speed tied to container tier, not raw level — ramps gently within each tier
+  const tierSpeeds={2:6.2,3:7.0,4:8.0,5:9.2};
+  const tierWins=containerTierWins[numContainers]||0;
+  const tierBoost=Math.min(tierWins*0.35,1.4); // up to +1.4 after 4 wins in tier
+  const baseSpeed=(tierSpeeds[numContainers]||6.2)+tierBoost;
   const baseDelay=lvl<=3?Math.max(800-lvl*50,550):Math.max(650-(lvl-3)*55,220);
   // Trailing orbs: 0 until L5, 1 from L5, 2 from L9
   const trailCount=lvl>=9?2:lvl>=5?1:0;
@@ -920,50 +927,49 @@ function drawHUD(t){
   ctx.textAlign='center';ctx.fillStyle='rgba(175,158,220,0.65)';ctx.font=`${11*SCALE}px Georgia,serif`;ctx.fillText(w.name,W/2,32);
   if(streak>=2){const sa=0.75+Math.sin(t*4)*0.18;ctx.fillStyle=`rgba(255,218,110,${sa})`;ctx.font=`bold ${15*SCALE}px Georgia,serif`;ctx.fillText(`${streak}×`,W/2,14)}
 
-  // ── Progress bar (moved down) ──
-  const barY=50,barW=Math.min(W*0.5,180),barH=2.5,barX=(W-barW)/2;
-  const totalFill=containers.reduce((s,c)=>s+c.fill,0),totalTarget=containers.reduce((s,c)=>s+c.target,0),progress=totalFill/totalTarget;
-  ctx.fillStyle='rgba(40,28,65,0.25)';ctx.fillRect(barX,barY,barW,barH);
-  if(progress>0){const pg=ctx.createLinearGradient(barX,barY,barX+barW*progress,barY);pg.addColorStop(0,'rgba(140,90,230,0.4)');pg.addColorStop(1,'rgba(180,120,240,0.6)');ctx.fillStyle=pg;ctx.fillRect(barX,barY,barW*progress,barH)}
+  // ── Progress bar (left) + Timer bar (right) on same row ──
+  const rowY=50,rowH=9*SCALE,sidePad=58,centerGap=14;
+  const halfW=(W-sidePad*2-centerGap)/2;
 
-  // ── Timer bar — wider, taller, more visible ──
+  // Progress bar — left side
+  const pBX=sidePad,pBW=halfW,pBH=rowH;
+  const totalFill=containers.reduce((s,c)=>s+c.fill,0),totalTarget=containers.reduce((s,c)=>s+c.target,0),progress=totalFill/totalTarget;
+  ctx.fillStyle='rgba(30,15,50,0.40)';ctx.beginPath();roundRect(ctx,pBX,rowY,pBW,pBH,pBH/2);ctx.fill();
+  if(progress>0){
+    const pg=ctx.createLinearGradient(pBX,rowY,pBX+pBW*progress,rowY);
+    pg.addColorStop(0,'rgba(130,80,220,0.55)');pg.addColorStop(1,'rgba(185,120,255,0.80)');
+    ctx.fillStyle=pg;ctx.beginPath();roundRect(ctx,pBX,rowY,pBW*progress,pBH,pBH/2);ctx.fill();
+  }
+  ctx.fillStyle='rgba(155,130,200,0.50)';ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.font=`${9*SCALE}px Georgia,serif`;ctx.fillText('FILL',pBX,rowY+pBH+3);
+
+  // Timer bar — right side
+  const tBX=sidePad+halfW+centerGap,tBW=halfW,tBH=rowH;
   const timerRatio=levelTimerMax>0?levelTimer/levelTimerMax:1;
-  const urgent=timerRatio<0.25;
-  const warning=timerRatio<0.5;
-  const tBarW=Math.min(W*0.72,260),tBarH=9*SCALE,tBarX=(W-tBarW)/2,tBarY=barY+20;
+  const urgent=timerRatio<0.25,warning=timerRatio<0.5;
   const pulse=urgent?(0.82+Math.sin(t*8)*0.18):1;
-  // Track bg
-  ctx.fillStyle='rgba(20,10,38,0.55)';
-  ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW,tBarH,tBarH/2);ctx.fill();
-  // Filled portion
+  ctx.fillStyle='rgba(20,10,38,0.55)';ctx.beginPath();roundRect(ctx,tBX,rowY,tBW,tBH,tBH/2);ctx.fill();
   if(timerRatio>0){
     const r=urgent?235:warning?210:80,g=urgent?35:warning?145:175,b=urgent?35:warning?55:255;
-    const tg=ctx.createLinearGradient(tBarX,tBarY,tBarX+tBarW*timerRatio,tBarY);
+    const tg=ctx.createLinearGradient(tBX,rowY,tBX+tBW*timerRatio,rowY);
     tg.addColorStop(0,`rgba(${r},${g},${b},${0.65*pulse})`);
     tg.addColorStop(1,`rgba(${r},${g},${b},${0.95*pulse})`);
-    ctx.fillStyle=tg;
-    ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW*timerRatio,tBarH,tBarH/2);ctx.fill();
-    // Bright leading edge
-    const edgeX=tBarX+tBarW*timerRatio;
-    const edge=ctx.createRadialGradient(edgeX,tBarY+tBarH/2,0,edgeX,tBarY+tBarH/2,tBarH*2.5);
-    edge.addColorStop(0,`rgba(${r+20},${g+20},${b+20},${0.55*pulse})`);
-    edge.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=edge;ctx.fillRect(edgeX-tBarH*3,tBarY-tBarH,tBarH*6,tBarH*3);
-    // Glow bloom on urgent
+    ctx.fillStyle=tg;ctx.beginPath();roundRect(ctx,tBX,rowY,tBW*timerRatio,tBH,tBH/2);ctx.fill();
+    const edgeX=tBX+tBW*timerRatio;
+    const edge=ctx.createRadialGradient(edgeX,rowY+tBH/2,0,edgeX,rowY+tBH/2,tBH*2.5);
+    edge.addColorStop(0,`rgba(${r+20},${g+20},${b+20},${0.5*pulse})`);edge.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=edge;ctx.fillRect(edgeX-tBH*3,rowY-tBH,tBH*6,tBH*3);
     if(urgent){
       ctx.save();
-      const glow=ctx.createRadialGradient(tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,0,tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,tBarH*5);
-      glow.addColorStop(0,`rgba(220,30,30,${0.22*pulse})`);glow.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=glow;ctx.fillRect(tBarX,tBarY-tBarH*3,tBarW,tBarH*8);
-      ctx.restore();
+      const glow=ctx.createRadialGradient(tBX+tBW*0.5,rowY+tBH/2,0,tBX+tBW*0.5,rowY+tBH/2,tBH*5);
+      glow.addColorStop(0,`rgba(220,30,30,${0.20*pulse})`);glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glow;ctx.fillRect(tBX,rowY-tBH*3,tBW,tBH*8);ctx.restore();
     }
   }
-  // Seconds label — larger and brighter
   const secs=Math.ceil(levelTimer);
   const secColor=urgent?`rgba(255,90,90,${0.95+Math.sin(t*8)*0.05})`:warning?'rgba(230,185,70,0.92)':'rgba(160,200,255,0.82)';
-  ctx.fillStyle=secColor;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.font=`bold ${13*SCALE}px Georgia,serif`;
-  ctx.fillText(`${secs}s`,W/2,tBarY+tBarH+5);
+  ctx.fillStyle=secColor;ctx.textAlign='right';ctx.textBaseline='top';
+  ctx.font=`bold ${9*SCALE}px Georgia,serif`;ctx.fillText(`${secs}s`,tBX+tBW,rowY+tBH+3);
 }
 
 // ============================================================
@@ -1232,8 +1238,21 @@ function drawLevelComplete(t){
   const pW=Math.min(W*0.85,320),pH=H*0.62,pX=(W-pW)/2,pY=(H-pH)/2;
   ctx.globalAlpha=panelA;
   ctx.fillStyle='rgba(12,8,24,0.92)';ctx.beginPath();roundRect(ctx,pX,pY,pW,pH,14);ctx.fill();
-  ctx.strokeStyle='rgba(100,70,160,0.2)';ctx.lineWidth=1;ctx.beginPath();roundRect(ctx,pX,pY,pW,pH,14);ctx.stroke();
-  const ig=ctx.createRadialGradient(W/2,pY+pH*0.3,0,W/2,pY+pH*0.3,pH*0.5);ig.addColorStop(0,'rgba(60,30,100,0.06)');ig.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=ig;ctx.fillRect(pX,pY,pW,pH);
+  // Gold border on perfect 3-star, purple otherwise
+  if(perfect&&stars===3){
+    const goldPulse=0.55+Math.sin(t*1.8)*0.15;
+    ctx.strokeStyle=`rgba(220,175,60,${goldPulse})`;ctx.lineWidth=2;
+    ctx.beginPath();roundRect(ctx,pX,pY,pW,pH,14);ctx.stroke();
+    // Outer gold glow ring
+    ctx.strokeStyle=`rgba(255,210,80,${goldPulse*0.18})`;ctx.lineWidth=6;
+    ctx.beginPath();roundRect(ctx,pX-2,pY-2,pW+4,pH+4,15);ctx.stroke();
+    const ig=ctx.createRadialGradient(W/2,pY+pH*0.3,0,W/2,pY+pH*0.3,pH*0.55);
+    ig.addColorStop(0,'rgba(90,65,10,0.12)');ig.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ig;ctx.fillRect(pX,pY,pW,pH);
+  }else{
+    ctx.strokeStyle='rgba(100,70,160,0.2)';ctx.lineWidth=1;ctx.beginPath();roundRect(ctx,pX,pY,pW,pH,14);ctx.stroke();
+    const ig=ctx.createRadialGradient(W/2,pY+pH*0.3,0,W/2,pY+pH*0.3,pH*0.5);ig.addColorStop(0,'rgba(60,30,100,0.06)');ig.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=ig;ctx.fillRect(pX,pY,pW,pH);
+  }
 
   ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle='rgba(225,215,252,0.96)';ctx.font=`${22*SCALE}px Georgia,serif`;
@@ -1297,20 +1316,24 @@ function drawLevelComplete(t){
     ctx.fillStyle='rgba(150,168,210,0.70)';ctx.font=`${13*SCALE}px Georgia,serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('↺ Replay',replayX+btnW/2,btnY);
 
-    // Continue button — bright, primary action
+    // Continue button — gold on perfect 3-star, blue otherwise
     ctx.globalAlpha=panelA*btnA;
+    const isPerfect=perfect&&stars===3;
     const pr=0.5+Math.sin(t*2.4)*0.5;
-    ctx.globalAlpha=panelA*btnA*0.10*pr;
-    ctx.strokeStyle='rgba(80,160,255,1)';ctx.lineWidth=1.5*SCALE;
+    const goldPulse=0.5+Math.sin(t*2.2)*0.5;
+    ctx.globalAlpha=panelA*btnA*(isPerfect?0.18*goldPulse:0.10*pr);
+    ctx.strokeStyle=isPerfect?'rgba(255,200,60,1)':'rgba(80,160,255,1)';ctx.lineWidth=isPerfect?2*SCALE:1.5*SCALE;
     ctx.beginPath();roundRect(ctx,contX-4*SCALE,btnY-btnH/2-4*SCALE,btnW+8*SCALE,btnH+8*SCALE,10);ctx.stroke();
     ctx.globalAlpha=panelA*btnA;
     const cbf=ctx.createLinearGradient(contX+btnW/2,btnY-btnH/2,contX+btnW/2,btnY+btnH/2);
-    cbf.addColorStop(0,'rgba(28,70,160,0.75)');cbf.addColorStop(1,'rgba(16,45,120,0.88)');
+    if(isPerfect){cbf.addColorStop(0,'rgba(90,65,10,0.85)');cbf.addColorStop(1,'rgba(60,42,6,0.95)');}
+    else{cbf.addColorStop(0,'rgba(28,70,160,0.75)');cbf.addColorStop(1,'rgba(16,45,120,0.88)');}
     ctx.fillStyle=cbf;ctx.beginPath();roundRect(ctx,contX,btnY-btnH/2,btnW,btnH,8);ctx.fill();
-    ctx.strokeStyle=`rgba(80,150,255,${0.45+Math.sin(t*2.4)*0.18})`;ctx.lineWidth=1.5;
-    ctx.beginPath();roundRect(ctx,contX,btnY-btnH/2,btnW,btnH,8);ctx.stroke();
-    ctx.shadowColor='rgba(80,160,255,0.45)';ctx.shadowBlur=8*SCALE;
-    ctx.fillStyle='rgba(215,230,255,0.95)';ctx.font=`bold ${13*SCALE}px Georgia,serif`;
+    ctx.strokeStyle=isPerfect?`rgba(220,175,60,${0.65+Math.sin(t*2.2)*0.25})`:`rgba(80,150,255,${0.45+Math.sin(t*2.4)*0.18})`;
+    ctx.lineWidth=isPerfect?2:1.5;ctx.beginPath();roundRect(ctx,contX,btnY-btnH/2,btnW,btnH,8);ctx.stroke();
+    ctx.shadowColor=isPerfect?'rgba(255,200,60,0.6)':'rgba(80,160,255,0.45)';ctx.shadowBlur=isPerfect?12*SCALE:8*SCALE;
+    ctx.fillStyle=isPerfect?`rgba(255,228,140,${0.90+Math.sin(t*2.2)*0.08})`:'rgba(215,230,255,0.95)';
+    ctx.font=`bold ${13*SCALE}px Georgia,serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Continue →',contX+btnW/2,btnY);
     ctx.shadowBlur=0;
 
@@ -1341,12 +1364,14 @@ function transitionTo(ns){
       starAnimTimer=0;totalScore+=score;
       starSfxFired=[false,false,false];
       Audio.sfxLevelComplete();
+      // Record win for current container tier (only if timer didn't expire)
+      if(levelTimer>0){const nc=getLevelConfig(level).numContainers;containerTierWins[nc]=(containerTierWins[nc]||0)+1;}
 
     }
     transitionDir=-1;
   }
 }
-function startGame(){level=1;totalScore=0;Audio.sfxGameStart();transitionTo(STATE.LEVEL_INTRO)}
+function startGame(){level=1;totalScore=0;containerTierWins={};Audio.sfxGameStart();transitionTo(STATE.LEVEL_INTRO)}
 function nextLevel(){level++;Audio.sfxContinue();transitionTo(STATE.LEVEL_INTRO)}
 function replayLevel(){Audio.sfxContinue();transitionTo(STATE.LEVEL_INTRO)}
 
