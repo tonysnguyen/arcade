@@ -927,38 +927,44 @@ function drawHUD(t){
   ctx.fillStyle='rgba(40,28,65,0.25)';ctx.fillRect(barX,barY,barW,barH);
   if(progress>0){const pg=ctx.createLinearGradient(barX,barY,barX+barW*progress,barY);pg.addColorStop(0,'rgba(140,90,230,0.4)');pg.addColorStop(1,'rgba(180,120,240,0.6)');ctx.fillStyle=pg;ctx.fillRect(barX,barY,barW*progress,barH)}
 
-  // ── Timer bar ──
+  // ── Timer bar — wider, taller, more visible ──
   const timerRatio=levelTimerMax>0?levelTimer/levelTimerMax:1;
-  const urgent=timerRatio<0.25;        // last 25% — pulse red
-  const warning=timerRatio<0.5;        // 25-50% — amber
-  const tBarW=Math.min(W*0.5,180),tBarH=5*SCALE,tBarX=(W-tBarW)/2,tBarY=barY+10;
+  const urgent=timerRatio<0.25;
+  const warning=timerRatio<0.5;
+  const tBarW=Math.min(W*0.72,260),tBarH=9*SCALE,tBarX=(W-tBarW)/2,tBarY=barY+12;
+  const pulse=urgent?(0.82+Math.sin(t*8)*0.18):1;
   // Track bg
-  ctx.fillStyle='rgba(30,15,45,0.35)';
+  ctx.fillStyle='rgba(20,10,38,0.55)';
   ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW,tBarH,tBarH/2);ctx.fill();
   // Filled portion
   if(timerRatio>0){
-    const pulse=urgent?(0.85+Math.sin(t*8)*0.15):1;
-    const r=urgent?220:warning?200:120,g=urgent?40:warning?140:200,b=urgent?40:warning?60:255;
+    const r=urgent?235:warning?210:80,g=urgent?35:warning?145:175,b=urgent?35:warning?55:255;
     const tg=ctx.createLinearGradient(tBarX,tBarY,tBarX+tBarW*timerRatio,tBarY);
-    tg.addColorStop(0,`rgba(${r},${g},${b},${0.55*pulse})`);
-    tg.addColorStop(1,`rgba(${r},${g},${b},${0.85*pulse})`);
+    tg.addColorStop(0,`rgba(${r},${g},${b},${0.65*pulse})`);
+    tg.addColorStop(1,`rgba(${r},${g},${b},${0.95*pulse})`);
     ctx.fillStyle=tg;
     ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW*timerRatio,tBarH,tBarH/2);ctx.fill();
-    // Glow on urgent
+    // Bright leading edge
+    const edgeX=tBarX+tBarW*timerRatio;
+    const edge=ctx.createRadialGradient(edgeX,tBarY+tBarH/2,0,edgeX,tBarY+tBarH/2,tBarH*2.5);
+    edge.addColorStop(0,`rgba(${r+20},${g+20},${b+20},${0.55*pulse})`);
+    edge.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=edge;ctx.fillRect(edgeX-tBarH*3,tBarY-tBarH,tBarH*6,tBarH*3);
+    // Glow bloom on urgent
     if(urgent){
       ctx.save();
-      const glow=ctx.createRadialGradient(tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,0,tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,tBarH*4);
-      glow.addColorStop(0,`rgba(220,40,40,${0.18*pulse})`);glow.addColorStop(1,'rgba(0,0,0,0)');
+      const glow=ctx.createRadialGradient(tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,0,tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,tBarH*5);
+      glow.addColorStop(0,`rgba(220,30,30,${0.22*pulse})`);glow.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=glow;ctx.fillRect(tBarX,tBarY-tBarH*3,tBarW,tBarH*8);
       ctx.restore();
     }
   }
-  // Seconds label
+  // Seconds label — larger and brighter
   const secs=Math.ceil(levelTimer);
-  const secColor=urgent?`rgba(255,100,100,${0.9+Math.sin(t*8)*0.1})`:warning?'rgba(220,180,80,0.85)':'rgba(150,190,240,0.70)';
+  const secColor=urgent?`rgba(255,90,90,${0.95+Math.sin(t*8)*0.05})`:warning?'rgba(230,185,70,0.92)':'rgba(160,200,255,0.82)';
   ctx.fillStyle=secColor;ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.font=`bold ${10*SCALE}px Georgia,serif`;
-  ctx.fillText(`${secs}s`,W/2,tBarY+tBarH+3);
+  ctx.font=`bold ${13*SCALE}px Georgia,serif`;
+  ctx.fillText(`${secs}s`,W/2,tBarY+tBarH+5);
 }
 
 // ============================================================
