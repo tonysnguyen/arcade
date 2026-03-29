@@ -1106,11 +1106,10 @@ function drawFillingStarAt(x,y,size,fillAmount,t){
   if(fillAmount>0){ctx.save();starPath();ctx.clip();
     const fillTop=y+size-(fillAmount*size*2);
     const waveAmp=1.5+fillAmount*2;
-    const lG=ctx.createLinearGradient(x,fillTop,x,y+size);lG.addColorStop(0,'#ffe680');lG.addColorStop(0.5,'#ffcc30');lG.addColorStop(1,'#cc9500');ctx.fillStyle=lG;
+    ctx.fillStyle='#ffc820';
     ctx.beginPath();ctx.moveTo(x-size,y+size);ctx.lineTo(x+size,y+size);
     for(let s=20;s>=0;s--){const f=s/20,px=x-size+f*size*2;ctx.lineTo(px,fillTop+Math.sin(t*3+f*6)*waveAmp)}
     ctx.closePath();ctx.fill();
-    ctx.globalAlpha=0.15;ctx.fillStyle='#fff';ctx.fillRect(x-size*0.3,fillTop,size*0.15,y+size-fillTop);
     ctx.globalAlpha=1;ctx.restore()}
   ctx.restore();
 }
@@ -1393,19 +1392,41 @@ canvas.addEventListener('touchmove',(e)=>{
     touchBoosted=true;touchMoved=true;boostOrb();
   }
 },{passive:false});
+// Tap a container to aim the active orb at that lane
+function handleContainerTap(cx,cy){
+  if(state!==STATE.PLAYING||!activeOrb)return false;
+  for(let i=0;i<containers.length;i++){
+    const con=containers[i];
+    // Hit area: full width of container, generous height covering the vial
+    const left=con.x-con.w*0.7,right=con.x+con.w*0.7;
+    const top=con.y-con.h/2-10,bottom=con.y+con.h/2+16;
+    if(cx>=left&&cx<=right&&cy>=top&&cy<=bottom){
+      // Compute lane direction and call moveOrb repeatedly to reach target lane
+      const diff=i-activeOrb.laneIdx;
+      if(diff===0)return false; // already in that lane — don't block
+      const dir=diff>0?1:-1;
+      for(let step=0;step<Math.abs(diff);step++) moveOrb(dir);
+      return true;
+    }
+  }
+  return false;
+}
+
 canvas.addEventListener('touchend',(e)=>{
   const tx=e.changedTouches[0].clientX,ty=e.changedTouches[0].clientY;
   if(!touchMoved){
-    const tappedReaction=handleReactionTap(tx,ty);
-    const tappedEnd=handleEndScreenTap(tx,ty);
-    if(!tappedReaction&&!tappedEnd&&state===STATE.TITLE)startGame();
+    const tappedContainer=handleContainerTap(tx,ty);
+    const tappedReaction=!tappedContainer&&handleReactionTap(tx,ty);
+    const tappedEnd=!tappedContainer&&!tappedReaction&&handleEndScreenTap(tx,ty);
+    if(!tappedContainer&&!tappedReaction&&!tappedEnd&&state===STATE.TITLE)startGame();
   }
 });
 canvas.addEventListener('click',(e)=>{
   ensureAudio();
-  const tappedReaction=handleReactionTap(e.clientX,e.clientY);
-  const tappedEnd=handleEndScreenTap(e.clientX,e.clientY);
-  if(!tappedReaction&&!tappedEnd&&state===STATE.TITLE)startGame();
+  const tappedContainer=handleContainerTap(e.clientX,e.clientY);
+  const tappedReaction=!tappedContainer&&handleReactionTap(e.clientX,e.clientY);
+  const tappedEnd=!tappedContainer&&!tappedReaction&&handleEndScreenTap(e.clientX,e.clientY);
+  if(!tappedContainer&&!tappedReaction&&!tappedEnd&&state===STATE.TITLE)startGame();
 });
 document.addEventListener('keydown',(e)=>{
   ensureAudio();
