@@ -137,6 +137,9 @@ let orbSpawnCount=0,titleTime=0,gearAngle=0;
 let trailingOrbs=[]; // extra orbs that follow behind the active orb at higher levels
 let fgOcclusionZones=[];
 let currentSpawnDelay=1200;
+let levelTimer=0;        // counts DOWN — seconds remaining
+let levelTimerMax=0;     // set per level
+let damageFlashTimer=0;  // full-screen damage overlay
 
 // ============================================================
 //  LEVEL CONFIG — smooth progression
@@ -150,7 +153,9 @@ function getLevelConfig(lvl){
   const trailCount=lvl>=9?2:lvl>=5?1:0;
   // Gap between leader and each trailer (ms equivalent in Y-pixels at base speed)
   const trailGap=lvl>=9?H*0.22:H*0.28;
-  return{numContainers,fillTarget,baseSpeed,spawnDelay:baseDelay,trailCount,trailGap};
+  // Timer: generous early, tightens per level, floor 20s
+  const timeLimit=Math.max(80-lvl*4,20);
+  return{numContainers,fillTarget,baseSpeed,spawnDelay:baseDelay,trailCount,trailGap,timeLimit};
 }
 function getSpawnDelay(){
   const base=getLevelConfig(level).spawnDelay;
@@ -879,6 +884,18 @@ function resolveWrongMatch(lo){
   wrongFlashTimer=0.5;wrongFlashX=lo.x;wrongFlashY=ct;c.wrongPulse=1;c.shakeX=(Math.random()-0.5)*12;c.shakeDecay=1;
   spawnFloatText(lo.x,ct-18,'REJECTED','#cc5577',false);shakeTimer=0.3;shakeIntensity=4;
   Audio.sfxWrong();
+  // ── DAMAGE: drain 1 fill from every non-full container ──
+  damageFlashTimer=0.55;
+  for(const dc of containers){
+    if(dc.full)continue;
+    if(dc.fill<=0)continue;
+    dc.fill=Math.max(0,dc.fill-1);
+    dc.wrongPulse=1;
+    dc.shakeX=(Math.random()-0.5)*8;dc.shakeDecay=1;
+    const dcTop=dc.y-dc.h/2;
+    spawnParticles(dc.x,dcTop,'#cc2244',6,false,{angleBase:-Math.PI/2,angleRange:Math.PI*1.2,speedMult:0.7,gravity:0.04,drag:0.03});
+    spawnFloatText(dc.x,dcTop-22,'-1','#ff4466',false);
+  }
 }
 
 function drawLandingOrb(t){if(!landingOrb)return;const lo=landingOrb,col=lo.col,p=lo.timer/lo.duration;ctx.save();ctx.translate(lo.x,lo.y+lo.squash*5);ctx.scale(1+lo.squash*0.3,1-lo.squash*0.25);const a=1-easeInQuad(p);ctx.globalAlpha=a;const gs=lo.radius*3*(1+p*0.5);const og=ctx.createRadialGradient(0,0,lo.radius*0.5,0,0,gs);og.addColorStop(0,`rgba(${col.r[0]},${col.r[1]},${col.r[2]},${0.35*a})`);og.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=og;ctx.fillRect(-gs,-gs,gs*2,gs*2);const ig=ctx.createRadialGradient(-lo.radius*0.15,-lo.radius*0.2,0,0,0,lo.radius);ig.addColorStop(0,lo.isMatch?'#fff':'#886677');ig.addColorStop(0.3,lo.isMatch?col.h:'#664455');ig.addColorStop(1,lo.isMatch?col.g:'#332233');ctx.fillStyle=ig;ctx.beginPath();ctx.arc(0,0,lo.radius,0,Math.PI*2);ctx.fill();ctx.restore();ctx.globalAlpha=1}
@@ -903,10 +920,45 @@ function drawHUD(t){
   ctx.textAlign='right';ctx.fillText(`${score}`,W-54,14);
   ctx.textAlign='center';ctx.fillStyle='rgba(175,158,220,0.65)';ctx.font=`${11*SCALE}px Georgia,serif`;ctx.fillText(w.name,W/2,32);
   if(streak>=2){const sa=0.75+Math.sin(t*4)*0.18;ctx.fillStyle=`rgba(255,218,110,${sa})`;ctx.font=`bold ${15*SCALE}px Georgia,serif`;ctx.fillText(`${streak}×`,W/2,14)}
-  const barY=42,barW=Math.min(W*0.5,180),barH=2.5,barX=(W-barW)/2;
+
+  // ── Progress bar (moved down) ──
+  const barY=50,barW=Math.min(W*0.5,180),barH=2.5,barX=(W-barW)/2;
   const totalFill=containers.reduce((s,c)=>s+c.fill,0),totalTarget=containers.reduce((s,c)=>s+c.target,0),progress=totalFill/totalTarget;
   ctx.fillStyle='rgba(40,28,65,0.25)';ctx.fillRect(barX,barY,barW,barH);
   if(progress>0){const pg=ctx.createLinearGradient(barX,barY,barX+barW*progress,barY);pg.addColorStop(0,'rgba(140,90,230,0.4)');pg.addColorStop(1,'rgba(180,120,240,0.6)');ctx.fillStyle=pg;ctx.fillRect(barX,barY,barW*progress,barH)}
+
+  // ── Timer bar ──
+  const timerRatio=levelTimerMax>0?levelTimer/levelTimerMax:1;
+  const urgent=timerRatio<0.25;        // last 25% — pulse red
+  const warning=timerRatio<0.5;        // 25-50% — amber
+  const tBarW=Math.min(W*0.5,180),tBarH=5*SCALE,tBarX=(W-tBarW)/2,tBarY=barY+10;
+  // Track bg
+  ctx.fillStyle='rgba(30,15,45,0.35)';
+  ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW,tBarH,tBarH/2);ctx.fill();
+  // Filled portion
+  if(timerRatio>0){
+    const pulse=urgent?(0.85+Math.sin(t*8)*0.15):1;
+    const r=urgent?220:warning?200:120,g=urgent?40:warning?140:200,b=urgent?40:warning?60:255;
+    const tg=ctx.createLinearGradient(tBarX,tBarY,tBarX+tBarW*timerRatio,tBarY);
+    tg.addColorStop(0,`rgba(${r},${g},${b},${0.55*pulse})`);
+    tg.addColorStop(1,`rgba(${r},${g},${b},${0.85*pulse})`);
+    ctx.fillStyle=tg;
+    ctx.beginPath();roundRect(ctx,tBarX,tBarY,tBarW*timerRatio,tBarH,tBarH/2);ctx.fill();
+    // Glow on urgent
+    if(urgent){
+      ctx.save();
+      const glow=ctx.createRadialGradient(tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,0,tBarX+tBarW*timerRatio*0.5,tBarY+tBarH/2,tBarH*4);
+      glow.addColorStop(0,`rgba(220,40,40,${0.18*pulse})`);glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glow;ctx.fillRect(tBarX,tBarY-tBarH*3,tBarW,tBarH*8);
+      ctx.restore();
+    }
+  }
+  // Seconds label
+  const secs=Math.ceil(levelTimer);
+  const secColor=urgent?`rgba(255,100,100,${0.9+Math.sin(t*8)*0.1})`:warning?'rgba(220,180,80,0.85)':'rgba(150,190,240,0.70)';
+  ctx.fillStyle=secColor;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.font=`bold ${10*SCALE}px Georgia,serif`;
+  ctx.fillText(`${secs}s`,W/2,tBarY+tBarH+3);
 }
 
 // ============================================================
@@ -1257,6 +1309,7 @@ function transitionTo(ns){
       levelIntroTimer=0;introSfxFired=false;
       const cfg=getLevelConfig(level);initContainers(cfg.numContainers);
       activeOrb=null;landingOrb=null;trailingOrbs=[];orbsMatched=0;orbsMissed=0;streak=0;bestStreak=0;score=0;orbSpawnCount=0;
+      levelTimerMax=cfg.timeLimit;levelTimer=cfg.timeLimit;
       initMist();initBgParticles();
     }else if(ns===STATE.PLAYING){
       spawnTimer=0;
@@ -1328,7 +1381,13 @@ function gameLoop(timestamp){
   for(const c of containers){c.pulsePhase+=dt*2;if(c.glowIntensity>0)c.glowIntensity=Math.max(0,c.glowIntensity-dt*1.8);if(c.wrongPulse>0)c.wrongPulse=Math.max(0,c.wrongPulse-dt*3);if(c.shakeDecay>0){c.shakeDecay-=dt*5;c.shakeX=Math.sin(c.shakeDecay*30)*c.shakeX*0.9;if(c.shakeDecay<=0)c.shakeX=0}if(c.completePulse>0)c.completePulse-=dt*1.5;updateContainerBubbles(c,dt);updateEnergyArcs(c,dt)}
   if(state===STATE.TITLE)titleTime+=dt;
   if(state===STATE.LEVEL_INTRO){levelIntroTimer+=dt;if(levelIntroTimer>=2.2){state=STATE.PLAYING;spawnTimer=0;currentSpawnDelay=getSpawnDelay()}}
-  if(state===STATE.PLAYING){updateOrb(dt);updateLandingOrb(dt);updateTrailingOrbs(dt);if(!activeOrb&&!landingOrb&&!trailingOrbs.length&&containers.some(c=>!c.full)){spawnTimer+=dt*1000;if(spawnTimer>=currentSpawnDelay){spawnOrb();spawnTimer=0;currentSpawnDelay=getSpawnDelay()}}}
+  if(state===STATE.PLAYING){
+    updateOrb(dt);updateLandingOrb(dt);updateTrailingOrbs(dt);
+    if(!activeOrb&&!landingOrb&&!trailingOrbs.length&&containers.some(c=>!c.full)){spawnTimer+=dt*1000;if(spawnTimer>=currentSpawnDelay){spawnOrb();spawnTimer=0;currentSpawnDelay=getSpawnDelay();}}
+    // Countdown timer — fail level when it hits 0
+    if(levelTimer>0){levelTimer=Math.max(0,levelTimer-dt);if(levelTimer<=0){levelTimer=0;activeOrb=null;landingOrb=null;trailingOrbs=[];state=STATE.COMPLETING;completionTimer=0;completionBurstDone=false;shakeTimer=0.6;shakeIntensity=8;screenFlashAlpha=0.6;}}
+  }
+  if(damageFlashTimer>0)damageFlashTimer=Math.max(0,damageFlashTimer-dt);
   if(state===STATE.COMPLETING)updateCompletion(dt);
   if(state===STATE.LEVEL_COMPLETE)starAnimTimer+=dt;
 
@@ -1348,6 +1407,14 @@ function gameLoop(timestamp){
   // Post-processing
   if(wrongFlashTimer>0){const wa=wrongFlashTimer*0.16;ctx.fillStyle=`rgba(110,18,35,${wa*0.5})`;ctx.fillRect(0,0,W,H);const fR=110+(1-wrongFlashTimer/0.5)*50;const lf=ctx.createRadialGradient(wrongFlashX,wrongFlashY,0,wrongFlashX,wrongFlashY,fR);lf.addColorStop(0,`rgba(160,25,50,${wa*0.4})`);lf.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=lf;ctx.fillRect(wrongFlashX-fR,wrongFlashY-fR,fR*2,fR*2)}
   if(screenFlashAlpha>0){ctx.fillStyle=`rgba(180,140,230,${screenFlashAlpha*0.25})`;ctx.fillRect(0,0,W,H)}
+  // Damage vignette — deep red pulse on wrong match drain
+  if(damageFlashTimer>0){
+    const da=damageFlashTimer/0.55;
+    const dv=ctx.createRadialGradient(W/2,H/2,H*0.1,W/2,H/2,H*0.75);
+    dv.addColorStop(0,'rgba(0,0,0,0)');
+    dv.addColorStop(1,`rgba(180,0,20,${da*0.45})`);
+    ctx.fillStyle=dv;ctx.fillRect(0,0,W,H);
+  }
   if(transitionAlpha>0){ctx.fillStyle=`rgba(2,1,6,${transitionAlpha})`;ctx.fillRect(0,0,W,H)}
   requestAnimationFrame(gameLoop);
 }
