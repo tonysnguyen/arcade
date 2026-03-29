@@ -21,7 +21,7 @@ canvas{display:block;width:100%;height:100%;position:absolute;top:0;left:0}
 <canvas id="gc"></canvas>
 <!-- Arcade return badge — top-left on all screens -->
 <a id="arcadeBadge" href="https://www.tonysnguyen.com/arcade"
-   style="position:fixed;top:12px;left:12px;width:36px;height:36px;background:#1a6ef5;border-radius:8px;display:flex;align-items:center;justify-content:center;z-index:200;text-decoration:none;transition:opacity 0.15s,transform 0.15s;-webkit-tap-highlight-color:transparent"
+   style="position:fixed;top:10px;left:10px;width:34px;height:34px;background:#1a6ef5;border-radius:8px;display:flex;align-items:center;justify-content:center;z-index:200;text-decoration:none;transition:opacity 0.15s,transform 0.15s;-webkit-tap-highlight-color:transparent"
    ontouchstart="this.style.transform='scale(0.9)';this.style.opacity='0.7'"
    ontouchend="this.style.transform='scale(1)';this.style.opacity='1'"
    onmousedown="this.style.transform='scale(0.9)';this.style.opacity='0.7'"
@@ -106,15 +106,17 @@ const STATE={TITLE:0,LEVEL_INTRO:1,PLAYING:2,LEVEL_COMPLETE:3,COMPLETING:4};
 // ============================================================
 //  FIREBASE SETUP
 // ============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
-  authDomain: "tony-arcade.firebaseapp.com",
-  projectId: "tony-arcade",
-  storageBucket: "tony-arcade.firebasestorage.app",
-  messagingSenderId: "88041829355",
-  appId: "1:88041829355:web:56d7048e7c842d14e99fae",
-  measurementId: "G-RVYF35QB7W"
+const firebaseConfig={
+  // ⚠️ Fill in your Firebase project config:
+  apiKey:"YOUR_API_KEY",
+  authDomain:"YOUR_PROJECT.firebaseapp.com",
+  projectId:"YOUR_PROJECT_ID",
 };
+let db=null;
+try{
+  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+  db=firebase.firestore();
+}catch(e){console.warn('Firebase init failed:',e);}
 
 // ============================================================
 //  LEADERBOARD  (Firebase Firestore — leaderboard_orb_shift)
@@ -808,12 +810,13 @@ function spawnOrb(){
   const cfg=getLevelConfig(level);orbSpawnCount++;
   const orbRadius=Math.min(20,containers[0].w*0.30);
   activeOrb={x:laneXs[sl],y:H*0.08,laneIdx:sl,colorIdx:tgt.colorIdx,radius:orbRadius,speed:cfg.baseSpeed,targetX:laneXs[sl],trail:[],glowPhase:Math.random()*Math.PI*2,velocityX:0,stretchX:1,stretchY:1,leanAngle:0,snapTimer:0,snapDir:0,magicTrailTimer:0};
-  // Spawn trailing orbs staggered above the active orb
+  // Spawn trailing orbs staggered above — each has its own independent lane
   trailingOrbs=[];
   for(let ti=0;ti<cfg.trailCount;ti++){
     const tavail=containers.filter(c=>!c.full);
     if(!tavail.length)break;
     const ttgt=tavail[Math.floor(Math.random()*tavail.length)];
+    // Start each trailer centered, player will steer it when it promotes to active
     trailingOrbs.push({
       x:laneXs[sl],y:H*0.08-(ti+1)*cfg.trailGap,
       laneIdx:sl,colorIdx:ttgt.colorIdx,
@@ -822,8 +825,9 @@ function spawnOrb(){
       glowPhase:Math.random()*Math.PI*2,
       velocityX:0,stretchX:1,stretchY:1,leanAngle:0,
       snapTimer:0,magicTrailTimer:0,
-      // Each trailer follows the orb above it with a minimum gap
-      followGap:cfg.trailGap
+      followGap:cfg.trailGap,
+      // Independent — does NOT mirror the lead orb's lane
+      independent:true
     });
   }
   Audio.sfxOrbSpawn();
@@ -858,53 +862,58 @@ function updateLandingOrb(dt){if(!landingOrb)return;landingOrb.timer+=dt;landing
 
 function updateTrailingOrbs(dt){
   if(!trailingOrbs.length)return;
-  // Each trailing orb follows the one ahead of it, maintaining a minimum gap
-  const leaders=[activeOrb,...trailingOrbs];
+  // Promote first trailer to active as soon as activeOrb is gone
+  if(!activeOrb&&!landingOrb){
+    activeOrb=trailingOrbs.shift();
+    if(activeOrb)Audio.sfxOrbSpawn&&Audio.sfxOrbSpawn();
+    return;
+  }
+  // Each trailer falls independently, only capped by the gap to the orb directly ahead
+  const aheadList=[activeOrb,...trailingOrbs];
   for(let ti=0;ti<trailingOrbs.length;ti++){
     const o=trailingOrbs[ti];
-    const ahead=leaders[ti]; // the orb directly in front
-    if(!ahead){trailingOrbs.splice(ti);break;}
-    // Match lane of the active (lead) orb — trailers follow the leader's lane
-    o.laneIdx=leaders[0]?leaders[0].laneIdx:o.laneIdx;
-    o.targetX=containers[o.laneIdx]?containers[o.laneIdx].x:o.targetX;
+    const ahead=aheadList[ti]; // orb directly in front of this trailer
+    // Trailers keep their own lane — do NOT mirror active orb
     const dx=o.targetX-o.x;
     o.velocityX=o.velocityX*0.68+dx*0.30;
     o.x+=o.velocityX;
     const vN=Math.abs(o.velocityX)/15;
     o.stretchX=1+vN*0.35;o.stretchY=1-vN*0.15;o.leanAngle=o.velocityX*0.015;
     if(o.snapTimer>0)o.snapTimer-=dt*4;
-    // Move down, but never closer than followGap to the orb ahead
-    const maxY=ahead?ahead.y-o.followGap:o.y;
-    const newY=o.y+o.speed*dt*60;
-    o.y=Math.min(newY,maxY);
+    // Fall, but maintain minimum gap to the orb ahead
+    const maxY=ahead?(ahead.y-o.followGap):o.y;
+    o.y=Math.min(o.y+o.speed*dt*60,maxY);
     o.glowPhase+=dt*4.5;
-    // Trail FX (reuse activeOrb trail logic)
     spawnOrbTrailFX(o);
     o.magicTrailTimer+=dt;
     if(o.magicTrailTimer>0.03){o.trail.push({x:o.x,y:o.y,life:1,vx:o.velocityX*0.15});o.magicTrailTimer=0;}
     if(o.trail.length>14)o.trail.shift();
     for(const tr of o.trail){tr.life-=dt*2.8;tr.x+=(tr.vx||0)*dt*20;tr.vx=(tr.vx||0)*0.95;}
-    // When active orb resolves (activeOrb becomes null), promote first trailer
-    if(!activeOrb&&ti===0){
-      activeOrb=trailingOrbs.shift();
-      // Reset the new active orb's gap tracking
-      break;
-    }
   }
 }
 function drawTrailingOrbs(t){
-  for(const o of trailingOrbs){
+  for(let ti=0;ti<trailingOrbs.length;ti++){
+    const o=trailingOrbs[ti];
     const col=ORB_COLORS[o.colorIdx];
     const occ=getOrbOcclusion(o.x,o.y),dim=1-occ;
     for(const tr of o.trail){if(tr.life<=0)continue;ctx.globalAlpha=tr.life*0.22*dim;const trR=o.radius*0.45*tr.life;const tg=ctx.createRadialGradient(tr.x,tr.y,0,tr.x,tr.y,trR);tg.addColorStop(0,col.h);tg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=tg;ctx.beginPath();ctx.arc(tr.x,tr.y,trR,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
     ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.leanAngle);ctx.scale(o.stretchX,o.stretchY);
-    // Slightly dimmed vs active orb — 80% glow
+    // Slightly dimmed vs active orb
     const gS=o.radius*2.6,gA=0.18*dim;
     const og=ctx.createRadialGradient(0,0,o.radius*0.5,0,0,gS);og.addColorStop(0,`rgba(${col.r[0]},${col.r[1]},${col.r[2]},${gA})`);og.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=og;ctx.fillRect(-gS,-gS,gS*2,gS*2);
     ctx.globalAlpha=0.78*dim;
     const ig=ctx.createRadialGradient(-o.radius*0.2,-o.radius*0.25,0,0,0,o.radius);ig.addColorStop(0,'#fff');ig.addColorStop(0.25,col.h);ig.addColorStop(0.7,col.g);ig.addColorStop(1,`rgba(${col.rg[0]},${col.rg[1]},${col.rg[2]},0.7)`);ctx.fillStyle=ig;ctx.beginPath();ctx.arc(0,0,o.radius,0,Math.PI*2);ctx.fill();
     ctx.globalAlpha=0.45*dim;const sp=ctx.createRadialGradient(-o.radius*0.25,-o.radius*0.3,0,-o.radius*0.2,-o.radius*0.25,o.radius*0.3);sp.addColorStop(0,'rgba(255,255,255,0.7)');sp.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=sp;ctx.beginPath();ctx.arc(-o.radius*0.25,-o.radius*0.3,o.radius*0.28,0,Math.PI*2);ctx.fill();
     ctx.globalAlpha=1;ctx.restore();
+    // "NEXT" label above first trailer so player knows it's coming
+    if(ti===0){
+      ctx.save();ctx.globalAlpha=0.55*dim;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle=col.h;ctx.font=`bold ${8*SCALE}px Georgia,serif`;
+      ctx.shadowColor=col.h;ctx.shadowBlur=6;
+      ctx.fillText('NEXT',o.x,o.y-o.radius*1.8);
+      ctx.shadowBlur=0;ctx.restore();
+    }
   }
 }
 
@@ -959,8 +968,8 @@ function drawLaneGuides(t){for(let i=0;i<containers.length;i++){const c=containe
 // HUD
 function drawHUD(t){
   const w=getWorld(level);
-  ctx.fillStyle='rgba(210,198,245,0.88)';ctx.textAlign='left';ctx.textBaseline='top';ctx.font=`bold ${14*SCALE}px Georgia,serif`;ctx.fillText(`LEVEL ${level}`,14,14);
-  ctx.textAlign='right';ctx.fillText(`${score}`,W-14,14);
+  ctx.fillStyle='rgba(210,198,245,0.88)';ctx.textAlign='left';ctx.textBaseline='top';ctx.font=`bold ${14*SCALE}px Georgia,serif`;ctx.fillText(`LEVEL ${level}`,58,14);
+  ctx.textAlign='right';ctx.fillText(`${score}`,W-54,14);
   ctx.textAlign='center';ctx.fillStyle='rgba(175,158,220,0.65)';ctx.font=`${11*SCALE}px Georgia,serif`;ctx.fillText(w.name,W/2,32);
   if(streak>=2){const sa=0.75+Math.sin(t*4)*0.18;ctx.fillStyle=`rgba(255,218,110,${sa})`;ctx.font=`bold ${15*SCALE}px Georgia,serif`;ctx.fillText(`${streak}×`,W/2,14)}
   const barY=42,barW=Math.min(W*0.5,180),barH=2.5,barX=(W-barW)/2;
@@ -991,23 +1000,23 @@ function drawTitleScreen(t){
   // Outer pulse ring — green
   const ringR=tapP*0.5+0.5;
   ctx.globalAlpha=0.12*ringR;
-  ctx.strokeStyle='rgba(80,200,120,1)';ctx.lineWidth=2*SCALE;
+  ctx.strokeStyle='rgba(80,160,255,1)';ctx.lineWidth=2*SCALE;
   ctx.beginPath();roundRect(ctx,W/2-btnW/2-6*SCALE,tapY-btnH/2-6*SCALE,btnW+12*SCALE,btnH+12*SCALE,12);ctx.stroke();
   ctx.globalAlpha=1;
   // Glow backdrop — green
   const bg=ctx.createRadialGradient(W/2,tapY,0,W/2,tapY,btnW*0.7);
-  bg.addColorStop(0,'rgba(30,90,50,0.22)');bg.addColorStop(1,'rgba(0,0,0,0)');
+  bg.addColorStop(0,'rgba(20,50,120,0.22)');bg.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=bg;ctx.fillRect(W/2-btnW,tapY-btnH,btnW*2,btnH*2);
   // Filled body — muted forest green
   const bf=ctx.createLinearGradient(W/2,tapY-btnH/2,W/2,tapY+btnH/2);
-  bf.addColorStop(0,'rgba(38,100,60,0.82)');bf.addColorStop(1,'rgba(22,68,40,0.90)');
+  bf.addColorStop(0,'rgba(28,70,160,0.75)');bf.addColorStop(1,'rgba(16,45,120,0.88)');
   ctx.fillStyle=bf;ctx.beginPath();roundRect(ctx,W/2-btnW/2,tapY-btnH/2,btnW,btnH,9);ctx.fill();
   // Border — sage green
-  ctx.strokeStyle=`rgba(90,185,120,${0.5+Math.sin(t*2.2)*0.18})`;ctx.lineWidth=1.5;
+  ctx.strokeStyle=`rgba(80,150,255,${0.45+Math.sin(t*2.2)*0.18})`;ctx.lineWidth=1.5;
   ctx.beginPath();roundRect(ctx,W/2-btnW/2,tapY-btnH/2,btnW,btnH,9);ctx.stroke();
   // Label
-  ctx.shadowColor='rgba(80,200,110,0.5)';ctx.shadowBlur=10*SCALE;
-  ctx.fillStyle=`rgba(220,245,228,${tapA})`;ctx.font=`bold ${15*SCALE}px Georgia,serif`;
+  ctx.shadowColor='rgba(80,160,255,0.45)';ctx.shadowBlur=10*SCALE;
+  ctx.fillStyle=`rgba(215,230,255,${tapA})`;ctx.font=`bold ${15*SCALE}px Georgia,serif`;
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Tap to Begin',W/2,tapY);
   ctx.shadowBlur=0;ctx.restore();
   ctx.fillStyle='rgba(140,125,178,0.52)';ctx.font=`${11*SCALE}px Georgia,serif`;ctx.fillText('Swipe  ·  Arrow Keys  ·  A / D',W/2,H*0.80);
@@ -1133,7 +1142,7 @@ function drawLeaderboardPanel(t,pX,pY,pW,pH,panelA){
     // Row highlight for player's own entry
     if(isPlayer){
       ctx.globalAlpha=panelA*0.15;
-      ctx.fillStyle='rgba(80,200,120,1)';
+      ctx.fillStyle='rgba(80,160,255,1)';
       ctx.fillRect(lbX+4,ry-10*SCALE,lbW-8,rowH*0.85);
       ctx.globalAlpha=panelA*0.92;
     }
@@ -1162,7 +1171,7 @@ function drawNameEntry(t,pX,pY,pW,pH,panelA){
   const entX=pX,entY=pY+pH+12,entW=pW;
   ctx.save();ctx.globalAlpha=panelA;
   ctx.fillStyle='rgba(8,4,18,0.92)';ctx.beginPath();roundRect(ctx,entX,entY,entW,entH,10);ctx.fill();
-  const borderCol=hasError?`rgba(220,80,80,${0.55+Math.sin(t*4)*0.15})`:`rgba(80,200,120,${0.35+Math.sin(t*2.5)*0.12})`;
+  const borderCol=hasError?`rgba(220,80,80,${0.55+Math.sin(t*4)*0.15})`:`rgba(80,160,255,${0.32+Math.sin(t*2.5)*0.12})`;
   ctx.strokeStyle=borderCol;ctx.lineWidth=1.2;
   ctx.beginPath();roundRect(ctx,entX,entY,entW,entH,10);ctx.stroke();
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -1171,10 +1180,10 @@ function drawNameEntry(t,pX,pY,pW,pH,panelA){
   // Input field
   const fX=entX+entW*0.1,fW=entW*0.8,fY=entY+34*SCALE,fH=18*SCALE;
   ctx.fillStyle='rgba(20,12,38,0.85)';ctx.beginPath();roundRect(ctx,fX,fY-fH/2,fW,fH,5);ctx.fill();
-  ctx.strokeStyle=hasError?'rgba(220,80,80,0.6)':'rgba(90,185,120,0.55)';
+  ctx.strokeStyle=hasError?'rgba(220,80,80,0.6)':'rgba(80,150,255,0.50)';
   ctx.lineWidth=1;ctx.beginPath();roundRect(ctx,fX,fY-fH/2,fW,fH,5);ctx.stroke();
   const displayText=LB.inputValue+(Math.floor(t*2)%2===0?'|':'');
-  ctx.fillStyle='rgba(220,245,228,0.95)';ctx.font=`bold ${11*SCALE}px Georgia,serif`;
+  ctx.fillStyle='rgba(215,230,255,0.95)';ctx.font=`bold ${11*SCALE}px Georgia,serif`;
   ctx.fillText(displayText,fX+fW/2,fY);
   // Inline error
   if(hasError){
@@ -1341,23 +1350,23 @@ function drawLevelComplete(t){
     // Outer pulse ring — soft green
     const pr=0.5+Math.sin(t*2.4)*0.5;
     ctx.globalAlpha=panelA*btnA*0.12*pr;
-    ctx.strokeStyle='rgba(80,200,120,1)';ctx.lineWidth=2*SCALE;
+    ctx.strokeStyle='rgba(80,160,255,1)';ctx.lineWidth=2*SCALE;
     ctx.beginPath();roundRect(ctx,W/2-btnW/2-5*SCALE,btnY-btnH/2-5*SCALE,btnW+10*SCALE,btnH+10*SCALE,11);ctx.stroke();
     ctx.globalAlpha=panelA*btnA;
     // Glow backdrop — green tint
     const cg=ctx.createRadialGradient(W/2,btnY,0,W/2,btnY,btnW*0.65);
-    cg.addColorStop(0,'rgba(30,90,50,0.22)');cg.addColorStop(1,'rgba(0,0,0,0)');
+    cg.addColorStop(0,'rgba(20,50,120,0.22)');cg.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle=cg;ctx.fillRect(W/2-btnW,btnY-btnH,btnW*2,btnH*2);
     // Filled body — muted forest green
     const bf=ctx.createLinearGradient(W/2,btnY-btnH/2,W/2,btnY+btnH/2);
-    bf.addColorStop(0,'rgba(38,100,60,0.82)');bf.addColorStop(1,'rgba(22,68,40,0.90)');
+    bf.addColorStop(0,'rgba(28,70,160,0.75)');bf.addColorStop(1,'rgba(16,45,120,0.88)');
     ctx.fillStyle=bf;ctx.beginPath();roundRect(ctx,W/2-btnW/2,btnY-btnH/2,btnW,btnH,8);ctx.fill();
     // Border — sage green
-    ctx.strokeStyle=`rgba(90,185,120,${0.5+Math.sin(t*2.4)*0.18})`;ctx.lineWidth=1.5;
+    ctx.strokeStyle=`rgba(80,150,255,${0.45+Math.sin(t*2.4)*0.18})`;ctx.lineWidth=1.5;
     ctx.beginPath();roundRect(ctx,W/2-btnW/2,btnY-btnH/2,btnW,btnH,8);ctx.stroke();
     // Label — warm white with green glow
-    ctx.shadowColor='rgba(80,200,110,0.5)';ctx.shadowBlur=8*SCALE;
-    ctx.fillStyle='rgba(220,245,228,0.95)';ctx.font=`bold ${14*SCALE}px Georgia,serif`;
+    ctx.shadowColor='rgba(80,160,255,0.45)';ctx.shadowBlur=8*SCALE;
+    ctx.fillStyle='rgba(215,230,255,0.95)';ctx.font=`bold ${14*SCALE}px Georgia,serif`;
     ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Continue',W/2,btnY);
     ctx.shadowBlur=0;ctx.restore();
   }
