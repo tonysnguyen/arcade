@@ -148,11 +148,11 @@ let damageFlashTimer=0;  // full-screen damage overlay
 function getLevelConfig(lvl){
   const numContainers=lvl<=2?2:lvl<=4?3:lvl<=7?4:5;
   const fillTarget=Math.min(3+Math.floor((lvl-1)/2),8);
-  // Base speed tied to container tier, not raw level — ramps gently within each tier
-  const tierSpeeds={2:6.2,3:7.0,4:8.0,5:9.2};
+  // Base speed tied to container tier — deliberately gentle, ramps on repeat wins
+  const tierSpeeds={2:4.5,3:5.2,4:6.0,5:7.0};
   const tierWins=containerTierWins[numContainers]||0;
-  const tierBoost=Math.min(tierWins*0.35,1.4); // up to +1.4 after 4 wins in tier
-  const baseSpeed=(tierSpeeds[numContainers]||6.2)+tierBoost;
+  const tierBoost=Math.min(tierWins*0.28,1.1); // up to +1.1 after 4 wins in tier
+  const baseSpeed=(tierSpeeds[numContainers]||4.5)+tierBoost;
   const baseDelay=lvl<=3?Math.max(800-lvl*50,550):Math.max(650-(lvl-3)*55,220);
   // Trailing orbs: 0 until L5, 1 from L5, 2 from L9
   const trailCount=lvl>=9?2:lvl>=5?1:0;
@@ -750,16 +750,22 @@ function spawnOrb(){
   const laneXs=containers.map(c=>c.x);const sl=Math.floor(containers.length/2);
   const cfg=getLevelConfig(level);orbSpawnCount++;
   const orbRadius=Math.min(20,containers[0].w*0.30);
-  activeOrb={x:laneXs[sl],y:H*0.08,laneIdx:sl,colorIdx:tgt.colorIdx,radius:orbRadius,speed:cfg.baseSpeed,targetX:laneXs[sl],trail:[],glowPhase:Math.random()*Math.PI*2,velocityX:0,stretchX:1,stretchY:1,leanAngle:0,snapTimer:0,snapDir:0,magicTrailTimer:0};
-  // Spawn trailing orbs staggered above — each has its own independent lane
+  // Each orb gets a unique random Y above screen so they enter at different depths
+  const margin=orbRadius*2;
+  const spawnY=-(H*0.15+Math.random()*H*0.25); // random between -15% and -40% screen
+  const spawnX=margin+Math.random()*(W-margin*2);
+  activeOrb={x:spawnX,y:spawnY,laneIdx:sl,colorIdx:tgt.colorIdx,radius:orbRadius,speed:cfg.baseSpeed,targetX:laneXs[sl],trail:[],glowPhase:Math.random()*Math.PI*2,velocityX:0,stretchX:1,stretchY:1,leanAngle:0,snapTimer:0,snapDir:0,magicTrailTimer:0};
+  // Spawn trailing orbs also at random horizontal positions above
   trailingOrbs=[];
   for(let ti=0;ti<cfg.trailCount;ti++){
     const tavail=containers.filter(c=>!c.full);
     if(!tavail.length)break;
     const ttgt=tavail[Math.floor(Math.random()*tavail.length)];
-    // Start each trailer centered, player will steer it when it promotes to active
+    const trailSpawnX=margin+Math.random()*(W-margin*2);
+    // Each trailer gets its own random entry depth above screen
+    const trailSpawnY=-(H*0.15+Math.random()*H*0.25)-(ti+1)*cfg.trailGap;
     trailingOrbs.push({
-      x:laneXs[sl],y:H*0.08-(ti+1)*cfg.trailGap,
+      x:trailSpawnX,y:trailSpawnY,
       laneIdx:sl,colorIdx:ttgt.colorIdx,
       radius:orbRadius,speed:cfg.baseSpeed,
       targetX:laneXs[sl],trail:[],
