@@ -1229,7 +1229,7 @@ function handleReactionTap(cx,cy){
 }
 
 // Track which star sounds have been triggered
-let starSfxFired=[false,false,false];
+let starSfxFired=[false,false,false,false]; // [0,1,2]=individual stars, [3]=super merge
 let _replayBtnRect=null,_contBtnRect=null; // end screen button rects
 
 function drawLevelComplete(t){
@@ -1265,32 +1265,87 @@ function drawLevelComplete(t){
   ctx.fillStyle='rgba(175,155,215,0.68)';ctx.font=`italic ${12*SCALE}px Georgia,serif`;
   ctx.fillText(getWorld(level).name,W/2,pY+pH*0.17);
 
-  // Stars — slow liquid fill, elastic pop, idle breathe
-  const starY=pY+pH*0.35,starSp=62*SCALE;
-  for(let i=0;i<3;i++){
-    const sx=W/2+(i-1)*starSp,earned=i<stars;
-    const delay=0.35+i*0.38;
-    const raw=Math.max(0,(starAnimTimer-delay));
-    const fillDur=0.75;
-    const fillAmt=earned?Math.min(raw/fillDur,1):0;
-    const popRaw=Math.max(0,raw-fillDur);
-    const popBounce=earned&&fillAmt>=1?easeOutElastic(Math.min(popRaw*2.5,1))*0.22:0;
-    const idlePulse=earned&&popRaw>0.3?Math.sin(t*2.2+i*1.1)*0.04:0;
-    const sz=23*SCALE*(1+popBounce+idlePulse);
-    drawFillingStarAt(sx,starY,sz,fillAmt,t);
-    // Fire star fill sound once per star
-    if(earned&&raw>0&&!starSfxFired[i]){starSfxFired[i]=true;Audio.sfxStarFill(i);}
+  const isPerfectBurst=perfect&&stars===3;
+  // Perfect burst: star sits higher so super star doesn't crowd score text
+  const starY=pY+pH*(isPerfectBurst?0.33:0.35),starSp=62*SCALE;
+  // Timing constants
+  const fillEnd=0.35+2*0.38+0.75;   // ~1.86s — last star finishes
+  const mergeStart=fillEnd;
+  const mergeDur=0.55;               // stars fly to centre
+  const burstStart=mergeStart+mergeDur; // ~2.41s
+  const burstDur=0.35;               // burst flash
+  const superStart=burstStart+burstDur; // ~2.76s
+  const superDur=0.5;                // big star scales in
+
+  const mergeP=isPerfectBurst?easeOutCubic(Math.min(Math.max(0,starAnimTimer-mergeStart)/mergeDur,1)):0;
+  const burstP=isPerfectBurst?Math.min(Math.max(0,starAnimTimer-burstStart)/burstDur,1):0;
+  const superP=isPerfectBurst?easeOutElastic(Math.min(Math.max(0,starAnimTimer-superStart)/superDur,1)):0;
+  const showSuper=isPerfectBurst&&starAnimTimer>=burstStart;
+
+  // Fire merge burst particles once
+  if(isPerfectBurst&&starAnimTimer>=burstStart&&burstP>0&&burstP<0.15){
+    for(let r=0;r<3;r++){
+      spawnParticles(W/2,starY,'#ffc820',14,true,{speedMult:1.4,gravity:0.008,minR:2});
+      spawnParticles(W/2,starY,'#fff8c0',8,true,{speedMult:0.9,gravity:-0.005,minR:1});
+      spawnParticles(W/2,starY,'#ffe066',10,false,{angleBase:-Math.PI/2,angleRange:Math.PI*2,speedMult:1.8,gravity:0.01,drag:0.02,minR:1});
+    }
+    screenFlashAlpha=0.25;
   }
 
-  if(perfect&&starAnimTimer>2.2){
-    const pfA=easeOutCubic(Math.min((starAnimTimer-2.2)*3,1));
-    ctx.globalAlpha=panelA*pfA;
-    ctx.fillStyle='rgba(255,228,110,0.96)';ctx.font=`bold ${15*SCALE}px Georgia,serif`;
-    ctx.fillText(stars===3?'✦ Flawless ✦':'✦ Perfect ✦',W/2,starY+38*SCALE);
-    ctx.globalAlpha=panelA;
+  if(!showSuper){
+    // Phase 1+2: fill normally, then slide toward centre
+    for(let i=0;i<3;i++){
+      const sx=W/2+(i-1)*starSp,earned=i<stars;
+      const delay=0.35+i*0.38;
+      const raw=Math.max(0,(starAnimTimer-delay));
+      const fillDur=0.75;
+      const fillAmt=earned?Math.min(raw/fillDur,1):0;
+      const popRaw=Math.max(0,raw-fillDur);
+      const popBounce=earned&&fillAmt>=1?easeOutElastic(Math.min(popRaw*2.5,1))*0.22:0;
+      const idlePulse=earned&&popRaw>0.3&&!isPerfectBurst?Math.sin(t*2.2+i*1.1)*0.04:0;
+      // During merge phase: slide toward W/2,starY and shrink
+      const drawX=isPerfectBurst?sx+(W/2-sx)*mergeP:sx;
+      const drawY=isPerfectBurst?starY+(starY-starY)*mergeP:starY; // same Y
+      const shrink=isPerfectBurst?1-mergeP*0.6:1;
+      const sz=23*SCALE*(1+popBounce+idlePulse)*shrink;
+      ctx.save();ctx.globalAlpha*=(isPerfectBurst?1-mergeP*0.85:1);
+      drawFillingStarAt(drawX,drawY,sz,fillAmt,t);
+      ctx.restore();
+      if(earned&&raw>0&&!starSfxFired[i]){starSfxFired[i]=true;Audio.sfxStarFill(i);}
+    }
+  }else{
+    // Phase 3+: single super star
+    const idlePulse=Math.sin(t*1.8)*0.04;
+    const superSz=52*SCALE*(superP+idlePulse*superP);
+    // Outer glow
+    ctx.save();
+    const sg=ctx.createRadialGradient(W/2,starY,0,W/2,starY,superSz*2.5);
+    sg.addColorStop(0,`rgba(255,215,60,${0.22*superP+Math.sin(t*2)*0.06})`);
+    sg.addColorStop(0.5,`rgba(255,180,20,${0.08*superP})`);
+    sg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=sg;ctx.fillRect(W/2-superSz*3,starY-superSz*3,superSz*6,superSz*6);
+    ctx.restore();
+    // Draw the big single star (solid gold, fully filled)
+    drawFillingStarAt(W/2,starY,superSz,1,t);
+    // Fire star sound once for the super merge
+    if(!starSfxFired[3]){starSfxFired[3]=true;Audio.sfxVesselFull&&Audio.sfxVesselFull(3);}
   }
 
-  const infoA=easeOutCubic(Math.max(0,Math.min((starAnimTimer-2.0)*2,1)));
+  // Flawless label — appears after super star, or after normal stars for non-perfect
+  if(perfect){
+    const pfDelay=isPerfectBurst?superStart+superDur*0.7:2.2;
+    if(starAnimTimer>pfDelay){
+      const pfA=easeOutCubic(Math.min((starAnimTimer-pfDelay)*3,1));
+      ctx.globalAlpha=panelA*pfA;
+      ctx.fillStyle='rgba(255,228,110,0.96)';ctx.font=`bold ${15*SCALE}px Georgia,serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(stars===3?'✦ Flawless ✦':'✦ Perfect ✦',W/2,starY+(isPerfectBurst?66:38)*SCALE);
+      ctx.globalAlpha=panelA;
+    }
+  }
+
+  const infoDelay=isPerfectBurst?(superStart+superDur+0.3):2.0;
+  const infoA=easeOutCubic(Math.max(0,Math.min((starAnimTimer-infoDelay)*2,1)));
   ctx.globalAlpha=panelA*infoA;
   ctx.fillStyle='rgba(225,215,252,0.94)';ctx.font=`bold ${24*SCALE}px Georgia,serif`;
   ctx.fillText(`${score}`,W/2,pY+pH*0.55);
@@ -1302,7 +1357,8 @@ function drawLevelComplete(t){
   ctx.fillText(`Matched: ${orbsMatched}  ·  Missed: ${orbsMissed}`,W/2,pY+pH*0.74);
   ctx.globalAlpha=panelA;
 
-  const btnA=easeOutCubic(Math.max(0,Math.min((starAnimTimer-2.4)*2,1)));
+  const btnDelay=isPerfectBurst?(superStart+superDur+0.6):2.4;
+  const btnA=easeOutCubic(Math.max(0,Math.min((starAnimTimer-btnDelay)*2,1)));
   if(btnA>0){
     const btnY=pY+pH*0.88,btnH=36*SCALE;
     // Equal margins from panel edges, gap between buttons
