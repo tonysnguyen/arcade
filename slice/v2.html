@@ -1424,25 +1424,23 @@ const BLOCKED_WORDS = [
 // ══════════════════════════════════════════════════════════════
 // FIREBASE SETUP (placeholder — fill in your config below)
 // ══════════════════════════════════════════════════════════════
-/*
-  STEP 1: Add to <head> before this script:
+<!-- Firebase SDK (must be ACTIVE, not commented) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
+  authDomain: "tony-arcade.firebaseapp.com",
+  projectId: "tony-arcade",
+  storageBucket: "tony-arcade.firebasestorage.app",
+  messagingSenderId: "88041829355",
+  appId: "1:88041829355:web:56d7048e7c842d14e99fae"
+};
 
-  STEP 2: Replace the config below with your real project values:
-
-  const firebaseConfig = {
-    apiKey:            "YOUR_API_KEY",
-    authDomain:        "YOUR_PROJECT.firebaseapp.com",
-    projectId:         "YOUR_PROJECT_ID",
-    storageBucket:     "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId:             "YOUR_APP_ID"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+</script>
   STEP 3: Replace the mock functions below with Firebase implementations
           (marked with // 🔥 FIREBASE REPLACE)
 */
