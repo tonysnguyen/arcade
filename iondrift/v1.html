@@ -23,16 +23,21 @@ canvas { display:block; position:fixed; top:0; left:0; touch-action:none; }
 // the Firebase SDK imports and the submit/fetch functions.
 // Collection: leaderboard_ion_drift
 // ──────────────────────────────────────────
-// import { initializeApp } from "https://www.gstatic.com/firebasejs/10.x/firebase-app.js";
-// import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "...firestore.js";
-//
-// const firebaseConfig = {
-//   apiKey: "YOUR_API_KEY",
-//   authDomain: "YOUR_PROJECT.firebaseapp.com",
-//   projectId: "YOUR_PROJECT_ID",
-// };
-// const app = initializeApp(firebaseConfig);
-// const db  = getFirestore(app);
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
+  authDomain: "tony-arcade.firebaseapp.com",
+  projectId: "tony-arcade",
+  storageBucket: "tony-arcade.firebasestorage.app",
+  messagingSenderId: "88041829355",
+  appId: "1:88041829355:web:56d7048e7c842d14e99fae",
+  measurementId: "G-RVYF35QB7W"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const COLLECTION_NAME  = 'leaderboard_ion_drift';
 const LEADERBOARD_SIZE = 10;
