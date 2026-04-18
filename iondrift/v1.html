@@ -2,18 +2,216 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05070A">
 <title>ION DRIFT</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html, body { width:100%; height:100%; background:#05070A; overflow:hidden; touch-action:none; user-select:none; -webkit-user-select:none; }
-canvas { display:block; position:fixed; top:0; left:0; }
+html, body { width:100%; height:100%; background:#05070A; overflow:hidden; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
+canvas { display:block; position:fixed; top:0; left:0; touch-action:none; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <script>
+
+// =============================================
+// FIREBASE / LEADERBOARD SETUP
+// =============================================
+// To enable: paste your Firebase config below, then uncomment
+// the Firebase SDK imports and the submit/fetch functions.
+// Collection: leaderboard_ion_drift
+// ──────────────────────────────────────────
+// import { initializeApp } from "https://www.gstatic.com/firebasejs/10.x/firebase-app.js";
+// import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "...firestore.js";
+//
+// const firebaseConfig = {
+//   apiKey: "YOUR_API_KEY",
+//   authDomain: "YOUR_PROJECT.firebaseapp.com",
+//   projectId: "YOUR_PROJECT_ID",
+// };
+// const app = initializeApp(firebaseConfig);
+// const db  = getFirestore(app);
+
+const COLLECTION_NAME  = 'leaderboard_ion_drift';
+const LEADERBOARD_SIZE = 10;
+const MAX_NAME_LENGTH  = 12;
+let leaderboardEnabled = false; // flip to true once Firebase is wired
+
+async function submitScore(name, score) {
+  if (!leaderboardEnabled) return;
+  try {
+    // await addDoc(collection(db, COLLECTION_NAME), { name, score, ts: Date.now() });
+  } catch(e) { console.warn('Leaderboard submit failed', e); }
+}
+async function fetchTopScores() {
+  if (!leaderboardEnabled) return [];
+  try {
+    // const q = query(collection(db, COLLECTION_NAME), orderBy('score','desc'), limit(LEADERBOARD_SIZE));
+    // const snap = await getDocs(q);
+    // return snap.docs.map(d => d.data());
+  } catch(e) { console.warn('Leaderboard fetch failed', e); return []; }
+}
+function isHighScore(score) {
+  return leaderboardEnabled && score > 0; // replace with real check once live
+}
+
+
+// =============================================
+// LIKE / MEH REACTION SYSTEM
+// =============================================
+// Reactions stored locally; extend saveReaction() to POST to a backend if needed.
+// Keys: ion_drift_reactions_like / ion_drift_reactions_meh
+// Players can react once per session (tracked via sessionReacted flag).
+
+const REACTION_KEY_LIKE = 'ion_drift_reactions_like';
+const REACTION_KEY_MEH  = 'ion_drift_reactions_meh';
+let sessionReacted = false; // prevent spam within one session
+
+function saveReaction(type) {
+  if (sessionReacted) return false;
+  const key = type === 'like' ? REACTION_KEY_LIKE : REACTION_KEY_MEH;
+  localStorage.setItem(key, (+localStorage.getItem(key) || 0) + 1);
+  sessionReacted = true;
+  return true;
+}
+function loadReactions() {
+  return {
+    like: +localStorage.getItem(REACTION_KEY_LIKE) || 0,
+    meh:  +localStorage.getItem(REACTION_KEY_MEH)  || 0,
+  };
+}
+// renderReactionUI() is called inside drawDeadScreen when lives === 0
+// It draws two minimal tap targets: ⚡ and · with glow
+let reactionState = null; // 'like' | 'meh' | null
+function renderReactionUI(cx, baseY) {
+  const btnW = 70, btnH = 36, gap = 16;  // taller for tap comfort
+  const totalW = btnW * 2 + gap;
+  const lx = cx - totalW / 2, rx = lx + btnW + gap;
+
+  // Like button
+  const likeActive = reactionState === 'like';
+  ctx.save();
+  ctx.globalAlpha = likeActive ? 1 : 0.82;  // inactive more visible
+  ctx.strokeStyle = likeActive ? 'rgba(100,200,255,0.90)' : 'rgba(100,160,255,0.52)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(lx, baseY, btnW, btnH, 7); ctx.stroke();
+  if (likeActive) {
+    const bg = ctx.createLinearGradient(lx, baseY, lx+btnW, baseY+btnH);
+    bg.addColorStop(0,'rgba(60,140,255,0.22)'); bg.addColorStop(1,'rgba(30,80,200,0.10)');
+    ctx.fillStyle=bg; ctx.fill();
+  } else {
+    ctx.fillStyle='rgba(30,50,100,0.20)'; ctx.fill();
+  }
+  ctx.font = '500 12px "Courier New",monospace';
+  ctx.fillStyle = likeActive ? '#a8e4ff' : 'rgba(165,208,255,0.72)';
+  ctx.textAlign = 'center';
+  ctx.fillText('⚡  ION', lx + btnW/2, baseY + 22);
+  ctx.restore();
+
+  // Meh button
+  const mehActive = reactionState === 'meh';
+  ctx.save();
+  ctx.globalAlpha = mehActive ? 1 : 0.82;
+  ctx.strokeStyle = mehActive ? 'rgba(180,140,255,0.90)' : 'rgba(140,110,220,0.52)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(rx, baseY, btnW, btnH, 7); ctx.stroke();
+  if (mehActive) {
+    const bg2 = ctx.createLinearGradient(rx, baseY, rx+btnW, baseY+btnH);
+    bg2.addColorStop(0,'rgba(160,80,255,0.18)'); bg2.addColorStop(1,'rgba(80,40,200,0.08)');
+    ctx.fillStyle=bg2; ctx.fill();
+  } else {
+    ctx.fillStyle='rgba(60,30,100,0.18)'; ctx.fill();
+  }
+  ctx.font = '500 12px "Courier New",monospace';
+  ctx.fillStyle = mehActive ? '#c8aeff' : 'rgba(185,165,255,0.68)';
+  ctx.textAlign = 'center';
+  ctx.fillText('·  MEH', rx + btnW/2, baseY + 22);
+  ctx.restore();
+
+  // update hitboxes
+  _reactionZones = { like:{x:lx,y:baseY,w:btnW,h:btnH}, meh:{x:rx,y:baseY,w:btnW,h:btnH} };
+}
+let _reactionZones = null;
+
+function handleReactionTap(px, py) {
+  if (!_reactionZones || sessionReacted) return false;
+  for (const [type, z] of Object.entries(_reactionZones)) {
+    if (px >= z.x && px <= z.x+z.w && py >= z.y && py <= z.y+z.h) {
+      if (saveReaction(type)) { reactionState = type; return true; }
+    }
+  }
+  return false;
+}
+
+
+// ── Double-tap zoom prevention (bulletproof) ──────────────────────
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(e) {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
+// ── Safe area insets (iPhone notch support) ───────────────────────
+const SAFE_TOP  = 20 + (window.safeAreaInsetTop  || 0);
+const SAFE_LEFT = 16 + (window.safeAreaInsetLeft || 0);
+
+// =============================================
+// ARCADE BUTTON — persistent top-left nav
+// =============================================
+// Tapping navigates to the main arcade hub.
+// Drawn in canvas; hitbox checked first in pointer handler.
+const ARCADE_URL = 'https://www.tonysnguyen.com/arcade';
+let arcadeButton = { x: 0, y: 0, w: 0, h: 0 }; // updated each drawArcadeButton call
+
+function drawArcadeButton() {
+  // Square badge — "T" is the hero, clean premium feel
+  const sz = 34, br = 8;
+  const bx = SAFE_LEFT, by = SAFE_TOP;
+  arcadeButton = { x: bx, y: by, w: sz, h: sz };
+
+  ctx.save();
+
+  // subtle badge fill
+  ctx.globalAlpha = 0.78;
+  const bg = ctx.createLinearGradient(bx, by, bx+sz, by+sz);
+  bg.addColorStop(0, 'rgba(25,45,110,0.70)');
+  bg.addColorStop(1, 'rgba(12,25,70,0.50)');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.roundRect(bx, by, sz, sz, br); ctx.fill();
+
+  // ion-blue border — soft outer glow pass then crisp line
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = 'rgba(90,170,255,1)';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.roundRect(bx, by, sz, sz, br); ctx.stroke();
+
+  ctx.globalAlpha = 0.78;
+  ctx.strokeStyle = 'rgba(90,170,255,0.60)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.roundRect(bx, by, sz, sz, br); ctx.stroke();
+
+  // "T" — centered, premium weight
+  ctx.globalAlpha = 0.92;
+  ctx.font = '700 18px "Courier New",monospace';
+  ctx.fillStyle = '#c8e8ff';
+  ctx.shadowColor = 'rgba(90,180,255,0.70)';
+  ctx.shadowBlur = 8;
+  ctx.textAlign = 'center';
+  ctx.fillText('T', bx + sz / 2, by + sz * 0.68);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+function checkArcadeButton(px, py) {
+  const b = arcadeButton;
+  // expand hitbox slightly for comfortable mobile tap
+  return px >= b.x - 4 && px <= b.x + b.w + 4 && py >= b.y - 4 && py <= b.y + b.h + 4;
+}
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
@@ -28,6 +226,7 @@ function resize() {
 resize();
 window.addEventListener('resize', () => { resize(); seedDepthLayers(); seedPlants(); });
 
+
 // ── Audio ──────────────────────────────────────────────────────────
 const AC = new (window.AudioContext || window.webkitAudioContext)();
 function tone(f0, f1, type, gain, dur, delay) {
@@ -41,32 +240,40 @@ function tone(f0, f1, type, gain, dur, delay) {
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.start(t); o.stop(t + dur + 0.01);
 }
-function playTap()   { tone(520, 280, 'sine', 0.18, 0.13, 0); }
-function playDeath() { tone(200, 60, 'sawtooth', 0.15, 0.45, 0); }
-function playScore() { [660,880,1100].forEach((f,i) => tone(f, null, 'sine', 0.10, 0.18, i*0.06)); }
-function playCheckpoint() { [440,660,880,1100,1320].forEach((f,i) => tone(f, null, 'sine', 0.14, 0.22, i*0.055)); }
+function playTap()        { tone(520, 280, 'sine', 0.16, 0.12, 0); }
+function playDeath()      { tone(200, 55, 'sawtooth', 0.14, 0.5, 0); }
+function playScore()      { [660,880,1100].forEach((f,i) => tone(f,null,'sine',0.09,0.16,i*0.055)); }
+function playCheckpoint() { [440,660,880,1100,1320].forEach((f,i) => tone(f,null,'sine',0.13,0.20,i*0.05)); }
+
 
 // ── State ──────────────────────────────────────────────────────────
 const STATE = { START:0, PLAYING:1, DEAD:2, LAUNCHING:3 };
 let state = STATE.START;
-let score = 0, bestScore = +localStorage.getItem('vd_best') || 0;
+let score = 0, bestScore = +localStorage.getItem('ion_best') || 0;
 let fadeAlpha = 1, time = 0, speed = 2.2, difficulty = 0;
 let lives = 3;
 const MAX_LIVES = 3;
-let orbEntryT = 0;
-let orbLaunchT = 0;   // 0→1: orb animates from center to play position
+let orbEntryT    = 0;
+let orbLaunchT   = 0;
 let respawnFreezeT = 0;
 const RESPAWN_FREEZE = 90;
 
-// ── Orb ───────────────────────────────────────────────────────────
+// ── Ion Field State — shared pulsing charge for environment ────────
+// Used by background arcs, orb bloom, and particle attraction
+let ionPulse = 0; // 0→1 oscillating, drives ambient energy fx
+
+
+// =============================================
+// ORB — Charged Ion Core
+// =============================================
 const orb = {
   x:0, y:0, vy:0, gravity:0.38, jumpForce:-7.2, radius:13,
   pulseT:0, squash:1, squashV:0, popT:0,
   init() { this.x=W*0.5; this.y=H*0.3; this.vy=0; this.squash=1; this.squashV=0; this.popT=0; },
   jump() {
     if (state !== STATE.PLAYING) return;
-    this.vy=this.jumpForce; this.squash=0.55; this.squashV=0;
-    spawnBurst(this.x, this.y); playTap();
+    this.vy = this.jumpForce; this.squash = 0.55; this.squashV = 0;
+    spawnIonBurst(this.x, this.y); playTap();
   },
   update() {
     this.pulseT += 0.04;
@@ -74,33 +281,27 @@ const orb = {
       this.vy += this.gravity; this.y += this.vy;
       this.squashV += (1-this.squash)*0.28; this.squashV *= 0.7; this.squash += this.squashV;
     } else if (state === STATE.START) {
-      // settle-bounce: orb drops from above and bounces to rest at center
+      // settle-bounce: drops from above, elastic bounce to rest
       orbEntryT = Math.min(1, orbEntryT + 0.022);
       this.x = W * 0.5;
-      // cubic ease-in drop then elastic bounce
       const t = orbEntryT;
       let offsetY;
       if (t < 0.55) {
-        // fall phase: ease-in from -120px
         const ft = t / 0.55;
         offsetY = -120 * (1 - ft * ft * ft);
       } else {
-        // bounce phase: damped sine
         const bt = (t - 0.55) / 0.45;
         offsetY = -22 * Math.sin(bt * Math.PI * 2.2) * (1 - bt);
       }
       this.y = H * 0.5 + offsetY;
     } else if (state === STATE.LAUNCHING) {
-      // smooth ease from center (W*0.5, H*0.5) to play position (W*0.22, H*0.45)
       orbLaunchT = Math.min(1, orbLaunchT + 0.045);
       const ease = 1 - Math.pow(1 - orbLaunchT, 3);
       this.x = W * (0.5 + (0.22 - 0.5) * ease);
-      this.y = H * (0.5  + (0.45 - 0.5) * ease);
+      this.y = H * (0.5 + (0.45 - 0.5) * ease);
       if (orbLaunchT >= 1) {
-        // arrived — begin gameplay
         state = STATE.PLAYING; fadeAlpha = 1;
-        this.vy = 0;
-        this.jump();
+        this.vy = 0; this.jump();
       }
     } else if (state === STATE.DEAD) {
       this.popT = Math.min(1, this.popT + 0.055);
@@ -108,106 +309,178 @@ const orb = {
   },
   draw() {
     if (state === STATE.DEAD && this.popT > 0) { this.drawPop(); return; }
-    const r = this.radius, pulse = 1 + Math.sin(this.pulseT)*0.08;
+    const r = this.radius;
+    const pulse = 1 + Math.sin(this.pulseT) * 0.09;
+    const chroma = Math.sin(this.pulseT * 0.7) * 0.5; // subtle chromatic shift
     ctx.save(); ctx.translate(this.x, this.y); ctx.scale(1/this.squash, this.squash);
-    // bloom
-    for (let i=4; i>=1; i--) {
-      const gr = ctx.createRadialGradient(0,0,0,0,0,r*(2.5+i*1.8)*pulse);
-      gr.addColorStop(0, `rgba(100,220,255,${[0.04,0.07,0.10,0.14][4-i]})`);
-      gr.addColorStop(1, 'rgba(100,220,255,0)');
-      ctx.beginPath(); ctx.arc(0,0,r*(2.5+i*1.8)*pulse,0,Math.PI*2); ctx.fillStyle=gr; ctx.fill();
+
+    // ── outer ion diffusion field (4 layered bloom rings) ──
+    for (let i = 4; i >= 1; i--) {
+      const gr = ctx.createRadialGradient(0,0,0,0,0, r*(2.8+i*1.9)*pulse);
+      const alphas = [0.03, 0.055, 0.09, 0.13];
+      gr.addColorStop(0, `rgba(${100+i*8},${200+chroma*15},255,${alphas[4-i]})`);
+      gr.addColorStop(1, 'rgba(80,160,255,0)');
+      ctx.beginPath(); ctx.arc(0,0,r*(2.8+i*1.9)*pulse,0,Math.PI*2); ctx.fillStyle=gr; ctx.fill();
     }
-    // mid glow
-    const mg = ctx.createRadialGradient(0,0,0,0,0,r*1.9*pulse);
-    mg.addColorStop(0,'rgba(160,100,255,0.35)'); mg.addColorStop(0.5,'rgba(80,180,255,0.15)'); mg.addColorStop(1,'rgba(80,180,255,0)');
-    ctx.beginPath(); ctx.arc(0,0,r*1.9*pulse,0,Math.PI*2); ctx.fillStyle=mg; ctx.fill();
-    // core
-    const cg = ctx.createRadialGradient(-r*0.25,-r*0.25,0,0,0,r*pulse);
-    cg.addColorStop(0,'#ffffff'); cg.addColorStop(0.3,'#c8f0ff'); cg.addColorStop(0.65,'#5ab8ff'); cg.addColorStop(1,'#2244aa');
+
+    // ── mid energy field ──
+    const mg = ctx.createRadialGradient(0,0,0,0,0,r*2.0*pulse);
+    mg.addColorStop(0,'rgba(140,80,255,0.3)');
+    mg.addColorStop(0.45,'rgba(80,170,255,0.14)');
+    mg.addColorStop(1,'rgba(60,140,255,0)');
+    ctx.beginPath(); ctx.arc(0,0,r*2.0*pulse,0,Math.PI*2); ctx.fillStyle=mg; ctx.fill();
+
+    // ── inner core — hot charged particle ──
+    const cg = ctx.createRadialGradient(-r*0.22,-r*0.22,0,0,0,r*pulse);
+    cg.addColorStop(0,'#ffffff');
+    cg.addColorStop(0.18,'#e8f8ff');
+    cg.addColorStop(0.4,'#c0eeff');
+    cg.addColorStop(0.7,'#5ab8ff');
+    cg.addColorStop(1,'#1a3888');
     ctx.beginPath(); ctx.arc(0,0,r*pulse,0,Math.PI*2); ctx.fillStyle=cg; ctx.fill();
-    // rim
-    ctx.beginPath(); ctx.arc(0,0,r*pulse,0,Math.PI*2); ctx.strokeStyle='rgba(180,240,255,0.6)'; ctx.lineWidth=1.5; ctx.stroke();
-    // specular
-    ctx.beginPath(); ctx.arc(-r*0.28,-r*0.28,r*0.22*pulse,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fill();
+
+    // ── rim — ion boundary ──
+    ctx.beginPath(); ctx.arc(0,0,r*pulse,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(180,240,255,${0.5+ionPulse*0.2})`; ctx.lineWidth=1.5; ctx.stroke();
+
+    // ── chromatic aberration: tiny offset ring ──
+    ctx.beginPath(); ctx.arc(0.8*pulse,0,r*pulse,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,100,200,0.06)'; ctx.lineWidth=1; ctx.stroke();
+
+    // ── specular highlight ──
+    ctx.beginPath(); ctx.arc(-r*0.26,-r*0.26,r*0.2*pulse,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.fill();
+
     ctx.restore();
   },
+
+  // ── Ion burst pop on death ──
   drawPop() {
     const t = this.popT, cx = this.x, cy = this.y, r = this.radius;
     ctx.save();
-    // expanding ring
-    ctx.beginPath(); ctx.arc(cx,cy, r*(1+t*4), 0, Math.PI*2);
-    ctx.strokeStyle=`rgba(160,220,255,${(1-t)*0.7})`; ctx.lineWidth=2.5*(1-t); ctx.stroke();
-    // second ring
-    ctx.beginPath(); ctx.arc(cx,cy, r*(1+t*2.2), 0, Math.PI*2);
-    ctx.strokeStyle=`rgba(100,160,255,${(1-t)*0.4})`; ctx.lineWidth=1.5*(1-t); ctx.stroke();
-    // shards
-    for (let i=0; i<10; i++) {
-      const a=(i/10)*Math.PI*2, dist=r*1.4+t*r*6;
-      const sx=cx+Math.cos(a)*dist, sy=cy+Math.sin(a)*dist;
-      ctx.beginPath(); ctx.arc(sx,sy,(1-t)*3.5,0,Math.PI*2);
-      ctx.fillStyle=`rgba(180,230,255,${(1-t)*0.9})`; ctx.fill();
+    // primary expanding ring
+    ctx.beginPath(); ctx.arc(cx,cy, r*(1+t*4.5), 0, Math.PI*2);
+    ctx.strokeStyle=`rgba(140,210,255,${(1-t)*0.75})`; ctx.lineWidth=2.5*(1-t); ctx.stroke();
+    // secondary slower ring
+    ctx.beginPath(); ctx.arc(cx,cy, r*(1+t*2.5), 0, Math.PI*2);
+    ctx.strokeStyle=`rgba(80,150,255,${(1-t)*0.4})`; ctx.lineWidth=1.5*(1-t); ctx.stroke();
+    // ion shards — radiate outward
+    for (let i=0; i<12; i++) {
+      const a = (i/12)*Math.PI*2 + t*0.5;
+      const dist = r*1.2 + t*r*7;
+      const sx = cx + Math.cos(a)*dist, sy = cy + Math.sin(a)*dist;
+      ctx.beginPath(); ctx.arc(sx,sy,(1-t)*3,0,Math.PI*2);
+      ctx.fillStyle=`rgba(160,220,255,${(1-t)*0.85})`; ctx.fill();
     }
-    // center flash
-    if (t < 0.3) {
-      const fa=(0.3-t)/0.3;
-      const fg=ctx.createRadialGradient(cx,cy,0,cx,cy,r*3.5);
-      fg.addColorStop(0,`rgba(255,255,255,${fa*0.9})`); fg.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.beginPath(); ctx.arc(cx,cy,r*3.5,0,Math.PI*2); ctx.fillStyle=fg; ctx.fill();
+    // center white flash — brief energy release
+    if (t < 0.28) {
+      const fa = (0.28-t)/0.28;
+      const fg = ctx.createRadialGradient(cx,cy,0,cx,cy,r*4);
+      fg.addColorStop(0,`rgba(255,255,255,${fa*0.95})`);
+      fg.addColorStop(0.4,`rgba(160,220,255,${fa*0.4})`);
+      fg.addColorStop(1,'rgba(80,160,255,0)');
+      ctx.beginPath(); ctx.arc(cx,cy,r*4,0,Math.PI*2); ctx.fillStyle=fg; ctx.fill();
     }
     ctx.restore();
   }
 };
 
-// ── Particles ──────────────────────────────────────────────────────
+
+// =============================================
+// ION PARTICLE SYSTEMS
+// =============================================
+
 const particles = [];
-function spawnBurst(x, y) {
-  for (let i=0; i<14; i++) {
-    const a=Math.random()*Math.PI*2, spd=1.5+Math.random()*3.5;
-    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-1.5,life:1,decay:0.04+Math.random()*0.04,r:1.5+Math.random()*3,hue:180+Math.random()*80});
+
+// Orb tap burst — charged ion explosion
+function spawnIonBurst(x, y) {
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 1.2 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(a)*spd, vy: Math.sin(a)*spd - 1.8,
+      life: 1, decay: 0.038 + Math.random() * 0.035,
+      r: 1.2 + Math.random() * 2.8,
+      hue: 190 + Math.random() * 60,
+      // ion particles have slight attraction back toward spawn center
+      cx: x, cy: y, attract: 0.004 + Math.random() * 0.006,
+    });
   }
 }
+
+// Checkpoint gold surge
 function spawnCheckpointFX(x, y) {
-  for (let i=0; i<30; i++) {
-    const a=(i/30)*Math.PI*2, spd=2.5+Math.random()*4;
-    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-1,life:1,decay:0.02+Math.random()*0.018,r:2+Math.random()*3,hue:45+Math.random()*20});
+  for (let i = 0; i < 32; i++) {
+    const a = (i/32)*Math.PI*2, spd = 2.2 + Math.random()*4.5;
+    particles.push({
+      x, y, vx:Math.cos(a)*spd, vy:Math.sin(a)*spd-1.2,
+      life:1, decay:0.018+Math.random()*0.016, r:1.8+Math.random()*3.2,
+      hue:42+Math.random()*22, cx:x, cy:y, attract:0.002,
+    });
   }
-  for (let i=0; i<12; i++) {
-    particles.push({x:x+(Math.random()-0.5)*20,y:y+(Math.random()-0.5)*20,vx:(Math.random()-0.5)*3,vy:-1.5-Math.random()*3,life:1,decay:0.03+Math.random()*0.02,r:1.5+Math.random()*2.5,hue:55+Math.random()*15});
+  for (let i = 0; i < 14; i++) {
+    particles.push({
+      x:x+(Math.random()-0.5)*24, y:y+(Math.random()-0.5)*24,
+      vx:(Math.random()-0.5)*2.5, vy:-1.2-Math.random()*3.5,
+      life:1, decay:0.028+Math.random()*0.018, r:1.2+Math.random()*2.5,
+      hue:52+Math.random()*18, cx:x, cy:y, attract:0.001,
+    });
   }
 }
+
 function updateParticles() {
-  for (let i=particles.length-1; i>=0; i--) {
-    const p=particles[i];
-    p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.vx*=0.97; p.life-=p.decay;
-    if (p.life<=0) particles.splice(i,1);
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    // subtle ion attraction back toward spawn (not strong enough to reverse motion)
+    if (p.attract && p.cx !== undefined) {
+      const dx = p.cx - p.x, dy = p.cy - p.y;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+      p.vx += (dx/dist) * p.attract;
+      p.vy += (dy/dist) * p.attract;
+    }
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.035; p.vx *= 0.968;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
   }
 }
+
 function drawParticles() {
   for (const p of particles) {
-    const a=p.life*0.85;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
-    ctx.fillStyle=`hsla(${p.hue},100%,75%,${a})`; ctx.fill();
-    if (p.life>0.5) {
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*p.life*2.5,0,Math.PI*2);
-      ctx.fillStyle=`hsla(${p.hue},100%,75%,${a*0.12})`; ctx.fill();
+    const a = p.life * 0.88;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r*p.life, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${p.hue},100%,76%,${a})`; ctx.fill();
+    if (p.life > 0.4) {
+      // soft outer glow per particle
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r*p.life*2.8, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue},100%,76%,${a*0.1})`; ctx.fill();
     }
   }
 }
 
-// ── Depth Particles ────────────────────────────────────────────────
+
+// ── Ion Depth Field — background parallax particles ────────────────
+// Two layers: far stars / mid charged motes
+// Particles have slight orbital wobble to feel like ion drift
 const depthLayers = [
-  {particles:[],count:60,speedMult:0.08,rMin:0.3,rMax:0.9,aMin:0.08,aMax:0.22,hMin:210,hMax:260,wobble:0.004},
-  {particles:[],count:30,speedMult:0.28,rMin:0.8,rMax:1.8,aMin:0.10,aMax:0.25,hMin:200,hMax:290,wobble:0.010},
+  { particles:[], count:65, speedMult:0.07, rMin:0.25, rMax:0.85,
+    aMin:0.07, aMax:0.20, hMin:210, hMax:255, wobble:0.003 },
+  { particles:[], count:32, speedMult:0.25, rMin:0.7, rMax:1.7,
+    aMin:0.09, aMax:0.24, hMin:200, hMax:285, wobble:0.009 },
 ];
 function seedDepthLayers() {
   depthLayers.forEach(l => {
     l.particles = [];
-    for (let i=0; i<l.count; i++) l.particles.push({
-      x:Math.random()*W, y:Math.random()*H,
-      r:l.rMin+Math.random()*(l.rMax-l.rMin), phase:Math.random()*Math.PI*2,
-      hue:l.hMin+Math.random()*(l.hMax-l.hMin),
-      ba:l.aMin+Math.random()*(l.aMax-l.aMin),
-      yd:(Math.random()-0.5)*0.12
+    for (let i = 0; i < l.count; i++) l.particles.push({
+      x: Math.random()*W, y: Math.random()*H,
+      r: l.rMin + Math.random()*(l.rMax-l.rMin),
+      phase: Math.random()*Math.PI*2,
+      orbitR: Math.random()*1.2,   // ion orbital wobble radius
+      orbitSpd: (Math.random()-0.5)*0.008,
+      hue: l.hMin + Math.random()*(l.hMax-l.hMin),
+      ba: l.aMin + Math.random()*(l.aMax-l.aMin),
+      yd: (Math.random()-0.5)*0.10,
     });
   });
 }
@@ -215,69 +488,92 @@ function drawDepthLayers() {
   depthLayers.forEach(l => {
     for (const p of l.particles) {
       if (state !== STATE.START) p.x -= l.speedMult*(speed/2.2);
-      p.y += p.yd;
-      if (p.x<-p.r*4) { p.x=W+p.r*4; p.y=Math.random()*H; }
-      if (p.y<-p.r*2) p.y=H+p.r;
-      if (p.y>H+p.r*2) p.y=-p.r;
-      const pulse=0.6+0.4*Math.sin(time*l.wobble*60+p.phase);
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r*pulse,0,Math.PI*2);
-      ctx.fillStyle=`hsla(${p.hue},80%,80%,${p.ba*pulse})`; ctx.fill();
+      // orbital drift — tiny elliptical wobble simulating ion motion
+      p.phase += p.orbitSpd;
+      p.y += p.yd + Math.sin(p.phase)*0.08;
+      if (p.x < -p.r*4) { p.x = W+p.r*4; p.y = Math.random()*H; }
+      if (p.y < -p.r*2) p.y = H+p.r;
+      if (p.y > H+p.r*2) p.y = -p.r;
+      const pulse = 0.55 + 0.45*Math.sin(time*l.wobble*60+p.phase);
+      const a = p.ba * pulse;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r*pulse, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue},85%,82%,${a})`; ctx.fill();
     }
   });
 }
 
-// ── Fog ────────────────────────────────────────────────────────────
-const fogLayers=[{x:0,speed:0.18,alpha:0.045,scale:1.4,y:0.3},{x:300,speed:0.28,alpha:0.035,scale:1.0,y:0.6},{x:700,speed:0.42,alpha:0.025,scale:0.75,y:0.8},{x:100,speed:0.55,alpha:0.02,scale:0.6,y:0.15}];
+
+// ── Ionized Fog — charged atmosphere ──────────────────────────────
+// Slightly more teal/cyan tint vs pure purple to read as ionized
+const fogLayers = [
+  {x:0,   speed:0.16, alpha:0.040, scale:1.5, y:0.30},
+  {x:300, speed:0.26, alpha:0.030, scale:1.05,y:0.62},
+  {x:700, speed:0.40, alpha:0.022, scale:0.80,y:0.82},
+  {x:100, speed:0.52, alpha:0.018, scale:0.65,y:0.16},
+];
 function drawFog() {
   for (const f of fogLayers) {
-    if (state!==STATE.START) f.x-=f.speed;
-    if (f.x<-W*1.5) f.x=W*0.5;
-    const gr=ctx.createRadialGradient(f.x,H*f.y,0,f.x,H*f.y,W*f.scale);
-    gr.addColorStop(0,`rgba(80,60,160,${f.alpha})`); gr.addColorStop(0.4,`rgba(40,30,90,${f.alpha*0.5})`); gr.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+    if (state !== STATE.START) f.x -= f.speed;
+    if (f.x < -W*1.5) f.x = W*0.5;
+    const gr = ctx.createRadialGradient(f.x, H*f.y, 0, f.x, H*f.y, W*f.scale);
+    // ionized: mix of blue-purple rather than pure purple
+    gr.addColorStop(0, `rgba(60,80,180,${f.alpha})`);
+    gr.addColorStop(0.35, `rgba(40,50,130,${f.alpha*0.5})`);
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gr; ctx.fillRect(0,0,W,H);
   }
 }
 
-// ── Giant Plants ───────────────────────────────────────────────────
-const plants=[];
+
+// ── Giant Background Flora (distant ion-world vegetation) ─────────
+const plants = [];
 function seedPlants() {
-  plants.length=0;
-  const types=['fern','mushroom','tendril','bulb'];
-  for (let i=0;i<7;i++) plants.push({x:Math.random()*W*2.5,baseY:H*(0.55+Math.random()*0.35),scale:0.6+Math.random()*1.1,speed:0.15+Math.random()*0.22,alpha:0.04+Math.random()*0.07,hue:200+Math.random()*80,type:types[Math.floor(Math.random()*types.length)],phase:Math.random()*Math.PI*2});
+  plants.length = 0;
+  const types = ['fern','mushroom','tendril','bulb'];
+  for (let i = 0; i < 7; i++) plants.push({
+    x: Math.random()*W*2.5,
+    baseY: H*(0.56+Math.random()*0.34),
+    scale: 0.5+Math.random()*1.1,
+    speed: 0.14+Math.random()*0.20,
+    alpha: 0.035+Math.random()*0.06,
+    hue: 200+Math.random()*80,
+    type: types[Math.floor(Math.random()*types.length)],
+    phase: Math.random()*Math.PI*2,
+  });
 }
-function drawPlantShape(type,scale,alpha,hue,sway) {
-  ctx.fillStyle=`hsla(${hue},40%,25%,${alpha})`;
-  if (type==='fern') {
-    const h=280*scale,sw=90*scale;
+function drawPlantShape(type, scale, alpha, hue, sway) {
+  ctx.fillStyle = `hsla(${hue},38%,22%,${alpha})`;
+  if (type === 'fern') {
+    const h=280*scale, sw=90*scale;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(sway*20,-h*0.5,sway*10,-h);
-    ctx.lineWidth=3*scale; ctx.strokeStyle=`hsla(${hue},40%,25%,${alpha})`; ctx.stroke();
-    for (let f=0;f<6;f++) {
-      const fy=-h*(0.25+f*0.12),fx=sway*10*(fy/-h),dir=f%2===0?1:-1,fl=sw*(1-f*0.1);
+    ctx.lineWidth=3*scale; ctx.strokeStyle=`hsla(${hue},38%,22%,${alpha})`; ctx.stroke();
+    for (let f=0; f<6; f++) {
+      const fy=-h*(0.25+f*0.12), fx=sway*10*(fy/-h), dir=f%2===0?1:-1, fl=sw*(1-f*0.1);
       ctx.beginPath(); ctx.moveTo(fx,fy); ctx.quadraticCurveTo(fx+dir*fl*0.6,fy-20*scale,fx+dir*fl,fy+15*scale);
       ctx.lineWidth=2*scale*(1-f*0.1); ctx.stroke();
     }
-  } else if (type==='mushroom') {
-    const capW=160*scale,capH=90*scale,stalkH=120*scale;
+  } else if (type === 'mushroom') {
+    const capW=160*scale, capH=90*scale, stalkH=120*scale;
     ctx.beginPath(); ctx.roundRect(-18*scale,-stalkH,36*scale,stalkH,6); ctx.fill();
     ctx.beginPath(); ctx.ellipse(sway*8,-stalkH,capW/2,capH/2,0,Math.PI,0); ctx.fill();
     ctx.beginPath(); ctx.ellipse(sway*8,-stalkH,capW/2,capH*0.25,0,0,Math.PI);
-    ctx.fillStyle=`hsla(${hue},30%,18%,${alpha*0.7})`; ctx.fill();
-  } else if (type==='tendril') {
-    for (let t=0;t<4;t++) {
-      const xOff=(t-1.5)*30*scale,len=(180+t*30)*scale,curl=(t%2===0?1:-1)*60*scale;
+    ctx.fillStyle=`hsla(${hue},28%,16%,${alpha*0.7})`; ctx.fill();
+  } else if (type === 'tendril') {
+    for (let t=0; t<4; t++) {
+      const xOff=(t-1.5)*30*scale, len=(180+t*30)*scale, curl=(t%2===0?1:-1)*60*scale;
       ctx.beginPath(); ctx.moveTo(xOff,0);
       ctx.bezierCurveTo(xOff+curl*0.3+sway*15,-len*0.4,xOff+curl+sway*10,-len*0.7,xOff+curl*0.6+sway*5,-len);
-      ctx.lineWidth=(2.5-t*0.4)*scale; ctx.strokeStyle=`hsla(${hue},45%,28%,${alpha})`; ctx.stroke();
+      ctx.lineWidth=(2.5-t*0.4)*scale; ctx.strokeStyle=`hsla(${hue},42%,26%,${alpha})`; ctx.stroke();
       ctx.beginPath(); ctx.arc(xOff+curl*0.6+sway*5,-len,6*scale,0,Math.PI*2);
-      ctx.fillStyle=`hsla(${hue+30},50%,35%,${alpha})`; ctx.fill();
+      ctx.fillStyle=`hsla(${hue+28},48%,32%,${alpha})`; ctx.fill();
     }
   } else {
-    const stalkH=100*scale,bR=55*scale;
+    const stalkH=100*scale, bR=55*scale;
     ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(sway*12,-stalkH);
-    ctx.lineWidth=2.5*scale; ctx.strokeStyle=`hsla(${hue},40%,25%,${alpha})`; ctx.stroke();
+    ctx.lineWidth=2.5*scale; ctx.strokeStyle=`hsla(${hue},38%,22%,${alpha})`; ctx.stroke();
     ctx.beginPath(); ctx.arc(sway*12,-stalkH-bR*0.7,bR,0,Math.PI*2);
-    ctx.fillStyle=`hsla(${hue},35%,22%,${alpha})`; ctx.fill();
-    for (let b=0;b<3;b++) {
+    ctx.fillStyle=`hsla(${hue},32%,20%,${alpha})`; ctx.fill();
+    for (let b=0; b<3; b++) {
       const a2=-Math.PI*0.6+b*(Math.PI*0.6);
       ctx.beginPath(); ctx.arc(sway*12+Math.cos(a2)*bR*0.85,-stalkH-bR*0.7+Math.sin(a2)*bR*0.85,bR*0.3,0,Math.PI*2); ctx.fill();
     }
@@ -285,80 +581,150 @@ function drawPlantShape(type,scale,alpha,hue,sway) {
 }
 function drawPlants() {
   for (const p of plants) {
-    if (state!==STATE.START) p.x-=p.speed;
-    if (p.x<-300*p.scale) { p.x=W+300*p.scale; p.baseY=H*(0.55+Math.random()*0.35); }
-    const sway=Math.sin(time*0.008+p.phase)*0.5;
-    ctx.save(); ctx.translate(p.x,p.baseY); drawPlantShape(p.type,p.scale,p.alpha,p.hue,sway); ctx.restore();
+    if (state !== STATE.START) p.x -= p.speed;
+    if (p.x < -300*p.scale) { p.x=W+300*p.scale; p.baseY=H*(0.56+Math.random()*0.34); }
+    const sway = Math.sin(time*0.008+p.phase)*0.5;
+    ctx.save(); ctx.translate(p.x,p.baseY);
+    drawPlantShape(p.type,p.scale,p.alpha,p.hue,sway);
+    ctx.restore();
   }
 }
 
-// ── Beam Pass-Through FX ──────────────────────────────────────────
+
+// =============================================
+// BEAM PASS-THROUGH FX
+// =============================================
+// Fires when the orb clears a gate — expanding elliptical rings + sparkles
+
 const beamBursts = [];
 function spawnBeamBurst(x, y, topY, botY, isCP) {
-  // two ring points — at each beam edge
   for (const ey of [topY, botY]) {
-    beamBursts.push({
-      x, y: ey,
-      r: 0, maxR: 40 + Math.random() * 20,
-      life: 1, decay: 0.045,
-      isCP,
-    });
+    beamBursts.push({ x, y:ey, r:0, maxR:44+Math.random()*18, life:1, decay:0.042, isCP });
   }
-  // horizontal streak of sparkles across the column
-  for (let i = 0; i < 8; i++) {
-    const angle = (Math.random() - 0.5) * Math.PI * 0.5; // mostly horizontal
-    const spd = 2 + Math.random() * 3.5;
+  for (let i = 0; i < 9; i++) {
+    const angle = (Math.random()-0.5)*Math.PI*0.55;
+    const spd = 1.8 + Math.random()*3.8;
     beamBursts.push({
-      x, y: topY + Math.random() * (botY - topY),
-      vx: Math.cos(angle) * spd * (Math.random() < 0.5 ? 1 : -1),
-      vy: Math.sin(angle) * spd,
-      r: 1.2 + Math.random() * 1.8,
-      life: 1, decay: 0.055 + Math.random() * 0.04,
-      spark: true, isCP,
+      x, y:topY+Math.random()*(botY-topY),
+      vx:Math.cos(angle)*spd*(Math.random()<0.5?1:-1), vy:Math.sin(angle)*spd,
+      r:1.0+Math.random()*1.8, life:1, decay:0.05+Math.random()*0.04,
+      spark:true, isCP,
     });
   }
 }
 function updateBeamBursts() {
-  for (let i = beamBursts.length - 1; i >= 0; i--) {
-    const b = beamBursts[i];
-    b.life -= b.decay;
-    if (b.spark) { b.x += b.vx; b.y += b.vy; b.vx *= 0.92; }
-    else { b.r = b.maxR * (1 - b.life); } // ring expands as life decays
-    if (b.life <= 0) beamBursts.splice(i, 1);
+  for (let i=beamBursts.length-1; i>=0; i--) {
+    const b=beamBursts[i];
+    b.life-=b.decay;
+    if (b.spark) { b.x+=b.vx; b.y+=b.vy; b.vx*=0.91; }
+    else { b.r=b.maxR*(1-b.life); }
+    if (b.life<=0) beamBursts.splice(i,1);
   }
 }
 function drawBeamBursts() {
   for (const b of beamBursts) {
-    const [r,g,bl] = b.isCP ? [255,200,60] : [90,180,255];
+    const [r,g,bl] = b.isCP ? [255,200,60] : [90,190,255];
     const a = b.life;
     ctx.save();
     if (b.spark) {
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * b.life, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(${r},${g},${bl},${a * 0.9})`; ctx.fill();
-      // soft glow
-      const sg = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*4);
-      sg.addColorStop(0, `rgba(${r},${g},${bl},${a*0.25})`);
-      sg.addColorStop(1, `rgba(${r},${g},${bl},0)`);
-      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*4,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r*b.life,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${r},${g},${bl},${a*0.92})`; ctx.fill();
+      const sg=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*4.5);
+      sg.addColorStop(0,`rgba(${r},${g},${bl},${a*0.22})`); sg.addColorStop(1,`rgba(${r},${g},${bl},0)`);
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*4.5,0,Math.PI*2); ctx.fill();
     } else {
-      // expanding ring — horizontal elongated ellipse along the beam
-      ctx.globalAlpha = a * 0.5;
-      ctx.strokeStyle = `rgba(${r},${g},${bl},1)`;
-      ctx.lineWidth = 1.5 * b.life;
-      ctx.beginPath(); ctx.ellipse(b.x, b.y, b.r * 2.5, b.r * 0.6, 0, 0, Math.PI*2); ctx.stroke();
-      // soft fill
-      const rg = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*2.5);
-      rg.addColorStop(0, `rgba(${r},${g},${bl},${a*0.12})`);
-      rg.addColorStop(1, `rgba(${r},${g},${bl},0)`);
+      ctx.globalAlpha=a*0.55;
+      ctx.strokeStyle=`rgba(${r},${g},${bl},1)`;
+      ctx.lineWidth=1.5*b.life;
+      ctx.beginPath(); ctx.ellipse(b.x,b.y,b.r*2.8,b.r*0.55,0,0,Math.PI*2); ctx.stroke();
+      const rg=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r*2.8);
+      rg.addColorStop(0,`rgba(${r},${g},${bl},${a*0.14})`); rg.addColorStop(1,`rgba(${r},${g},${bl},0)`);
       ctx.fillStyle=rg; ctx.globalAlpha=1;
-      ctx.beginPath(); ctx.ellipse(b.x,b.y,b.r*2.5,b.r*0.6,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(b.x,b.y,b.r*2.8,b.r*0.55,0,0,Math.PI*2); ctx.fill();
     }
     ctx.restore();
   }
 }
-const obstacles=[];
-let obstacleTimer=0;
-const BASE_GAP=195, BASE_INTERVAL=118;
+
+
+// =============================================
+// DEAD SCREEN AMBIENT FX
+// =============================================
+// Subtle motion FX that run while the dead screen is visible.
+// ionRings: slow expanding concentric rings centered behind the score.
+// deadEmbers: small drifting charged motes that float upward.
+
+const ionRings = [
+  { r: 0, maxR: 160, speed: 0.28, phase: 0    },
+  { r: 60, maxR: 160, speed: 0.28, phase: 2.1  },
+  { r: 110, maxR: 160, speed: 0.28, phase: 4.2 },
+];
+const deadEmbers = [];
+let _deadFXTime = 0; // local timer so FX runs independently
+
+function initDeadFX() {
+  _deadFXTime = 0;
+  deadEmbers.length = 0;
+  // seed initial embers
+  for (let i = 0; i < 18; i++) {
+    deadEmbers.push({
+      x: W * (0.2 + Math.random() * 0.6),
+      y: H * (0.4 + Math.random() * 0.5),
+      vy: -(0.25 + Math.random() * 0.55),
+      vx: (Math.random() - 0.5) * 0.3,
+      r: 0.8 + Math.random() * 1.4,
+      alpha: 0.15 + Math.random() * 0.28,
+      hue: 200 + Math.random() * 60,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function drawDeadFX(cx, scoreCY, gameOver) {
+  _deadFXTime++;
+
+  // ── ion rings behind score ──
+  const ringCX = cx, ringCY = scoreCY;
+  ctx.save();
+  for (const ring of ionRings) {
+    ring.r += ring.speed;
+    if (ring.r > ring.maxR) ring.r = 0;
+    const progress = ring.r / ring.maxR;
+    const a = (1 - progress) * (gameOver ? 0.10 : 0.08);
+    const clr = gameOver ? `rgba(200,70,100,${a})` : `rgba(80,150,255,${a})`;
+    ctx.beginPath();
+    ctx.arc(ringCX, ringCY, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = clr;
+    ctx.lineWidth = 1.2 * (1 - progress * 0.6);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── drifting embers ──
+  ctx.save();
+  for (const e of deadEmbers) {
+    e.y += e.vy;
+    e.x += e.vx + Math.sin(_deadFXTime * 0.025 + e.phase) * 0.2;
+    e.phase += 0.012;
+    // wrap when they drift off top
+    if (e.y < H * 0.1) {
+      e.y = H * (0.75 + Math.random() * 0.2);
+      e.x = W * (0.15 + Math.random() * 0.7);
+    }
+    const flicker = 0.6 + 0.4 * Math.sin(_deadFXTime * 0.08 + e.phase);
+    const a = e.alpha * flicker;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${e.hue},90%,78%,${a})`; ctx.fill();
+    // soft halo
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 3, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${e.hue},80%,70%,${a * 0.12})`; ctx.fill();
+  }
+  ctx.restore();
+}
+
+const obstacles = [];
+let obstacleTimer = 0;
+const BASE_GAP = 195, BASE_INTERVAL = 118;
 function getGap()      { return Math.max(BASE_GAP-difficulty*22,120); }
 function getInterval() { return Math.max(BASE_INTERVAL-difficulty*8,68); }
 
@@ -366,96 +732,121 @@ function spawnObstacle() {
   const gap=getGap(), minY=H*0.12+gap/2, maxY=H*0.88-gap/2;
   const cy=minY+Math.random()*(maxY-minY), w=36+Math.random()*16;
   const unscored=obstacles.filter(o=>!o.scored).length;
-  const isCheckpoint=bestScore>0 && (score+unscored+1)===bestScore+1;
-  // beam particles — float inside the gap
+  const isCheckpoint=bestScore>0&&(score+unscored+1)===bestScore+1;
+  // beam particles — small charged motes drifting through the gate
   const bParticles=[];
-  for (let i=0; i<6; i++) bParticles.push({
-    t: Math.random(),          // 0-1 vertical position in gap
-    side: Math.random()*0.6+0.2, // horizontal 0-1 within column width
-    spd: (Math.random()*0.4+0.2) * (Math.random()<0.5?1:-1),
-    phase: Math.random()*Math.PI*2,
-    r: 0.8+Math.random()*1.2,
-    alpha: 0.25+Math.random()*0.35,
+  for (let i=0;i<6;i++) bParticles.push({
+    t:Math.random(), side:Math.random()*0.6+0.2,
+    spd:(Math.random()*0.4+0.2)*(Math.random()<0.5?1:-1),
+    phase:Math.random()*Math.PI*2, r:0.7+Math.random()*1.1, alpha:0.22+Math.random()*0.30,
   });
-  obstacles.push({x:W+60,topH:cy-gap/2,botY:cy+gap/2,botH:H-(cy+gap/2),w,scored:false,gapOff:false,glowT:Math.random()*Math.PI*2,shutdown:0,isCheckpoint,bParticles});
+  obstacles.push({
+    x:W+60, topH:cy-gap/2, botY:cy+gap/2, botH:H-(cy+gap/2),
+    w, scored:false, gapOff:false, glowT:Math.random()*Math.PI*2,
+    shutdown:0, isCheckpoint, bParticles,
+  });
 }
 
+// ── Ion Gate Pillar drawing ──────────────────────────────────────
 function drawPillar(x,w,y,h,flipped,gp,sd,cp) {
   if (h<=0) return;
   const cx=x+w/2, alive=1-sd;
-  // inner edge — the face pointing toward the gap
-  const edgeY = flipped ? y : y+h;
+  const edgeY=flipped?y:y+h; // inner face (toward gap)
+
+  // ── column animation: breathing scan offset ──
+  // Each pillar gets a slightly different phase based on x position
+  const pillarPhase = (x * 0.018 + time * 0.016) % (Math.PI * 2);
+  const breathe = 0.55 + 0.45 * Math.sin(pillarPhase);          // slow bloom pulse
+  const shimmer = 0.70 + 0.30 * Math.sin(time * 0.09 + x * 0.02); // beam shimmer
+  // energy crawl: a moving bright spot along the inner edge
+  const crawlT = ((time * 0.012 + x * 0.005) % 1);
+  const crawlX = x + crawlT * w;
+
   ctx.save();
-  // ambient tip glow
+
+  // ambient glow at tip — now breathes
   if (alive>0.01) {
-    const tg=ctx.createRadialGradient(cx,edgeY,0,cx,edgeY,w*2.8);
-    tg.addColorStop(0, cp?`rgba(255,180,30,${(0.22+gp*0.12)*alive})`:`rgba(110,60,220,${(0.15+gp*0.08)*alive})`);
+    const tipAlpha = cp
+      ? (0.20+gp*0.12)*alive*breathe
+      : (0.13+gp*0.08)*alive*breathe;
+    const tg=ctx.createRadialGradient(cx,edgeY,0,cx,edgeY,w*2.6);
+    tg.addColorStop(0, cp?`rgba(255,175,25,${tipAlpha})`:`rgba(90,60,210,${tipAlpha})`);
     tg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(cx,edgeY,w*2.8,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(cx,edgeY,w*2.6,0,Math.PI*2); ctx.fill();
   }
-  // solid body
-  ctx.fillStyle=cp?`rgb(${Math.round(18*alive)},${Math.round(12*alive)},4)`:`rgb(${Math.round(10*alive)},7,${Math.round(20*alive)})`;
+
+  // solid pillar body
+  ctx.fillStyle = cp
+    ? `rgb(${Math.round(16*alive)},${Math.round(10*alive)},3)`
+    : `rgb(${Math.round(8*alive)},6,${Math.round(18*alive)})`;
   ctx.fillRect(x,y,w,h);
+
   if (alive>0.01) {
     if (cp) {
-      // left edge highlight
-      ctx.fillStyle=`rgba(255,200,60,${0.28*alive})`; ctx.fillRect(x,y,2,h);
-      // body border
-      ctx.strokeStyle=`rgba(255,180,40,${(0.7+gp*0.25)*alive})`; ctx.lineWidth=1.5; ctx.strokeRect(x+0.75,y+0.75,w-1.5,h-1.5);
-      // outer halo border
-      ctx.strokeStyle=`rgba(255,220,80,${(0.25+gp*0.15)*alive})`; ctx.lineWidth=3.5; ctx.strokeRect(x-1,y-1,w+2,h+2);
-      // beam: bright glowing line across the inner edge
-      const beamGrad = ctx.createLinearGradient(x,0,x+w,0);
-      beamGrad.addColorStop(0,'rgba(255,200,60,0)');
-      beamGrad.addColorStop(0.2,`rgba(255,220,80,${(0.9+gp*0.1)*alive})`);
-      beamGrad.addColorStop(0.8,`rgba(255,220,80,${(0.9+gp*0.1)*alive})`);
-      beamGrad.addColorStop(1,'rgba(255,200,60,0)');
-      ctx.strokeStyle=beamGrad; ctx.lineWidth=2; ctx.lineCap='round';
+      // checkpoint: gold treatment
+      ctx.fillStyle=`rgba(255,195,55,${0.24*alive})`; ctx.fillRect(x,y,2,h);
+      ctx.strokeStyle=`rgba(255,175,35,${(0.68+gp*0.22)*alive})`; ctx.lineWidth=1.5; ctx.strokeRect(x+0.75,y+0.75,w-1.5,h-1.5);
+      // breathing outer halo
+      ctx.strokeStyle=`rgba(255,215,75,${(0.18+gp*0.10)*alive*breathe})`; ctx.lineWidth=4; ctx.strokeRect(x-1,y-1,w+2,h+2);
+      // edge beam — gold, shimmer modulated
+      const bg=ctx.createLinearGradient(x,0,x+w,0);
+      bg.addColorStop(0,'rgba(255,190,50,0)');
+      bg.addColorStop(0.18,`rgba(255,215,70,${(0.88+gp*0.08)*alive*shimmer})`);
+      bg.addColorStop(0.5,`rgba(255,240,140,${alive*shimmer})`);
+      bg.addColorStop(0.82,`rgba(255,215,70,${(0.88+gp*0.08)*alive*shimmer})`);
+      bg.addColorStop(1,'rgba(255,190,50,0)');
+      ctx.strokeStyle=bg; ctx.lineWidth=2.2; ctx.lineCap='round';
       ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
-      // soft bloom under the beam line
-      const bloomGrad = ctx.createLinearGradient(x,0,x+w,0);
-      bloomGrad.addColorStop(0,'rgba(255,200,40,0)');
-      bloomGrad.addColorStop(0.5,`rgba(255,200,40,${0.18*alive})`);
-      bloomGrad.addColorStop(1,'rgba(255,200,40,0)');
-      ctx.strokeStyle=bloomGrad; ctx.lineWidth=8;
-      ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
-      // checkpoint diamond marker
+      // bloom
+      const bl=ctx.createLinearGradient(x,0,x+w,0);
+      bl.addColorStop(0,'rgba(255,190,40,0)'); bl.addColorStop(0.5,`rgba(255,190,40,${0.20*alive*breathe})`); bl.addColorStop(1,'rgba(255,190,40,0)');
+      ctx.strokeStyle=bl; ctx.lineWidth=10; ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
+      ctx.strokeStyle=bl; ctx.lineWidth=22; ctx.globalAlpha=0.4*breathe; ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
+      ctx.globalAlpha=1;
+      // energy crawl — tiny gold hot-spot traveling along edge
+      if (alive > 0.5) {
+        const cg=ctx.createRadialGradient(crawlX,edgeY,0,crawlX,edgeY,w*0.4);
+        cg.addColorStop(0,`rgba(255,240,160,${0.55*alive})`); cg.addColorStop(1,'rgba(255,200,60,0)');
+        ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(crawlX,edgeY,w*0.4,0,Math.PI*2); ctx.fill();
+      }
+      // diamond marker
       if (!flipped) {
-        const iy=edgeY-16;
-        ctx.beginPath(); ctx.moveTo(cx,iy-7); ctx.lineTo(cx+5,iy); ctx.lineTo(cx,iy+7); ctx.lineTo(cx-5,iy); ctx.closePath();
-        ctx.fillStyle=`rgba(255,230,80,${0.9*alive})`; ctx.fill();
+        const iy=edgeY-17;
+        ctx.beginPath(); ctx.moveTo(cx,iy-7); ctx.lineTo(cx+5.5,iy); ctx.lineTo(cx,iy+7); ctx.lineTo(cx-5.5,iy); ctx.closePath();
+        ctx.fillStyle=`rgba(255,225,80,${0.92*alive})`; ctx.fill();
       }
     } else {
-      // left edge highlight
-      ctx.fillStyle=`rgba(120,80,200,${0.18*alive})`; ctx.fillRect(x,y,2,h);
-      // body border
-      ctx.strokeStyle=`rgba(130,70,255,${(0.55+gp*0.30)*alive})`; ctx.lineWidth=1.5; ctx.strokeRect(x+0.75,y+0.75,w-1.5,h-1.5);
-      // beam: orb-blue core with layered glow
-      const beamGrad = ctx.createLinearGradient(x,0,x+w,0);
-      beamGrad.addColorStop(0,  'rgba(80,160,255,0)');
-      beamGrad.addColorStop(0.15,`rgba(120,200,255,${(0.9+gp*0.1)*alive})`);
-      beamGrad.addColorStop(0.5, `rgba(180,230,255,${alive})`);
-      beamGrad.addColorStop(0.85,`rgba(120,200,255,${(0.9+gp*0.1)*alive})`);
-      beamGrad.addColorStop(1,  'rgba(80,160,255,0)');
-      ctx.strokeStyle=beamGrad; ctx.lineWidth=2; ctx.lineCap='round';
+      // normal: blue ion treatment
+      ctx.fillStyle=`rgba(100,70,200,${0.16*alive})`; ctx.fillRect(x,y,2,h);
+      // body border — breathes subtly
+      ctx.strokeStyle=`rgba(110,60,240,${(0.45+gp*0.22)*alive*breathe})`; ctx.lineWidth=1.5; ctx.strokeRect(x+0.75,y+0.75,w-1.5,h-1.5);
+      // edge beam — blue, shimmer modulated
+      const bg=ctx.createLinearGradient(x,0,x+w,0);
+      bg.addColorStop(0,'rgba(70,150,255,0)');
+      bg.addColorStop(0.14,`rgba(110,195,255,${(0.82+gp*0.12)*alive*shimmer})`);
+      bg.addColorStop(0.5,`rgba(180,230,255,${alive*shimmer})`);
+      bg.addColorStop(0.86,`rgba(110,195,255,${(0.82+gp*0.12)*alive*shimmer})`);
+      bg.addColorStop(1,'rgba(70,150,255,0)');
+      ctx.strokeStyle=bg; ctx.lineWidth=2; ctx.lineCap='round';
       ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
-      // mid glow — wider, softer
-      const midGrad = ctx.createLinearGradient(x,0,x+w,0);
-      midGrad.addColorStop(0,  'rgba(80,160,255,0)');
-      midGrad.addColorStop(0.5,`rgba(100,180,255,${0.22*alive})`);
-      midGrad.addColorStop(1,  'rgba(80,160,255,0)');
-      ctx.strokeStyle=midGrad; ctx.lineWidth=10;
-      ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
-      // outer bloom — very wide, very soft
-      const outerGrad = ctx.createLinearGradient(x,0,x+w,0);
-      outerGrad.addColorStop(0,  'rgba(60,120,255,0)');
-      outerGrad.addColorStop(0.5,`rgba(80,140,255,${0.08*alive})`);
-      outerGrad.addColorStop(1,  'rgba(60,120,255,0)');
-      ctx.strokeStyle=outerGrad; ctx.lineWidth=22;
-      ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
+      // mid bloom — breathes
+      const mb=ctx.createLinearGradient(x,0,x+w,0);
+      mb.addColorStop(0,'rgba(80,160,255,0)'); mb.addColorStop(0.5,`rgba(100,180,255,${0.18*alive*breathe})`); mb.addColorStop(1,'rgba(80,160,255,0)');
+      ctx.strokeStyle=mb; ctx.lineWidth=11; ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
+      // outer diffusion — breathes
+      const ob=ctx.createLinearGradient(x,0,x+w,0);
+      ob.addColorStop(0,'rgba(60,120,255,0)'); ob.addColorStop(0.5,`rgba(70,130,255,${0.065*alive*breathe})`); ob.addColorStop(1,'rgba(60,120,255,0)');
+      ctx.strokeStyle=ob; ctx.lineWidth=24; ctx.beginPath(); ctx.moveTo(x,edgeY); ctx.lineTo(x+w,edgeY); ctx.stroke();
+      // energy crawl — tiny blue hot-spot traveling along inner edge
+      if (alive > 0.5) {
+        const cg=ctx.createRadialGradient(crawlX,edgeY,0,crawlX,edgeY,w*0.35);
+        cg.addColorStop(0,`rgba(180,230,255,${0.45*alive*shimmer})`); cg.addColorStop(1,'rgba(90,180,255,0)');
+        ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(crawlX,edgeY,w*0.35,0,Math.PI*2); ctx.fill();
+      }
     }
   } else {
-    ctx.strokeStyle='rgba(40,30,60,0.35)'; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+    // dead pillar: faint cold outline only
+    ctx.strokeStyle='rgba(35,25,55,0.30)'; ctx.lineWidth=0.8; ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
   }
   ctx.restore();
 }
@@ -463,8 +854,9 @@ function drawPillar(x,w,y,h,flipped,gp,sd,cp) {
 function triggerDeath() {
   if (state!==STATE.PLAYING) return;
   state=STATE.DEAD; orb.popT=0; fadeAlpha=1; playDeath();
-  setTimeout(()=>spawnBurst(orb.x+(Math.random()-0.5)*20,orb.y+(Math.random()-0.5)*20),80);
-  setTimeout(()=>spawnBurst(orb.x+(Math.random()-0.5)*20,orb.y+(Math.random()-0.5)*20),160);
+  initDeadFX(); // start ambient end-screen FX
+  setTimeout(()=>spawnIonBurst(orb.x+(Math.random()-0.5)*18,orb.y+(Math.random()-0.5)*18),75);
+  setTimeout(()=>spawnIonBurst(orb.x+(Math.random()-0.5)*18,orb.y+(Math.random()-0.5)*18),155);
 }
 
 function updateObstacles() {
@@ -477,12 +869,10 @@ function updateObstacles() {
     if (o.x+o.w<-10) { obstacles.splice(i,1); continue; }
     if (!o.scored && o.x+o.w<orb.x) {
       o.scored=true; o.gapOff=true;
-      // beam pass-through burst at the gate position
-      spawnBeamBurst(o.x + o.w/2, orb.y, o.topH, o.botY, o.isCheckpoint);
-      const prevBest=bestScore;
+      spawnBeamBurst(o.x+o.w/2, orb.y, o.topH, o.botY, o.isCheckpoint);
       score++;
       if (score>bestScore) {
-        bestScore=score; localStorage.setItem('vd_best',bestScore);
+        bestScore=score; localStorage.setItem('ion_best',bestScore);
         spawnCheckpointFX(orb.x,orb.y); playCheckpoint();
         for (const ob of obstacles) { if (!ob.scored) { ob.isCheckpoint=true; break; } }
       } else {
@@ -505,299 +895,419 @@ function drawObstacles() {
     if (o.topH>2) drawPillar(o.x,o.w,0,o.topH,false,gp,o.shutdown,cp);
     if (o.botH>2) drawPillar(o.x,o.w,o.botY,o.botH,true,gp,o.shutdown,cp);
 
+    // inter-gap ion beam — energy filling the gate
     if (!o.gapOff && o.shutdown<0.01) {
       const alive=1-o.shutdown;
-      const [r,g2,b]=cp?[255,200,60]:[90,180,255];
+      const [r,g2,b]=cp?[255,195,55]:[85,175,255];
       const rgba=(a)=>`rgba(${r},${g2},${b},${a})`;
       const gapH=o.botY-o.topH;
+      const ef=o.w*0.26; // edge feather width
 
       ctx.save();
       ctx.globalCompositeOperation='screen';
 
-      // ── soft-edge horizontal mask: clip so beam fades at left/right ──
-      // Draw into an offscreen rect with a horizontal gradient for edges
-      const edgeFeather=o.w*0.28;
-      const hMask=ctx.createLinearGradient(o.x,0,o.x+o.w,0);
-      hMask.addColorStop(0,'rgba(0,0,0,0)');
-      hMask.addColorStop(edgeFeather/o.w,`rgba(${r},${g2},${b},1)`);
-      hMask.addColorStop(1-edgeFeather/o.w,`rgba(${r},${g2},${b},1)`);
-      hMask.addColorStop(1,'rgba(0,0,0,0)');
-
-      // vertical gradient fill
+      // vertical gradient — brighter at edges (beam lines)
       const vg=ctx.createLinearGradient(0,o.topH,0,o.botY);
-      vg.addColorStop(0,   rgba((0.55+gp*0.3)*alive));
-      vg.addColorStop(0.08,rgba((0.18+gp*0.1)*alive));
-      vg.addColorStop(0.92,rgba((0.18+gp*0.1)*alive));
-      vg.addColorStop(1,   rgba((0.55+gp*0.3)*alive));
-      ctx.fillStyle=vg;
-      // feather edges by drawing a narrower rect + two soft gradient rects at edges
-      ctx.fillRect(o.x+edgeFeather, o.topH, o.w-edgeFeather*2, gapH);
-      // left fade strip
-      const lg=ctx.createLinearGradient(o.x,0,o.x+edgeFeather,0);
-      lg.addColorStop(0,rgba(0)); lg.addColorStop(1,rgba((0.28+gp*0.15)*alive));
-      ctx.fillStyle=lg; ctx.fillRect(o.x, o.topH, edgeFeather, gapH);
-      // right fade strip
-      const rg=ctx.createLinearGradient(o.x+o.w-edgeFeather,0,o.x+o.w,0);
-      rg.addColorStop(0,rgba((0.28+gp*0.15)*alive)); rg.addColorStop(1,rgba(0));
-      ctx.fillStyle=rg; ctx.fillRect(o.x+o.w-edgeFeather, o.topH, edgeFeather, gapH);
+      vg.addColorStop(0,   rgba((0.52+gp*0.28)*alive));
+      vg.addColorStop(0.07,rgba((0.16+gp*0.09)*alive));
+      vg.addColorStop(0.93,rgba((0.16+gp*0.09)*alive));
+      vg.addColorStop(1,   rgba((0.52+gp*0.28)*alive));
 
-      // ── beam particles drifting inside the gap ──
+      // centre solid strip
+      ctx.fillStyle=vg; ctx.fillRect(o.x+ef,o.topH,o.w-ef*2,gapH);
+      // left feather
+      const lg=ctx.createLinearGradient(o.x,0,o.x+ef,0);
+      lg.addColorStop(0,rgba(0)); lg.addColorStop(1,rgba((0.26+gp*0.13)*alive));
+      ctx.fillStyle=lg; ctx.fillRect(o.x,o.topH,ef,gapH);
+      // right feather
+      const rg=ctx.createLinearGradient(o.x+o.w-ef,0,o.x+o.w,0);
+      rg.addColorStop(0,rgba((0.26+gp*0.13)*alive)); rg.addColorStop(1,rgba(0));
+      ctx.fillStyle=rg; ctx.fillRect(o.x+o.w-ef,o.topH,ef,gapH);
+
+      // beam particles drifting through gate
       if (o.bParticles) {
         for (const bp of o.bParticles) {
-          // drift vertically, wrap
-          bp.t += bp.spd * 0.003;
-          if (bp.t > 1) bp.t -= 1;
-          if (bp.t < 0) bp.t += 1;
-          const py=o.topH + bp.t*gapH;
-          const px=o.x + bp.side*o.w;
-          // fade near top/bottom beam edges
-          const edgeFade=Math.min(bp.t*8, (1-bp.t)*8, 1);
-          // fade near left/right column edges
-          const hFade=Math.min(bp.side/0.2, (1-bp.side)/0.2, 1);
-          const a=bp.alpha*edgeFade*hFade*alive*(0.6+0.4*Math.sin(time*0.04+bp.phase));
-          ctx.beginPath(); ctx.arc(px,py,bp.r,0,Math.PI*2);
-          ctx.fillStyle=rgba(a); ctx.fill();
-          // small glow around each particle
-          const pgGrad=ctx.createRadialGradient(px,py,0,px,py,bp.r*3.5);
-          pgGrad.addColorStop(0,rgba(a*0.4)); pgGrad.addColorStop(1,rgba(0));
-          ctx.fillStyle=pgGrad; ctx.beginPath(); ctx.arc(px,py,bp.r*3.5,0,Math.PI*2); ctx.fill();
+          bp.t+=bp.spd*0.003;
+          if (bp.t>1) bp.t-=1; if (bp.t<0) bp.t+=1;
+          const py=o.topH+bp.t*gapH, px=o.x+bp.side*o.w;
+          const edgeFade=Math.min(bp.t*8,(1-bp.t)*8,1);
+          const hFade=Math.min(bp.side/0.2,(1-bp.side)/0.2,1);
+          const a=bp.alpha*edgeFade*hFade*alive*(0.55+0.45*Math.sin(time*0.04+bp.phase));
+          ctx.beginPath(); ctx.arc(px,py,bp.r,0,Math.PI*2); ctx.fillStyle=rgba(a); ctx.fill();
+          const pg2=ctx.createRadialGradient(px,py,0,px,py,bp.r*3.8);
+          pg2.addColorStop(0,rgba(a*0.38)); pg2.addColorStop(1,rgba(0));
+          ctx.fillStyle=pg2; ctx.beginPath(); ctx.arc(px,py,bp.r*3.8,0,Math.PI*2); ctx.fill();
         }
       }
-
       ctx.globalCompositeOperation='source-over';
       ctx.restore();
     }
   }
 }
 
-// ── Background ─────────────────────────────────────────────────────
+
+// =============================================
+// BACKGROUND — Ion Field
+// =============================================
+// Adds subtle energy arc lines that curve through the field
+
+const arcLines = [];
+for (let i=0; i<5; i++) arcLines.push({
+  x: Math.random()*1200, y: Math.random()*800,
+  phase: Math.random()*Math.PI*2,
+  speed: 0.06+Math.random()*0.10,
+  len: 80+Math.random()*120,
+  alpha: 0.018+Math.random()*0.022,
+  hue: 210+Math.random()*60,
+});
+
 function drawBackground() {
+  // deep space base
   const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,'#03050a'); bg.addColorStop(0.35,'#060819'); bg.addColorStop(0.7,'#07061a'); bg.addColorStop(1,'#030408');
+  bg.addColorStop(0,'#030508'); bg.addColorStop(0.3,'#050817');
+  bg.addColorStop(0.7,'#060719'); bg.addColorStop(1,'#020307');
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-  const hg=ctx.createRadialGradient(W/2,H*0.52,0,W/2,H*0.52,W*0.8);
-  hg.addColorStop(0,'rgba(60,30,120,0.09)'); hg.addColorStop(0.5,'rgba(30,10,80,0.04)'); hg.addColorStop(1,'rgba(0,0,0,0)');
+
+  // horizon ion glow
+  const hg=ctx.createRadialGradient(W/2,H*0.53,0,W/2,H*0.53,W*0.78);
+  hg.addColorStop(0,'rgba(50,25,110,0.10)');
+  hg.addColorStop(0.5,'rgba(25,10,70,0.04)');
+  hg.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=hg; ctx.fillRect(0,0,W,H);
+
+  // subtle ion field grid
   ctx.save();
-  const go=(time*0.5)%60; ctx.strokeStyle='rgba(60,40,120,0.04)'; ctx.lineWidth=0.5;
+  const go=(time*0.45)%60;
+  ctx.strokeStyle='rgba(50,35,110,0.035)'; ctx.lineWidth=0.5;
   for (let gx=-go; gx<W+60; gx+=60) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
   for (let gy=0; gy<H; gy+=60) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
   ctx.restore();
+
+  // ion energy arc lines — subtle curving paths
+  ctx.save();
+  for (const arc of arcLines) {
+    if (state!==STATE.START) arc.x-=arc.speed;
+    if (arc.x<-arc.len*2) { arc.x=W+arc.len; arc.y=Math.random()*H; }
+    arc.phase+=0.008;
+    const a=arc.alpha*(0.5+0.5*Math.sin(arc.phase));
+    ctx.beginPath();
+    ctx.moveTo(arc.x, arc.y);
+    ctx.bezierCurveTo(
+      arc.x+arc.len*0.3, arc.y+Math.sin(arc.phase)*20,
+      arc.x+arc.len*0.7, arc.y+Math.sin(arc.phase+1)*20,
+      arc.x+arc.len, arc.y+Math.sin(arc.phase+2)*12
+    );
+    ctx.strokeStyle=`hsla(${arc.hue},70%,70%,${a})`;
+    ctx.lineWidth=0.8; ctx.stroke();
+  }
+  ctx.restore();
 }
 
-// ── UI ─────────────────────────────────────────────────────────────
+
+// =============================================
+// HUD — Score & Lives
+// =============================================
+
 function drawScore() {
-  ctx.save(); ctx.textAlign='center';
-  ctx.font='500 28px "Courier New",monospace'; ctx.fillStyle='rgba(180,220,255,0.9)';
-  ctx.shadowColor='rgba(100,200,255,0.6)'; ctx.shadowBlur=12;
-  ctx.fillText(score,W/2,52); ctx.shadowBlur=0;
-  // lives — small orbs top-right
-  const orbR=7, pad=18, gap=20;
+  ctx.save();
+  const hudY = SAFE_TOP + 28; // notch-safe score position
+  // score — centered, clear of notch
+  ctx.textAlign='center';
+  ctx.font='500 30px "Courier New",monospace';
+  ctx.fillStyle='rgba(192,230,255,0.94)';
+  ctx.shadowColor='rgba(90,190,255,0.60)'; ctx.shadowBlur=12;
+  ctx.fillText(score, W/2, hudY);
+  ctx.shadowBlur=0;
+
+  // lives — small glowing orbs, top-right, notch-safe
+  const orbR=7, pad=SAFE_LEFT+4, gap=20;
   for (let i=0; i<MAX_LIVES; i++) {
-    const lx=W-pad-i*gap, ly=22;
+    const lx=W-pad-i*gap, ly=SAFE_TOP+16;
     const active=i<lives;
     ctx.beginPath(); ctx.arc(lx,ly,orbR,0,Math.PI*2);
     if (active) {
       const gr=ctx.createRadialGradient(lx-2,ly-2,0,lx,ly,orbR);
-      gr.addColorStop(0,'#c8f0ff'); gr.addColorStop(0.6,'#5ab8ff'); gr.addColorStop(1,'rgba(30,60,160,0.4)');
+      gr.addColorStop(0,'#d0f4ff'); gr.addColorStop(0.55,'#5ab8ff'); gr.addColorStop(1,'rgba(25,55,150,0.45)');
       ctx.fillStyle=gr; ctx.fill();
-      ctx.strokeStyle='rgba(180,240,255,0.6)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.strokeStyle='rgba(160,230,255,0.65)'; ctx.lineWidth=1; ctx.stroke();
     } else {
-      ctx.fillStyle='rgba(30,30,50,0.5)'; ctx.fill();
-      ctx.strokeStyle='rgba(60,50,100,0.35)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle='rgba(28,28,50,0.60)'; ctx.fill();
+      ctx.strokeStyle='rgba(70,60,115,0.50)'; ctx.lineWidth=1; ctx.stroke();
     }
   }
   ctx.restore();
 }
 
-function drawPedestal() {
-  // static — no bob, no animation
-  const px=orb.x, py=orb.y+orb.radius+4, pW=52, pH=12;
-  ctx.save(); ctx.translate(px,py);
-  const pg=ctx.createRadialGradient(0,0,0,0,pW*1.4,pW*1.4);
-  pg.addColorStop(0,'rgba(100,180,255,0.15)'); pg.addColorStop(0.5,'rgba(80,120,255,0.05)'); pg.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=pg; ctx.beginPath(); ctx.ellipse(0,0,pW*1.4,pW*0.5,0,0,Math.PI*2); ctx.fill();
-  const beam=ctx.createLinearGradient(0,0,0,80);
-  beam.addColorStop(0,'rgba(120,200,255,0.14)'); beam.addColorStop(1,'rgba(120,200,255,0)');
-  ctx.beginPath(); ctx.moveTo(-pW*0.4,0); ctx.lineTo(-pW*0.9,80); ctx.lineTo(pW*0.9,80); ctx.lineTo(pW*0.4,0); ctx.fillStyle=beam; ctx.fill();
-  const sg=ctx.createLinearGradient(-pW,0,pW,0);
-  sg.addColorStop(0,'rgba(30,20,70,0.9)'); sg.addColorStop(0.5,'rgba(60,40,120,0.95)'); sg.addColorStop(1,'rgba(30,20,70,0.9)');
-  ctx.beginPath(); ctx.roundRect(-pW,-pH*0.5,pW*2,pH,4); ctx.fillStyle=sg; ctx.fill();
-  ctx.beginPath(); ctx.roundRect(-pW,-pH*0.5,pW*2,pH*0.3,[4,4,0,0]); ctx.fillStyle='rgba(140,100,255,0.3)'; ctx.fill();
-  ctx.strokeStyle='rgba(120,80,255,0.55)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.roundRect(-pW,-pH*0.5,pW*2,pH,4); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0,pH*0.5+4,pW*0.7,5,0,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fill();
-  ctx.restore();
-}
+
+// =============================================
+// START SCREEN
+// =============================================
 
 function drawStartScreen() {
-  ctx.save(); ctx.globalAlpha=1-fadeAlpha; ctx.textAlign='center';
+  ctx.save();
+  ctx.globalAlpha = 1 - fadeAlpha;
+  ctx.textAlign = 'center';
 
-  // ── title block — upper portion, well clear of pedestal ──
-  const ty=H*0.18;
-  ctx.font='500 11px "Courier New",monospace'; ctx.fillStyle='rgba(120,180,255,0.55)';
-  ctx.fillText('◈  A R C A D E  E X P E R I E N C E  ◈',W/2,ty);
-  ctx.font=`bold ${Math.min(48,W*0.12)}px "Courier New",monospace`;
-  ctx.shadowColor='rgba(120,100,255,0.8)'; ctx.shadowBlur=24; ctx.fillStyle='#c0d8ff';
-  ctx.fillText('ION DRIFT',W/2,ty+36); ctx.shadowBlur=40; ctx.fillStyle='rgba(100,160,255,0.15)';
-  ctx.fillText('ION DRIFT',W/2,ty+36); ctx.shadowBlur=0;
-  ctx.font='400 12px "Courier New",monospace'; ctx.fillStyle='rgba(160,200,255,0.42)';
-  ctx.fillText('navigate the ion stream',W/2,ty+62);
+  // ── title block — pushed higher for breathing room ──
+  const ty = H * 0.14;
 
-  // decorative lines flanking title
-  const lw=Math.min(90,W*0.2); ctx.strokeStyle='rgba(100,140,255,0.18)'; ctx.lineWidth=0.5;
-  ctx.beginPath(); ctx.moveTo(W/2-lw-16,ty+36); ctx.lineTo(W/2-16,ty+36); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(W/2+16,ty+36); ctx.lineTo(W/2+lw+16,ty+36); ctx.stroke();
+  // eyebrow label
+  ctx.font='400 10px "Courier New",monospace';
+  ctx.fillStyle='rgba(110,170,255,0.52)';
+  ctx.letterSpacing='2px';
+  ctx.fillText('◈  A R C A D E  ·  I O N  F I E L D  ◈', W/2, ty);
 
-  // ── tap prompt + best score — lower third ──
-  const ba=0.5+0.5*Math.sin(time*0.06);
-  ctx.font='500 15px "Courier New",monospace'; ctx.fillStyle=`rgba(180,220,255,${ba*0.85})`;
-  ctx.shadowColor='rgba(100,200,255,0.6)'; ctx.shadowBlur=8;
-  ctx.fillText('[ TAP TO BEGIN ]',W/2,H*0.8); ctx.shadowBlur=0;
-  if (bestScore>0) {
-    ctx.font='400 11px "Courier New",monospace'; ctx.fillStyle='rgba(140,180,255,0.38)';
-    ctx.fillText(`BEST  ${bestScore}`,W/2,H*0.87);
+  // main title — layered glow
+  const titleSize = Math.min(50, W*0.125);
+  ctx.font=`700 ${titleSize}px "Courier New",monospace`;
+  ctx.shadowColor='rgba(80,160,255,0.30)'; ctx.shadowBlur=48;
+  ctx.fillStyle='rgba(80,160,255,0.10)';
+  ctx.fillText('ION DRIFT', W/2, ty+40);
+  ctx.shadowColor='rgba(140,100,255,0.85)'; ctx.shadowBlur=20;
+  ctx.fillStyle='#ccdeff';
+  ctx.fillText('ION DRIFT', W/2, ty+40);
+  ctx.shadowBlur=0;
+
+  // decorative lines
+  const lw=Math.min(85,W*0.19);
+  ctx.strokeStyle='rgba(90,130,255,0.16)'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(W/2-lw-14,ty+40); ctx.lineTo(W/2-14,ty+40); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W/2+14,ty+40); ctx.lineTo(W/2+lw+14,ty+40); ctx.stroke();
+
+  // tagline — 16px below title
+  ctx.font='400 12px "Courier New",monospace';
+  ctx.fillStyle='rgba(155,200,255,0.46)';
+  ctx.letterSpacing='1px';
+  ctx.fillText('n a v i g a t e  ·  t h e  ·  i o n  s t r e a m', W/2, ty+64);
+
+  // ── CTA — stronger, slightly larger, comfortably above bottom ──
+  const blinkA = 0.50 + 0.50*Math.sin(time*0.055);
+  ctx.letterSpacing='0px';
+  ctx.font='500 16px "Courier New",monospace';
+  ctx.fillStyle=`rgba(180,222,255,${blinkA*0.92})`;
+  ctx.shadowColor='rgba(90,190,255,0.65)'; ctx.shadowBlur=14;
+  ctx.fillText('[ TAP TO BEGIN ]', W/2, H*0.76);
+  ctx.shadowBlur=0;
+
+  // best score — cleaner, slightly brighter
+  if (bestScore > 0) {
+    ctx.font='400 12px "Courier New",monospace';
+    ctx.fillStyle='rgba(145,185,255,0.52)';
+    ctx.letterSpacing='0px';
+    ctx.fillText(`BEST  ·  ${bestScore}`, W/2, H*0.84);
   }
   ctx.restore();
 }
 
+
+// =============================================
+// GAME OVER / CONTINUE SCREEN
+// =============================================
+
 function drawDeadScreen() {
-  const livesLeft = lives - 1; // preview lives after this death
-  ctx.save(); ctx.globalAlpha=1-fadeAlpha;
-  ctx.fillStyle='rgba(2,3,10,0.78)'; ctx.fillRect(0,0,W,H);
-  ctx.textAlign='center'; const cy=H*0.34;
+  const livesLeft = lives - 1;
+  const gameOver  = livesLeft <= 0;
+  ctx.save();
+  ctx.globalAlpha = 1 - fadeAlpha;
 
-  // title
-  ctx.font=`bold ${Math.min(32,W*0.08)}px "Courier New",monospace`;
-  ctx.shadowColor='rgba(200,80,100,0.7)'; ctx.shadowBlur=20; ctx.fillStyle='#ffb0c0';
-  ctx.fillText(livesLeft>0?'ION LOST':'CONNECTION LOST',W/2,cy); ctx.shadowBlur=0;
+  // dark overlay
+  ctx.fillStyle='rgba(2,3,12,0.82)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
 
-  // score
-  ctx.font=`500 ${Math.min(58,W*0.14)}px "Courier New",monospace`;
-  ctx.shadowColor='rgba(100,200,255,0.5)'; ctx.shadowBlur=14; ctx.fillStyle='#c0e0ff';
-  ctx.fillText(score,W/2,cy+62); ctx.shadowBlur=0;
-  ctx.font='400 11px "Courier New",monospace'; ctx.fillStyle='rgba(140,180,255,0.5)';
-  ctx.fillText('SCORE',W/2,cy+80);
+  // ── 8pt grid layout — all positions relative to cy ──
+  const cy = H * 0.30;
 
-  // lives display — simple orbs
-  const orbR = 8, spacing = 24, totalW = (MAX_LIVES-1)*spacing;
-  const startX = W/2 - totalW/2;
+  // ── ambient FX — behind everything, before text ──
+  drawDeadFX(W/2, cy+58, gameOver);
+
+  // ── HEADER ──
+  ctx.font=`700 ${Math.min(28,W*0.07)}px "Courier New",monospace`;
+  ctx.shadowColor = gameOver ? 'rgba(210,70,90,0.70)' : 'rgba(80,130,255,0.60)';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = gameOver ? '#ffaabe' : '#94bcff';
+  ctx.fillText(gameOver ? 'SIGNAL LOST' : 'ION LOST', W/2, cy);
+  ctx.shadowBlur = 0;
+
+  // divider — 16px below header
+  const dw=Math.min(120,W*0.28);
+  ctx.strokeStyle = gameOver ? 'rgba(200,70,90,0.28)' : 'rgba(80,130,255,0.28)';
+  ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(W/2-dw,cy+16); ctx.lineTo(W/2+dw,cy+16); ctx.stroke();
+
+  // ── SCORE — 32px below divider ──
+  ctx.font=`500 ${Math.min(60,W*0.15)}px "Courier New",monospace`;
+  ctx.shadowColor='rgba(90,190,255,0.50)'; ctx.shadowBlur=14;
+  ctx.fillStyle='#c4e6ff';
+  ctx.fillText(score, W/2, cy+58); ctx.shadowBlur=0;
+
+  // SCORE label — 10px below number, brighter
+  ctx.font='400 11px "Courier New",monospace';
+  ctx.fillStyle='rgba(140,185,255,0.60)';
+  ctx.letterSpacing='2px';
+  ctx.fillText('S C O R E', W/2, cy+76);
+  ctx.letterSpacing='0px';
+
+  // ── LIVES — 32px below score label ──
+  const orbR=8, orbSpacing=26, totalOrbW=(MAX_LIVES-1)*orbSpacing;
+  const startX=W/2-totalOrbW/2;
+  const livesY = cy+108;
   for (let i=0; i<MAX_LIVES; i++) {
-    const lx=startX+i*spacing, ly=cy+112;
-    const active = i < livesLeft;
+    const lx=startX+i*orbSpacing, ly=livesY;
+    const active=i<livesLeft;
     ctx.beginPath(); ctx.arc(lx,ly,orbR,0,Math.PI*2);
     if (active) {
       const gr=ctx.createRadialGradient(lx-2,ly-2,0,lx,ly,orbR);
-      gr.addColorStop(0,'#c8f0ff'); gr.addColorStop(0.6,'#5ab8ff'); gr.addColorStop(1,'rgba(30,60,160,0.5)');
+      gr.addColorStop(0,'#d0f4ff'); gr.addColorStop(0.55,'#5ab8ff'); gr.addColorStop(1,'rgba(25,55,150,0.5)');
       ctx.fillStyle=gr; ctx.fill();
-      ctx.strokeStyle='rgba(180,240,255,0.7)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.strokeStyle='rgba(160,230,255,0.70)'; ctx.lineWidth=1; ctx.stroke();
     } else {
-      ctx.fillStyle='rgba(40,40,60,0.6)'; ctx.fill();
-      ctx.strokeStyle='rgba(80,70,120,0.4)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle='rgba(38,38,62,0.70)'; ctx.fill();
+      ctx.strokeStyle='rgba(80,70,125,0.55)'; ctx.lineWidth=1; ctx.stroke();
     }
   }
-  ctx.font='400 10px "Courier New",monospace'; ctx.fillStyle='rgba(140,180,255,0.4)';
-  ctx.fillText('LIVES',W/2,cy+130);
+  // LIVES label — 14px below orbs
+  ctx.font='400 10px "Courier New",monospace';
+  ctx.fillStyle='rgba(140,185,255,0.52)';
+  ctx.letterSpacing='2px';
+  ctx.fillText('L I V E S', W/2, livesY+22);
+  ctx.letterSpacing='0px';
 
-  // best
+  // ── BEST — 24px below lives label ──
+  const bestY = livesY+54;
   ctx.font='400 13px "Courier New",monospace';
-  ctx.fillStyle=score>=bestScore?'rgba(180,255,160,0.7)':'rgba(140,180,255,0.4)';
-  ctx.fillText(score>=bestScore?'★ NEW BEST ★':`BEST  ${bestScore}`,W/2,cy+155);
+  if (score>=bestScore && score>0) {
+    ctx.fillStyle='rgba(160,255,160,0.78)';
+    ctx.shadowColor='rgba(100,255,120,0.38)'; ctx.shadowBlur=8;
+    ctx.fillText('★  NEW BEST  ★', W/2, bestY);
+    ctx.shadowBlur=0;
+  } else {
+    ctx.fillStyle='rgba(130,175,255,0.50)';
+    ctx.fillText(`BEST  ·  ${bestScore}`, W/2, bestY);
+  }
 
-  // prompt
-  const ba=0.5+0.5*Math.sin(time*0.06);
-  ctx.font='500 14px "Courier New",monospace';
-  ctx.fillStyle=`rgba(180,220,255,${ba*0.85})`;
-  ctx.shadowColor='rgba(100,200,255,0.6)'; ctx.shadowBlur=8;
-  ctx.fillText(livesLeft>0?'[ TAP TO CONTINUE ]':'[ TAP TO RETURN ]',W/2,H*0.74);
+  // ── REACTION UI — only on full game over ──
+  if (gameOver) {
+    // label — 24px below best
+    ctx.font='400 10px "Courier New",monospace';
+    ctx.fillStyle='rgba(130,165,255,0.42)';
+    ctx.letterSpacing='1px';
+    ctx.fillText('R A T E  T H I S  R U N', W/2, bestY+28);
+    ctx.letterSpacing='0px';
+    // buttons — 12px below label
+    renderReactionUI(W/2, bestY+38);
+  }
+
+  // ── CTA — comfortably above bottom edge ──
+  const promptY = gameOver ? Math.min(H*0.86, H-48) : Math.min(H*0.78, H-48);
+  const ba = 0.48+0.52*Math.sin(time*0.058);
+  ctx.font='500 16px "Courier New",monospace';
+  ctx.fillStyle=`rgba(175,218,255,${ba*0.90})`;
+  ctx.shadowColor='rgba(90,190,255,0.50)'; ctx.shadowBlur=10;
+  ctx.fillText(gameOver?'[ TAP TO RETURN ]':'[ TAP TO CONTINUE ]', W/2, promptY);
   ctx.shadowBlur=0;
   ctx.restore();
 }
 
+
 // ── Input ──────────────────────────────────────────────────────────
-function handleInput() {
+function handleInput(px, py) {
   if (AC.state==='suspended') AC.resume();
+  // arcade button intercept — always first
+  if (checkArcadeButton(px, py)) { window.location.href = ARCADE_URL; return; }
   if (state===STATE.START) {
     state=STATE.LAUNCHING; orbLaunchT=0; fadeAlpha=1;
+  } else if (state===STATE.PLAYING) {
+    orb.jump();
+  } else if (state===STATE.DEAD && fadeAlpha<0.1) {
+    if (_reactionZones && handleReactionTap(px,py)) return;
+    respawn();
   }
-  else if (state===STATE.PLAYING)                    { orb.jump(); }
-  else if (state===STATE.DEAD && fadeAlpha<0.1)      { respawn(); }
 }
-canvas.addEventListener('pointerdown', e=>{ e.preventDefault(); handleInput(); });
-document.addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); handleInput(); } });
+canvas.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect();
+  handleInput(e.clientX-rect.left, e.clientY-rect.top);
+});
+document.addEventListener('keydown', e=>{
+  if (e.code==='Space'||e.code==='ArrowUp') { e.preventDefault(); handleInput(W/2,H/2); }
+});
 document.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+
 
 // ── Lives & Reset ──────────────────────────────────────────────────
 function respawn() {
   lives--;
-  if (lives <= 0) { returnToStart(); return; }
-  // find the nearest upcoming obstacle to stay clear of
-  const safeX = W * 0.18;
-  // push any obstacles that would overlap the safe spawn x to the right
-  for (const o of obstacles) {
-    if (o.x < safeX + 80) o.x = safeX + 80;
-  }
-  orb.x = safeX; orb.y = H * 0.45;
-  orb.vy = 0; orb.squash = 1; orb.squashV = 0; orb.popT = 0;
-  respawnFreezeT = RESPAWN_FREEZE;
-  state = STATE.PLAYING; fadeAlpha = 1;
+  if (lives<=0) { returnToStart(); return; }
+  _reactionZones=null;
+  const safeX=W*0.18;
+  for (const o of obstacles) { if (o.x<safeX+80) o.x=safeX+80; }
+  orb.x=safeX; orb.y=H*0.45; orb.vy=0; orb.squash=1; orb.squashV=0; orb.popT=0;
+  respawnFreezeT=RESPAWN_FREEZE; state=STATE.PLAYING; fadeAlpha=1;
 }
 
 function returnToStart() {
   score=0; difficulty=0; speed=2.2; lives=MAX_LIVES;
   obstacles.length=0; particles.length=0; beamBursts.length=0; obstacleTimer=0;
-  respawnFreezeT=0; orbEntryT=0; orb.init(); state=STATE.START; fadeAlpha=0;
+  respawnFreezeT=0; orbEntryT=0; _reactionZones=null; reactionState=null;
+  orb.init(); state=STATE.START; fadeAlpha=0;
 }
 
-function resetGame() { returnToStart(); }
 
-// ── Loop ───────────────────────────────────────────────────────────
+// ── Game Loop ──────────────────────────────────────────────────────
 let lastT=0;
 function loop(ts) {
   requestAnimationFrame(loop); lastT=ts; time++;
+
+  // global ion pulse — drives ambient fx
+  ionPulse = 0.5 + 0.5*Math.sin(time*0.022);
+
   ctx.clearRect(0,0,W,H);
   drawBackground(); drawFog(); drawPlants(); drawDepthLayers();
+
   if (state===STATE.PLAYING) {
-    if (respawnFreezeT > 0) {
-      respawnFreezeT--;
-      orb.update();
-    } else {
-      updateObstacles();
-      orb.update();
-    }
+    if (respawnFreezeT>0) { respawnFreezeT--; orb.update(); }
+    else { updateObstacles(); orb.update(); }
   } else if (state===STATE.LAUNCHING) {
-    // world frozen, orb glides to position
     orb.update();
   } else {
     orb.update();
   }
+
   updateParticles(); updateBeamBursts();
   drawObstacles(); drawBeamBursts(); drawParticles(); orb.draw();
-  if (state===STATE.PLAYING)      {
+
+  if (state===STATE.PLAYING) {
     fadeAlpha=Math.max(0,fadeAlpha-0.035); drawScore();
-    if (respawnFreezeT > 0) {
-      const ft = respawnFreezeT / RESPAWN_FREEZE;
-      const pulse = 0.4 + 0.4 * Math.sin(time * 0.18);
+    if (respawnFreezeT>0) {
+      const ft=respawnFreezeT/RESPAWN_FREEZE;
+      const pulse=0.35+0.45*Math.sin(time*0.20);
       ctx.save(); ctx.textAlign='center';
-      ctx.font='500 13px "Courier New",monospace';
-      ctx.fillStyle=`rgba(180,220,255,${ft * pulse * 0.75})`;
-      ctx.fillText('◈ TAP TO FLY ◈', orb.x, orb.y - 32);
+      ctx.font='500 12px "Courier New",monospace';
+      ctx.fillStyle=`rgba(160,210,255,${ft*pulse*0.70})`;
+      ctx.fillText('◈  TAP TO FLY  ◈', orb.x, orb.y-36);
       ctx.restore();
     }
+  } else if (state===STATE.LAUNCHING) {
+    fadeAlpha=Math.max(0,fadeAlpha-0.042); drawStartScreen();
+  } else if (state===STATE.START) {
+    fadeAlpha=Math.max(0,fadeAlpha-0.022); drawStartScreen();
+  } else if (state===STATE.DEAD) {
+    if (orb.popT>=1) { fadeAlpha=Math.max(0,fadeAlpha-0.024); drawDeadScreen(); }
   }
-  else if (state===STATE.LAUNCHING) { fadeAlpha=Math.max(0,fadeAlpha-0.04); drawStartScreen(); }
-  else if (state===STATE.START)   { fadeAlpha=Math.max(0,fadeAlpha-0.025); drawStartScreen(); }
-  else if (state===STATE.DEAD) {
-    if (orb.popT >= 1) { fadeAlpha=Math.max(0,fadeAlpha-0.025); drawDeadScreen(); }
-  }
-  const vg=ctx.createRadialGradient(W/2,H/2,H*0.25,W/2,H/2,W*0.8);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,10,0.55)');
+
+  // edge vignette
+  const vg=ctx.createRadialGradient(W/2,H/2,H*0.22,W/2,H/2,W*0.82);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,8,0.58)');
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+
+  // ── arcade button — always on top ──
+  drawArcadeButton();
 }
 
 // ── Init ───────────────────────────────────────────────────────────
 orb.init(); orbEntryT=0; seedDepthLayers(); seedPlants();
 requestAnimationFrame(loop);
+
 </script>
 </body>
 </html>
