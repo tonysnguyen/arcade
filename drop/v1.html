@@ -6,6 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Shape Drop</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════
    SHAPE DROP  v16  —  Centered closed-shape track
@@ -487,14 +489,21 @@ body{
    Centered closed-shape track · Objects fall from top
    Player moves along track perimeter via swipe
    ═══════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCFW1U5NURzx9zNa0EQAjIJijTGwx4no7E",
+  authDomain: "tony-arcade.firebaseapp.com",
+  projectId: "tony-arcade",
+  storageBucket: "tony-arcade.firebasestorage.app",
+  messagingSenderId: "88041829355",
+  appId: "1:88041829355:web:56d7048e7c842d14e99fae",
+  measurementId: "G-RVYF35QB7W"
+};
 
-/* ─── FIREBASE CONFIG (replace to go live) ───────────────
-const firebaseConfig={apiKey:"",authDomain:"",projectId:"",
-  storageBucket:"",messagingSenderId:"",appId:""};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 // 1. Add Firebase SDK in <head>
 // 2. Replace localStorage tagged FIREBASE REPLACE POINT
 // 3. Collection: "leaderboard_shape_drop"
-─────────────────────────────────────────────────────── */
 
 /* ═══ LEADERBOARD + LIKE SYSTEM ═══ */
 const LB_KEY='shapedrop_lb_v1', REACT_KEY='shapedrop_reactions_v1', MAX_LB=5;
@@ -507,12 +516,14 @@ function reactGet(){
 }
 function reactSave(d){try{localStorage.setItem(REACT_KEY,JSON.stringify(d));}catch(e){}}
 function lbIsTopFive(sc){const e=lbGet();return e.length<MAX_LB||sc>e[e.length-1]?.score;}
-function lbInsert(name,sc){
-  const e=lbGet();
-  e.push({name:name.slice(0,8)||'Player',score:sc});
-  e.sort((a,b)=>b.score-a.score);
-  if(e.length>MAX_LB)e.length=MAX_LB;
-  lbSave(e);
+function lbInsert(name, sc){
+  const entry = {
+    name: name.slice(0,8) || 'Player',
+    score: sc,
+    timestamp: Date.now()
+  };
+
+  db.collection("leaderboard_shape_drop").add(entry);
 }
 function renderLeaderboard(cur){
   const list=document.getElementById('lb-list'), entries=lbGet();
