@@ -433,7 +433,7 @@ body{
           <div class="stat"><p class="stat-n">Score</p>    <p class="stat-v" id="es-score">0</p></div>
           <div class="stat"><p class="stat-n">Level</p>    <p class="stat-v" id="es-level">1</p></div>
           <div class="stat"><p class="stat-n">Caught</p>   <p class="stat-v" id="es-got">0</p></div>
-          <div class="stat"><p class="stat-n">Missed</p>   <p class="stat-v" id="es-miss">0</p></div>
+          <div class="stat"><p class="stat-n">Red hits</p>  <p class="stat-v" id="es-miss">0</p></div>
         </div>
         <div class="s-sep"></div>
         <div id="lb-section">
@@ -1050,9 +1050,13 @@ function spawnDrop(){
 const spawnEvery=()=>Math.max(22,65-level*7);
 
 function drawDrop(d){
-  const fill=d.bad?'#FFF2F2':'#EEF4FF';
-  const strk=d.bad?'rgba(255,69,58,.28)':'rgba(59,135,245,.22)';
-  drawFlat(gx,d.sh,d.x,d.y,d.sz,d.rot,fill,strk,1.8);
+  if(d.bad){
+    // RED — bold danger fill, strong stroke, clearly avoid
+    drawFlat(gx,d.sh,d.x,d.y,d.sz,d.rot,'#FFE8E7','rgba(255,69,58,.65)',2.2);
+  } else {
+    // BLUE — light collectible fill, inviting stroke
+    drawFlat(gx,d.sh,d.x,d.y,d.sz,d.rot,'#E8F1FF','rgba(59,135,245,.55)',2.2);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1066,13 +1070,16 @@ function collideDrop(){
     const dist=Math.sqrt(dx*dx+dy*dy);
     const catchR=PR+d.sz*.6;
 
-    // Caught by player
+    // ── Player touches a drop ──────────────────────────
     if(dist<catchR){
+
       if(!d.bad){
+        // ✅ BLUE shape: collect → score + meter fill
         combo++;got++;
         const pts=(10+level*4)*Math.max(1,combo);
         score+=pts;scoreEl.textContent=score;
-        fillT=Math.min(1,fillT+1/FILLS);fillCol=C.blue;
+        fillT=Math.min(1,fillT+1/FILLS);
+        fillCol=C.blue;
         toast(combo>=3?combo+'× combo!':'+'+pts,false);
         showCombo(combo);
         popSparks(d.x,d.y,C.blue,9,d.sh);
@@ -1080,23 +1087,26 @@ function collideDrop(){
         if(fillT>=.999&&!advancing){
           advancing=true;fillT=1;fillV=1;setTimeout(winLevel,200);
         }
+
       } else {
-        combo=0;dodged++;
-        const pen=Math.max(0,8+level*2);
-        score=Math.max(0,score-pen);scoreEl.textContent=score;
+        // ❌ RED shape: hit → lose a life + drain meter
+        combo=0;
+        dodged++;  // counts red shapes the player ran into
+        lives=Math.max(0,lives-1);buildLives();
         fillT=Math.max(0,fillT-1/FILLS);
         fillCol=C.red;
         setTimeout(()=>{if(fillCol===C.red)fillCol=C.blue;},520);
-        toast('-'+pen,true);
-        popSparks(d.x,d.y,C.red,7,d.sh);
-        doFlash(C.red,170);doShake(4);
+        toast('Ouch! -1 life',true);
+        popSparks(d.x,d.y,C.red,8,d.sh);
+        doFlash(C.red,200);doShake(5);
+        if(lives<=0)setTimeout(()=>endGame(false),300);
       }
       return false;
     }
 
-    // Near-miss bonus: bad shape passes close
+    // ── Near-miss bonus: red shape passes close without hitting ──
     if(!d._nm && d.y>playerY-PR*1.5 && d.y<playerY+PR*1.5){
-      if(d.bad && dist<catchR*2.2){
+      if(d.bad && dist<catchR*2.4 && dist>=catchR){
         d._nm=true;
         const b=Math.max(3,5+level);
         score+=b;scoreEl.textContent=score;
@@ -1104,16 +1114,19 @@ function collideDrop(){
       }
     }
 
-    // Drop has passed below the playfield
+    // ── Drop exits bottom of screen ───────────────────
     if(d.y>H+30){
       if(!d.bad && !d._passed){
+        // Blue shape missed → lose a life
         d._passed=true;
-        combo=0;lives=Math.max(0,lives-1);buildLives();
+        combo=0;
+        lives=Math.max(0,lives-1);buildLives();
         fillT=Math.max(0,fillT-1/FILLS);
         fillCol=C.red;doShake(3);
         setTimeout(()=>{if(fillCol===C.red)fillCol=C.blue;},520);
         if(lives<=0)setTimeout(()=>endGame(false),300);
       }
+      // Red shape exits bottom = player successfully dodged it — no penalty
       return false;
     }
 
