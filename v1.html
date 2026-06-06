@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Drift Diamonds</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #111; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// ─────────────────────────────────────────────────────────────────
+// DRIFT DIAMONDS  –  single-file mobile game
+// ─────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W = canvas.width  = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+window.addEventListener('resize', () => {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+});
+
+// ── Seeded RNG ─────────────────────────────────────────────────
+function makeRNG(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return ((s >>> 0) / 4294967296);
+  };
+}
+
+// ── Catmull-Rom spline ─────────────────────────────────────────
+function crPoint(pts, t) {
+  const n = pts.length - 1;
+  if (t <= 0) return { x: pts[0].x, y: pts[0].y };
+  if (t >= 1) return { x: pts[n].x, y: pts[n].y };
+  const seg = Math.min(Math.floor(t * n), n - 1);
+  const lt  = t * n - seg;
+  const i0 = Math.max(0, seg-1), i1=seg, i2=Math.min(n,seg+1), i3=Math.min(n,seg+2);
+  const [p0,p1,p2,p3] = [pts[i0],pts[i1],pts[i2],pts[i3]];
+  const t2=lt*lt, t3=t2*lt;
+  return {
+    x: .5*(2*p1.x+(-p0.x+p2.x)*lt+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    y: .5*(2*p1.y+(-p0.y+p2.y)*lt+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+  };
+}
+
+function crDir(pts, t) {
+  const eps = 0.002;
+  const a = crPoint(pts, Math.max(0, t-eps));
+  const b = crPoint(pts, Math.min(1, t+eps));
+  const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+  return { x:dx/len, y:dy/len };
+}
+
+// ── Track generation ───────────────────────────────────────────
+const TRACK_W = 170;
+
+function genTrack(seed, numCurves) {
+  const rand = makeRNG(seed);
+  const pts  = [];
+  let x=0, y=0, ang=-Math.PI/2;
+
+  const push = () => pts.push({x,y});
+  push();
+  // straight start
+  for (let i=0;i<5;i++){ y-=90; push(); }
+
+  for (let c=0;c<numCurves;c++) {
+    const dir    = (c%2===0)?1:-1;
+    const sweep  = dir*(0.55+rand()*0.45)*Math.PI;
+    const segLen = 280+rand()*220;
+    const steps  = 14;
+    for (let s=0;s<steps;s++) {
+      ang += sweep * Math.sin((s+1)/steps*Math.PI) / steps * 1.6;
+      x   += Math.cos(ang)*segLen/steps;
+      y   += Math.sin(ang)*segLen/steps;
+      push();
+    }
+  }
+  // straight end
+  for (let i=0;i<6;i++){ x+=Math.cos(ang)*80; y+=Math.sin(ang)*80; push(); }
+  return pts;
+}
+
+// Build a dense LUT for fast closest-point queries
+function buildLUT(pts, steps=300) {
+  const lut=[];
+  for (let i=0;i<=steps;i++){
+    const t=i/steps;
+    const p=crPoint(pts,t);
+    lut.push({x:p.x,y:p.y,t});
+  }
+  return lut;
+}
+
+function closestT(lut, wx, wy) {
+  let best=0, bestD=Infinity;
+  for (const p of lut){
+    const d=(p.x-wx)**2+(p.y-wy)**2;
+    if(d<bestD){bestD=d;best=p.t;}
+  }
+  return {t:best,dist:Math.sqrt(bestD)};
+}
+
+// ── Level configs ──────────────────────────────────────────────
+const LEVELS = [
+  {seed:42,   curves:6,  need:6,  spd:165, grip:0.11, label:'Track 1 – Easy Rider'},
+  {seed:137,  curves:8,  need:10, spd:195, grip:0.09, label:'Track 2 – Serpentine'},
+  {seed:999,  curves:10, need:14, spd:220, grip:0.08, label:'Track 3 – Twisty Devil'},
+  {seed:2048, curves:12, need:18, spd:255, grip:0.07, label:'Track 4 – Midnight Coil'},
+  {seed:7777, curves:14, need:22, spd:285, grip:0.065,label:'Track 5 – Viper Run'},
+  {seed:3141, curves:16, need:26, spd:310, grip:0.06, label:'Track 6 – Chaos Canyon'},
+];
+
+// ── Game state ─────────────────────────────────────────────────
+let state  = 'title';   // title | playing | levelup | gameover
+let lvlIdx = 0, score  = 0;
+let trackPts, trackLUT, diamonds, dCollected, dNeeded;
+let car={};
+let camX=0, camY=0;
+let tireMarks=[], particles=[];
+let shake=0, time=0;
+let trailDots=[], trailTimer=0;
+
+// ── Build a level ──────────────────────────────────────────────
+function buildLevel(idx){
+  const cfg = LEVELS[idx % LEVELS.length];
+  trackPts  = genTrack(cfg.seed + idx*31, cfg.curves);
+  trackLUT  = buildLUT(trackPts);
+  dNeeded   = cfg.need;
+  dCollected= 0;
+
+  // place diamonds
+  const rng = makeRNG(cfg.seed*7 + idx*13);
+  const total = cfg.need + 3;
+  diamonds = [];
+  for (let i=0;i<total;i++){
+    const t   = 0.07 + (i/total)*0.86;
+    const ctr = crPoint(trackPts, t);
+    const dir = crDir(trackPts, t);
+    const nor = {x:-dir.y, y:dir.x};
+    const off = (rng()-.5)*(TRACK_W*0.44);
+    diamonds.push({
+      x: ctr.x+nor.x*off,
+      y: ctr.y+nor.y*off,
+      phase: rng()*Math.PI*2,
+      collected: false
+    });
+  }
+
+  // place car
+  const sp  = crPoint(trackPts, 0.025);
+  const sd  = crDir(trackPts, 0.025);
+  car = {
+    x:sp.x, y:sp.y,
+    vx:sd.x*cfg.spd*.5, vy:sd.y*cfg.spd*.5,
+    angle:Math.atan2(sd.y,sd.x),
+    spd:cfg.spd, grip:cfg.grip,
+    offTime:0
+  };
+  camX=car.x; camY=car.y;
+  tireMarks=[]; particles=[]; trailDots=[]; trailTimer=0;
+}
+
+// ── Steering wheel ─────────────────────────────────────────────
+const WR = 68;          // wheel radius
+let steerIn=0, steerTId=null;
+function wheelCtr(){ return {x:W/2, y:H-WR-52}; }
+
+function applySteer(cx,cy){
+  const wc=wheelCtr();
+  steerIn = Math.max(-1,Math.min(1,(cx-wc.x)/WR));
+}
+function startTouch(cx,cy,id){
+  if(state!=='playing'){ doTap(); return; }
+  const wc=wheelCtr();
+  if(steerTId===null && Math.hypot(cx-wc.x,cy-wc.y)<WR*2.8){
+    steerTId=id; applySteer(cx,cy);
+  }
+}
+function moveTouch(cx,cy,id){ if(id===steerTId) applySteer(cx,cy); }
+function endTouch(id){ if(id===steerTId){ steerTId=null; steerIn=0; } }
+
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); for(const t of e.changedTouches) startTouch(t.clientX,t.clientY,t.identifier); },{passive:false});
+canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); for(const t of e.changedTouches) moveTouch(t.clientX,t.clientY,t.identifier); },{passive:false});
+canvas.addEventListener('touchend',   e=>{ e.preventDefault(); for(const t of e.changedTouches) endTouch(t.identifier); },{passive:false});
+canvas.addEventListener('mousedown',  e=>startTouch(e.clientX,e.clientY,'m'));
+canvas.addEventListener('mousemove',  e=>moveTouch(e.clientX,e.clientY,'m'));
+canvas.addEventListener('mouseup',    ()=>endTouch('m'));
+
+function doTap(){
+  if(state==='title'||state==='gameover'){
+    lvlIdx=0; score=0; buildLevel(0); state='playing';
+  }
+}
+
+// ── Update ─────────────────────────────────────────────────────
+function update(dt){
+  if(state!=='playing') return;
+
+  // steer
+  car.angle += steerIn * 2.3 * dt;
+
+  // drift physics
+  const tx = Math.cos(car.angle)*car.spd;
+  const ty = Math.sin(car.angle)*car.spd;
+  car.vx += (tx-car.vx)*car.grip;
+  car.vy += (ty-car.vy)*car.grip;
+  car.x  += car.vx*dt;
+  car.y  += car.vy*dt;
+
+  // center trail dots — always emit every ~4 frames regardless of drift
+  trailTimer += dt;
+  const trailInterval = 0.065; // ~4 frames at 60fps
+  if(trailTimer >= trailInterval){
+    trailTimer -= trailInterval;
+    const maxAge = 1.2;
+    trailDots.push({x:car.x, y:car.y, age:0, maxAge});
+  }
+  for(let i=trailDots.length-1;i>=0;i--){
+    trailDots[i].age += dt;
+    if(trailDots[i].age >= trailDots[i].maxAge) trailDots.splice(i,1);
+  }
+  if(trailDots.length>400) trailDots.splice(0,40);
+
+  // track bounds
+  const {t:ct, dist:cd} = closestT(trackLUT, car.x, car.y);
+  if(cd > TRACK_W/2+8){
+    car.offTime += dt;
+    car.vx*=0.82; car.vy*=0.82;
+    shake = Math.min(shake+dt*14,10);
+    if(car.offTime>1.8){ state='gameover'; return; }
+  } else {
+    car.offTime = Math.max(0, car.offTime-dt*3);
+    shake *= 0.88;
+  }
+
+  // level end
+  if(ct>0.972){
+    if(dCollected>=dNeeded) doLevelUp();
+    else { state='gameover'; }
+    return;
+  }
+
+  // collect diamonds
+  for(const d of diamonds){
+    if(d.collected) continue;
+    if((d.x-car.x)**2+(d.y-car.y)**2 < 33**2){
+      d.collected=true; dCollected++;
+      score += 100*(lvlIdx+1);
+      for(let i=0;i<12;i++){
+        const a=Math.random()*Math.PI*2, spd=55+Math.random()*110;
+        particles.push({x:d.x,y:d.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,
+          life:0.7,maxLife:0.7,size:2.5+Math.random()*3});
+      }
+    }
+    d.phase += dt*3.2;
+  }
+
+  // particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=60*dt;
+    p.life-=dt;
+    if(p.life<=0) particles.splice(i,1);
+  }
+
+  // camera
+  camX += (car.x-camX)*7*dt;
+  camY += (car.y-camY)*7*dt;
+}
+
+function doLevelUp(){
+  state='levelup';
+  setTimeout(()=>{ lvlIdx++; buildLevel(lvlIdx); state='playing'; }, 2600);
+}
+
+// ── Coordinate transform ───────────────────────────────────────
+function w2s(wx,wy){
+  const sk = shake>0.5?(Math.random()-.5)*shake:0;
+  return { x:W/2+(wx-camX)+sk, y:H*0.44+(wy-camY)+sk };
+}
+
+// ── Render background pattern circles ─────────────────────────
+// Fixed world-space positions scattered near track edges; very faint
+const BG_CIRCLES = (function(){
+  const rng = makeRNG(8321);
+  const arr = [];
+  for(let i=0;i<18;i++){
+    arr.push({
+      tx: 0.04 + (i/18)*0.92,  // track t value
+      side: (i%2===0)?1:-1,
+      offMul: 0.55 + rng()*0.65,
+      r: 55 + rng()*90
+    });
+  }
+  return arr;
+})();
+
+function renderBgCircles(){
+  if(!trackPts) return;
+  ctx.save();
+  for(const c of BG_CIRCLES){
+    const ctr = crPoint(trackPts, c.tx);
+    const dir = crDir(trackPts, c.tx);
+    const nor = {x:-dir.y, y:dir.x};
+    const wx = ctr.x + nor.x * TRACK_W * c.side * c.offMul;
+    const wy = ctr.y + nor.y * TRACK_W * c.side * c.offMul;
+    const sp = w2s(wx, wy);
+    if(sp.x<-200||sp.x>W+200||sp.y<-200||sp.y>H+200) continue;
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, c.r, 0, Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.02)';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── Render track ───────────────────────────────────────────────
+let cachedTrackSPts = null, cachedCamHash = '';
+function getTrackScreenPts(){
+  // rebuild if camera moved enough
+  const hash=`${camX.toFixed(1)},${camY.toFixed(1)}`;
+  if(hash!==cachedCamHash){
+    cachedCamHash=hash;
+    cachedTrackSPts=[];
+    for(let i=0;i<=280;i++){
+      const p=crPoint(trackPts,i/280);
+      cachedTrackSPts.push(w2s(p.x,p.y));
+    }
+  }
+  return cachedTrackSPts;
+}
+
+function drawPath(pts){
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+}
+
+function renderTrack(){
+  const sp = getTrackScreenPts();
+  // dark outer edge / shadow
+  ctx.save();
+  ctx.strokeStyle='#14532d';
+  ctx.lineWidth=TRACK_W+22;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  drawPath(sp); ctx.stroke();
+  ctx.restore();
+
+  // glow layer
+  ctx.save();
+  ctx.strokeStyle='#16a34a';
+  ctx.lineWidth=TRACK_W+8;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.shadowColor='#22c55e'; ctx.shadowBlur=28;
+  drawPath(sp); ctx.stroke();
+  ctx.restore();
+
+  // main green road
+  ctx.save();
+  ctx.strokeStyle='#4ade80';
+  ctx.lineWidth=TRACK_W;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.shadowColor='#4ade80'; ctx.shadowBlur=30;
+  drawPath(sp); ctx.stroke();
+  ctx.restore();
+
+  // inner highlight strip
+  ctx.save();
+  ctx.strokeStyle='rgba(187,247,208,0.18)';
+  ctx.lineWidth=TRACK_W*0.38;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  drawPath(sp); ctx.stroke();
+  ctx.restore();
+
+  // finish line
+  const eSP = w2s(crPoint(trackPts,1).x, crPoint(trackPts,1).y);
+  const eDir = crDir(trackPts, 0.995);
+  const eNx=-eDir.y*(TRACK_W/2), eNy=eDir.x*(TRACK_W/2);
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.85)';
+  ctx.lineWidth=4;
+  ctx.setLineDash([10,10]);
+  ctx.lineCap='butt';
+  ctx.beginPath();
+  ctx.moveTo(eSP.x-eNx, eSP.y-eNy);
+  ctx.lineTo(eSP.x+eNx, eSP.y+eNy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ── Render center trail dots ───────────────────────────────────
+function renderMarks(){
+  for(const d of trailDots){
+    const sp=w2s(d.x,d.y);
+    if(sp.x<-10||sp.x>W+10||sp.y<-10||sp.y>H+10) continue;
+    const frac = d.age / d.maxAge;             // 0 = fresh, 1 = gone
+    const alpha = 1 - frac;
+    const radius = 5 - frac * 3;              // 5px fresh → 2px old
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, Math.max(radius, 0.5), 0, Math.PI*2);
+    ctx.fillStyle = `rgba(0,0,0,${alpha.toFixed(3)})`;
+    ctx.fill();
+  }
+}
+
+// ── Render diamonds ────────────────────────────────────────────
+function renderDiamonds(){
+  const carSP = w2s(car.x, car.y);
+  for(const d of diamonds){
+    if(d.collected) continue;
+    const sp=w2s(d.x,d.y);
+    if(sp.x<-40||sp.x>W+40||sp.y<-40||sp.y>H+40) continue;
+    const pulse=1+Math.sin(d.phase)*0.13;
+    const sz=13*pulse;
+
+    // stronger glow when car is close (within 120px screen distance)
+    const screenDist = Math.hypot(sp.x - carSP.x, sp.y - carSP.y);
+    const isClose = screenDist < 120;
+
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    ctx.shadowColor='rgba(255,255,255,0.75)';
+    ctx.shadowBlur = isClose ? 18 : 14;
+
+    // main diamond
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0,-sz);
+    ctx.lineTo(sz*0.58,-sz*0.05);
+    ctx.lineTo(sz*0.58, sz*0.05);
+    ctx.lineTo(0, sz);
+    ctx.lineTo(-sz*0.58, sz*0.05);
+    ctx.lineTo(-sz*0.58,-sz*0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // top facet shine
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(200,240,255,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(0,-sz*0.65);
+    ctx.lineTo(sz*0.34,-sz*0.02);
+    ctx.lineTo(0, sz*0.22);
+    ctx.lineTo(-sz*0.34,-sz*0.02);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+
+    // floor reflection
+    ctx.save();
+    ctx.globalAlpha=0.16;
+    ctx.translate(sp.x+3, sp.y+sz*2.3);
+    ctx.scale(0.75,0.28);
+    ctx.fillStyle='#fff';
+    ctx.beginPath();
+    ctx.moveTo(0,-sz); ctx.lineTo(sz*0.58,0); ctx.lineTo(0,sz); ctx.lineTo(-sz*0.58,0);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Render particles ───────────────────────────────────────────
+function renderParticles(){
+  for(const p of particles){
+    const sp=w2s(p.x,p.y);
+    const a=p.life/p.maxLife;
+    ctx.save();
+    ctx.globalAlpha=a;
+    ctx.fillStyle='#ffffff';
+    ctx.shadowColor='#ffffff'; ctx.shadowBlur=7;
+    ctx.beginPath();
+    ctx.arc(sp.x,sp.y,p.size*a,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Render car ─────────────────────────────────────────────────
+function renderCar(){
+  const sp = w2s(car.x, car.y);
+  const va = Math.atan2(car.vy, car.vx);   // visual angle follows velocity
+
+  ctx.save();
+  ctx.translate(sp.x, sp.y);
+  ctx.rotate(va);
+
+  // drop shadow
+  ctx.save();
+  ctx.translate(5,9); ctx.scale(1,0.45);
+  ctx.fillStyle='rgba(0,0,0,0.38)';
+  rrFill(-19,-11,38,22,5);
+  ctx.restore();
+
+  // headlight beams
+  const hg=ctx.createLinearGradient(18,0,78,0);
+  hg.addColorStop(0,'rgba(255,255,200,0.38)');
+  hg.addColorStop(1,'rgba(255,255,200,0)');
+  ctx.fillStyle=hg;
+  ctx.beginPath();
+  ctx.moveTo(18,-9); ctx.lineTo(80,-24); ctx.lineTo(80,24); ctx.lineTo(18,9);
+  ctx.closePath(); ctx.fill();
+
+  // body
+  ctx.fillStyle='#1c1c1c';
+  rrFill(-19,-11,38,22,5);
+
+  // cabin/roof
+  ctx.fillStyle='#0e0e0e';
+  rrFill(-11,-8.5,22,17,3.5);
+
+  // windshield tint
+  ctx.fillStyle='rgba(100,180,220,0.25)';
+  ctx.beginPath();
+  ctx.moveTo(5,-8); ctx.lineTo(11,-6.5); ctx.lineTo(11,6.5); ctx.lineTo(5,8);
+  ctx.closePath(); ctx.fill();
+
+  // headlights
+  ctx.shadowColor='rgba(255,255,190,0.95)'; ctx.shadowBlur=14;
+  ctx.fillStyle='rgba(255,255,210,1)';
+  ellipse2(17,-7,3.8,2.6);
+  ellipse2(17, 7,3.8,2.6);
+  ctx.shadowBlur=0;
+
+  // taillights
+  ctx.shadowColor='rgba(220,30,30,0.8)'; ctx.shadowBlur=9;
+  ctx.fillStyle='rgba(220,40,40,0.95)';
+  ellipse2(-17,-6.5,3.2,2.2);
+  ellipse2(-17, 6.5,3.2,2.2);
+  ctx.shadowBlur=0;
+
+  ctx.restore();
+}
+
+function rrFill(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,  x+w,y+r,  r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,  x,y+h-r,  r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,    x+r,y,    r);
+  ctx.closePath(); ctx.fill();
+}
+function ellipse2(cx,cy,rx,ry){
+  ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill();
+}
+
+// ── Render steering wheel ──────────────────────────────────────
+function renderWheel(){
+  const wc=wheelCtr(), R=WR;
+  const rot=steerIn*Math.PI*0.48;
+
+  ctx.save(); ctx.translate(wc.x,wc.y);
+
+  // outer bg
+  ctx.fillStyle='rgba(30,30,30,0.62)';
+  ctx.beginPath(); ctx.arc(0,0,R+20,0,Math.PI*2); ctx.fill();
+
+  // green accent ring
+  ctx.strokeStyle='rgba(74,222,128,0.55)';
+  ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(0,0,R+20,0,Math.PI*2); ctx.stroke();
+
+  ctx.rotate(rot);
+
+  // rim — green highlight when steering
+  const rimActive = Math.abs(steerIn) > 0.1;
+  ctx.strokeStyle = rimActive ? 'rgba(74,222,128,0.6)' : 'rgba(65,65,65,0.95)';
+  ctx.lineWidth=11;
+  ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // rim highlight
+  ctx.strokeStyle='rgba(95,95,95,0.7)';
+  ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(0,0,R,-0.6,0.6); ctx.stroke();
+
+  // 3 spokes
+  ctx.strokeStyle='rgba(60,60,60,0.95)';
+  ctx.lineWidth=7;
+  for(let i=0;i<3;i++){
+    const a=(i/3)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*18,Math.sin(a)*18);
+    ctx.lineTo(Math.cos(a)*R, Math.sin(a)*R);
+    ctx.stroke();
+  }
+
+  // hub
+  ctx.fillStyle='#3a3a3a'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=5;
+  ctx.beginPath(); ctx.arc(0,0,18,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#484848'; ctx.shadowBlur=0;
+  ctx.beginPath(); ctx.arc(0,0,11,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Render HUD ─────────────────────────────────────────────────
+function renderHUD(){
+  ctx.textAlign='center'; ctx.shadowBlur=0;
+
+  // score — green tint shadow then white on top
+  ctx.font='bold 54px system-ui, Arial, sans-serif';
+  ctx.fillStyle='rgba(74,222,128,0.25)';
+  ctx.fillText(score, W/2, 68);    // green shadow layer at +0,+2
+  ctx.fillStyle='#fff';
+  ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12;
+  ctx.fillText(score, W/2, 66);    // white on top
+  ctx.shadowBlur=0;
+
+  // progress bar
+  const bw=Math.min(W*0.58,210), bh=8;
+  const bx=W/2-bw/2, by=83;
+  const prog=Math.min(1,dCollected/dNeeded);
+
+  ctx.fillStyle='rgba(255,255,255,0.14)';
+  rrBar(bx,by,bw,bh,4);
+
+  if(prog>0){
+    ctx.fillStyle='#4ade80';
+    ctx.shadowColor='#4ade80'; ctx.shadowBlur=8;
+    rrBar(bx,by,bw*prog,bh,4);
+    ctx.shadowBlur=0;
+  }
+
+  // diamond count
+  ctx.font='13px system-ui,Arial';
+  ctx.fillStyle='rgba(255,255,255,0.62)';
+  ctx.fillText(`♦ ${dCollected} / ${dNeeded}  to advance`, W/2, by+24);
+
+  // level tag
+  ctx.textAlign='left';
+  ctx.font='bold 13px system-ui,Arial';
+  ctx.fillStyle='rgba(74,222,128,0.9)';
+  ctx.fillText(`LVL ${lvlIdx+1}`, 16, 27);
+
+  // off-track warning
+  if(car.offTime>0.25){
+    const a=Math.min(1,car.offTime)*Math.abs(Math.sin(time*10));
+    ctx.textAlign='center';
+    ctx.font='bold 23px system-ui,Arial';
+    ctx.fillStyle=`rgba(239,68,68,${a})`;
+    ctx.fillText('OFF TRACK!', W/2, H*0.22);
+  }
+}
+
+function rrBar(x,y,w,h,r){
+  if(w<r*2) w=r*2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath(); ctx.fill();
+}
+
+// ── Overlay screens ────────────────────────────────────────────
+function renderTitle(){
+  // animated background diamonds
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+  const cols=['rgba(74,222,128,0.08)','rgba(74,222,128,0.05)','rgba(255,255,255,0.04)'];
+  for(let i=0;i<12;i++){
+    const x=W*((i*0.18)%1), y=H*((i*0.23+time*0.05)%1);
+    const sz=12+Math.sin(time*1.5+i)*5;
+    ctx.save(); ctx.translate(x,y); ctx.fillStyle=cols[i%3];
+    ctx.beginPath();
+    ctx.moveTo(0,-sz); ctx.lineTo(sz*0.6,0); ctx.lineTo(0,sz); ctx.lineTo(-sz*0.6,0);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+
+  ctx.textAlign='center';
+  ctx.shadowColor='#4ade80'; ctx.shadowBlur=35;
+  ctx.fillStyle='#4ade80';
+  ctx.font='bold 72px system-ui,Arial';
+  ctx.fillText('DRIFT', W/2, H/2-55);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 72px system-ui,Arial';
+  ctx.fillText('DIAMONDS', W/2, H/2+20);
+
+  ctx.font='16px system-ui,Arial';
+  ctx.fillStyle='rgba(255,255,255,0.5)';
+  ctx.fillText('Steer to stay on the track', W/2, H/2+70);
+  ctx.fillText('Collect ♦ to reach the finish', W/2, H/2+96);
+
+  // animated diamond row
+  for(let i=0;i<5;i++){
+    const x=W/2-80+i*40, y=H/2+135;
+    const sz=8+Math.sin(time*2.5+i*1.2)*3.5;
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=10;
+    ctx.beginPath();
+    ctx.moveTo(0,-sz); ctx.lineTo(sz*0.6,0); ctx.lineTo(0,sz); ctx.lineTo(-sz*0.6,0);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  const pulse=0.55+0.45*Math.abs(Math.sin(time*1.8));
+  ctx.font='bold 22px system-ui,Arial';
+  ctx.fillStyle=`rgba(255,255,255,${pulse})`;
+  ctx.fillText('TAP TO START', W/2, H/2+195);
+}
+
+function renderLevelUp(){
+  ctx.fillStyle='rgba(0,0,0,0.68)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.shadowColor='#4ade80'; ctx.shadowBlur=28;
+  ctx.font='bold 50px system-ui,Arial';
+  ctx.fillStyle='#4ade80';
+  ctx.fillText('LEVEL COMPLETE!', W/2, H/2-30);
+  ctx.shadowBlur=0;
+  ctx.font='26px system-ui,Arial';
+  ctx.fillStyle='#fff';
+  ctx.fillText(`Score: ${score}`, W/2, H/2+26);
+  ctx.font='17px system-ui,Arial';
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  ctx.fillText('Next track loading…', W/2, H/2+68);
+}
+
+function renderGameOver(){
+  ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.shadowColor='#ef4444'; ctx.shadowBlur=22;
+  ctx.font='bold 56px system-ui,Arial';
+  ctx.fillStyle='#ef4444';
+  ctx.fillText('GAME OVER', W/2, H/2-50);
+  ctx.shadowBlur=0;
+  ctx.font='26px system-ui,Arial';
+  ctx.fillStyle='#fff';
+  ctx.fillText(`Score: ${score}`, W/2, H/2+14);
+  ctx.fillText(`Level: ${lvlIdx+1}`, W/2, H/2+52);
+  const pulse=0.5+0.5*Math.abs(Math.sin(time*1.9));
+  ctx.font='bold 21px system-ui,Arial';
+  ctx.fillStyle=`rgba(255,255,255,${pulse})`;
+  ctx.fillText('TAP TO RESTART', W/2, H/2+114);
+}
+
+// ── Main loop ──────────────────────────────────────────────────
+let lastTs = performance.now();
+
+function loop(ts){
+  const dt = Math.min((ts-lastTs)/1000, 0.05);
+  lastTs=ts; time+=dt;
+
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+
+  if(state==='title'){
+    renderTitle();
+  } else {
+    update(dt);
+    renderBgCircles();
+    renderTrack();
+    renderMarks();
+    renderDiamonds();
+    renderParticles();
+    renderCar();
+    renderHUD();
+    renderWheel();
+    if(state==='levelup')   renderLevelUp();
+    else if(state==='gameover') renderGameOver();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
