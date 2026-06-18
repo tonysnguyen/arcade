@@ -1795,6 +1795,93 @@
             }
         }
 
+        function updatePlayerInput(delta) {
+            let inputX = 0;
+            let inputZ = 0;
+
+            if (keyboard['w'] || keyboard['arrowup']) inputZ = -1;
+            if (keyboard['s'] || keyboard['arrowdown']) inputZ = 1;
+            if (keyboard['a'] || keyboard['arrowleft']) inputX = -1;
+            if (keyboard['d'] || keyboard['arrowright']) inputX = 1;
+
+            if (touchActive) {
+                inputX = touchVector.x;
+                inputZ = touchVector.y;
+            }
+
+            const isMoving = Math.abs(inputX) > 0.05 || Math.abs(inputZ) > 0.05;
+            let speed = 6.2;
+
+            if (isMoving) {
+                if (isSprinting) {
+                    speed = 10.5;
+                    noiseLevel = 13.5;
+                    document.getElementById('noiseBar').style.width = '100%';
+                    document.getElementById('noiseBar').className = "bg-rose-500 h-full transition-all duration-100";
+                    document.getElementById('noiseIndicator').innerText = '🏃‍♂️🚨';
+                } else {
+                    speed = 6.2;
+                    noiseLevel = 5.8;
+                    document.getElementById('noiseBar').style.width = '45%';
+                    document.getElementById('noiseBar').className = "bg-amber-500 h-full transition-all duration-100";
+                    document.getElementById('noiseIndicator').innerText = '🚶‍♂️';
+                }
+
+                // Project camera's forward and right vectors onto the flat ground plane (XZ plane)
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                forward.y = 0;
+                forward.normalize();
+
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                right.y = 0;
+                right.normalize();
+
+                // Map inputs (keyboard or touch vectors) directly onto projected camera-relative vectors
+                let moveDir = new THREE.Vector3();
+                moveDir.addScaledVector(forward, -inputZ); // Negative inputZ moves forward
+                moveDir.addScaledVector(right, inputX);    // Positive inputX moves right
+
+                if (moveDir.length() > 1.0) {
+                    moveDir.normalize();
+                }
+
+                const targetAngle = Math.atan2(moveDir.x, moveDir.z);
+                player.rotation.y = targetAngle;
+
+                stepCount++;
+                if (stepCount % (isSprinting ? 11 : 19) === 0) {
+                    audio.playStep();
+                }
+
+                player.position.y = 0.9 + Math.sin(performance.now() * 0.015) * 0.15;
+
+                const nextX = player.position.x + moveDir.x * speed * delta;
+                const nextZ = player.position.z + moveDir.z * speed * delta;
+
+                const margin = WORLD_SIZE / 2 - 1.0;
+                // Walk condition checks: avoid buildings and don't fall off into canals
+                if (Math.abs(nextX) < margin && !isWaterAt(nextX, player.position.z) && !isCollidingWithBuildings(nextX, player.position.z, playerCollisionRadius)) {
+                    player.position.x = nextX;
+                }
+                if (Math.abs(nextZ) < margin && !isWaterAt(player.position.x, nextZ) && !isCollidingWithBuildings(player.position.x, nextZ, playerCollisionRadius)) {
+                    player.position.z = nextZ;
+                }
+            } else {
+                noiseLevel = 1.6;
+                document.getElementById('noiseBar').style.width = '10%';
+                document.getElementById('noiseBar').className = "bg-emerald-500 h-full transition-all duration-100";
+                document.getElementById('noiseIndicator').innerText = '🤫';
+                player.position.y = 0.9;
+            }
+
+            if (noiseRadiusVisualizer) {
+                const pulseScale = (performance.now() % 1000) / 1000;
+                noiseRadiusVisualizer.scale.setScalar(noiseLevel * pulseScale);
+                noiseRadiusVisualizer.position.copy(player.position);
+                noiseRadiusVisualizer.position.y = 0.52;
+            }
+        }
+
         function updateStreetlights(delta) {
             streetlights.forEach(sl => {
                 sl.flickerTimer -= delta;
