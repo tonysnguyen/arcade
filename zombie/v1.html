@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cute Spooky Zombie Runner 3D - Mobile Edition</title>
+    <title>Cute Spooky Zombie Runner 3D - Mega City Edition</title>
     <!-- Tailwind CSS for modern HUD & UI -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Retro/Playful design -->
@@ -16,7 +16,7 @@
             user-select: none;
             overflow: hidden;
             margin: 0;
-            background: #090d16;
+            background: #060a12;
             touch-action: none;
         }
         .heading-font {
@@ -24,8 +24,8 @@
         }
         /* Spooky Glassmorphism for HUD elements */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(10, 15, 30, 0.9);
+            backdrop-filter: blur(10px);
             border: 3px solid #6366f1;
             box-shadow: 4px 4px 0px #4f46e5;
         }
@@ -52,27 +52,30 @@
 
     <!-- MOBILE TOUCH JOYSTICK OVERLAY -->
     <div id="joystickZone" class="absolute inset-0 pointer-events-none z-30 select-none">
-        <div id="joystickContainer" class="absolute w-24 h-24 rounded-full bg-slate-950 bg-opacity-40 border-2 border-dashed border-indigo-500 flex items-center justify-center opacity-0 transition-opacity duration-150">
+        <div id="joystickContainer" class="absolute w-24 h-24 rounded-full bg-slate-950/55 border-2 border-dashed border-indigo-500 flex items-center justify-center opacity-0 transition-opacity duration-150">
             <div id="joystickKnob" class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-400 border border-indigo-300 shadow-md"></div>
         </div>
     </div>
 
     <!-- MAIN START SCREEN MENU -->
-    <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 bg-opacity-90 z-50 transition-opacity duration-300">
+    <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-50 transition-opacity duration-300">
         <div class="glass-panel rounded-3xl p-6 max-w-sm text-center flex flex-col items-center mx-4">
-            <h1 class="heading-font text-3xl text-indigo-400 mb-1 drop-shadow-sm tracking-wide">SPOOKY RUNNER</h1>
-            <p class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4">Cute Spooky Mobile Edition V3</p>
+            <h1 class="heading-font text-3xl text-indigo-400 mb-1 drop-shadow-sm tracking-wide">SPOOKY CITY RUNNER</h1>
+            <p class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4">Cute Spooky City V6</p>
             
             <!-- Instructions Panel -->
-            <div class="text-left bg-slate-900 border border-indigo-500/50 p-4 rounded-xl mb-4 text-slate-300 text-xs space-y-2">
-                <p>🔦 <span class="font-bold text-amber-300">Flashlight:</span> Point your beam to navigate the dim town. If it sweeps over a zombie, they will detect you instantly!</p>
-                <p>🤫 <span class="font-bold text-emerald-400">Audio Alerts:</span> Running makes noise! Watch your noise wave.</p>
-                <p>💚 <span class="font-bold text-pink-400">Floating Meter:</span> Watch the 3D block bar floating right above your head to see remaining health packs!</p>
-                <p class="text-center font-bold text-indigo-300 mt-2">CONTROLS: Swipe/Drag left side to move.<br>Use on-screen buttons to Attack/Trap/Sprint!</p>
+            <div class="text-left bg-slate-900 border border-indigo-500/50 p-4 rounded-xl mb-4 text-slate-300 text-xs space-y-2 max-h-60 overflow-y-auto">
+                <p>🏙️ <span class="font-bold text-indigo-300">Mega City Grid:</span> Explore dense rows of pastel townhouses, high-rise office blocks, and striped retail plazas!</p>
+                <p>🌉 <span class="font-bold text-indigo-300">Dry & Water Crossings:</span> Travel safely over both stone canal bridges and wide asphalt boulevards complete with elevated pedestrian overpasses.</p>
+                <p>💡 <span class="font-bold text-amber-300">Flickering Streetlights:</span> Look out for subtle, spooky lamp posts flickering softly along the roadways.</p>
+                <p>🔦 <span class="font-bold text-amber-300">Feathered Beam:</span> Your flashlight has a soft, feathered falloff, but sweeping over zombies will still instantly trigger them!</p>
+                <p>🚌 <span class="font-bold text-cyan-400">Urban Cover:</span> Break zombie line-of-sight using parked transit buses, cabs, or brick building corners.</p>
+                <p>💚 <span class="font-bold text-emerald-400">HUD Progress:</span> Track collected health packs in the segmented UI bar at the top-left.</p>
+                <p class="text-center font-bold text-indigo-300 mt-2">CONTROLS: Swipe/Drag anywhere to run.<br>Space/Buttons to Attack/Trap/Sprint!</p>
             </div>
 
             <button id="startBtn" class="btn-retro text-white heading-font text-lg py-3 px-8 rounded-full w-full cursor-pointer select-none">
-                ENTER THE NIGHT
+                EXPLORE THE CITY
             </button>
         </div>
     </div>
@@ -120,7 +123,6 @@
 
         <!-- Right Side: Weapons & Utilities -->
         <div class="flex flex-col gap-1.5 items-end">
-            <!-- Weapon Status -->
             <div class="glass-panel rounded-xl px-3 py-1 pointer-events-auto flex items-center gap-2">
                 <div class="text-right">
                     <div class="text-[10px] font-bold text-slate-400 uppercase leading-none">Bat</div>
@@ -139,7 +141,7 @@
         </div>
     </div>
 
-    <!-- MOBILE ON-SCREEN HUD CONTROLS (TAPS & SWIPES) -->
+    <!-- MOBILE ON-SCREEN HUD CONTROLS -->
     <div id="mobileActionGrid" class="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
         <!-- Sprint Hold/Toggle Button -->
         <button id="mobileSprintBtn" class="w-14 h-14 rounded-full bg-amber-600 border-2 border-amber-400 text-xl flex items-center justify-center active:scale-90 shadow-lg pointer-events-auto select-none font-bold text-white transition-transform">
@@ -158,11 +160,11 @@
     </div>
 
     <!-- GAME OVER / RESTART SCREEN -->
-    <div id="gameOverScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 bg-opacity-90 z-50 hidden">
+    <div id="gameOverScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-50 hidden">
         <div class="glass-panel rounded-3xl p-8 max-w-sm text-center flex flex-col items-center mx-4">
             <div class="text-6xl mb-4">🧟‍♂️🚨</div>
             <h2 class="heading-font text-3xl text-rose-500 mb-2">CAPTURED!</h2>
-            <p class="text-slate-400 text-sm mb-6">The zombies heard you or saw your soft flashlight! Keep your distance next time.</p>
+            <p class="text-slate-400 text-sm mb-6">The city zombies heard you or your soft flashlight swept them! Watch your noise wave next time.</p>
             <button id="restartBtn" class="btn-retro text-white heading-font text-lg py-3 px-6 rounded-full w-full cursor-pointer select-none">
                 TRY AGAIN
             </button>
@@ -170,11 +172,11 @@
     </div>
 
     <!-- VICTORY SCREEN -->
-    <div id="victoryScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 bg-opacity-90 z-50 hidden">
+    <div id="victoryScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-50 hidden">
         <div class="glass-panel rounded-3xl p-8 max-w-sm text-center flex flex-col items-center mx-4 border-emerald-600">
             <div class="text-6xl mb-4">🏆🎉</div>
             <h2 class="heading-font text-3xl text-emerald-400 mb-2">CITY ESCAPED!</h2>
-            <p class="text-slate-400 text-sm mb-6">Fantastic running! You collected every single pack and escaped undetected!</p>
+            <p class="text-slate-400 text-sm mb-6">Amazing run! You collected every pack and successfully crossed the bridges out of town!</p>
             <button id="winRestartBtn" class="btn-retro text-white heading-font text-lg py-3 px-6 rounded-full w-full cursor-pointer bg-emerald-600 border-emerald-900 select-none">
                 PLAY AGAIN
             </button>
@@ -215,36 +217,36 @@
             }
 
             playStep() {
-                this.playTone(60, 'triangle', 0.15, 0.12);
+                this.playTone(65, 'triangle', 0.15, 0.1);
             }
 
             playCollectPack() {
                 if (!this.ctx) return;
-                this.playTone(400, 'sine', 0.1, 0.1);
-                setTimeout(() => this.playTone(600, 'sine', 0.1, 0.1), 80);
-                setTimeout(() => this.playTone(900, 'sine', 0.25, 0.12), 160);
+                this.playTone(440, 'sine', 0.1, 0.1);
+                setTimeout(() => this.playTone(660, 'sine', 0.1, 0.1), 80);
+                setTimeout(() => this.playTone(880, 'sine', 0.25, 0.12), 160);
             }
 
             playCollectWeapon() {
-                this.playTone(280, 'square', 0.12, 0.08);
-                setTimeout(() => this.playTone(380, 'square', 0.18, 0.08), 100);
+                this.playTone(300, 'square', 0.12, 0.08);
+                setTimeout(() => this.playTone(400, 'square', 0.18, 0.08), 100);
             }
 
             playSwing() {
-                this.playTone(180, 'triangle', 0.25, 0.25);
+                this.playTone(190, 'triangle', 0.25, 0.2);
             }
 
             playZombieGroan() {
-                this.playTone(70 + Math.random() * 20, 'sawtooth', 0.6, 0.04);
+                this.playTone(65 + Math.random() * 20, 'sawtooth', 0.6, 0.03);
             }
 
             playAlertScreech() {
-                this.playTone(660, 'sawtooth', 0.15, 0.12);
-                setTimeout(() => this.playTone(550, 'sawtooth', 0.25, 0.15), 120);
+                this.playTone(600, 'sawtooth', 0.15, 0.1);
+                setTimeout(() => this.playTone(500, 'sawtooth', 0.25, 0.12), 120);
             }
 
             playNetSplat() {
-                this.playTone(120, 'triangle', 0.3, 0.15);
+                this.playTone(110, 'triangle', 0.3, 0.15);
             }
 
             startMusic() {
@@ -254,18 +256,17 @@
                 this.musicInterval = setInterval(() => {
                     if (this.muted) return;
                     let baseNote = notes[step % notes.length];
-                    this.playTone(baseNote, 'triangle', 0.5, 0.04);
+                    this.playTone(baseNote, 'triangle', 0.5, 0.03);
                     if (step % 4 === 0) {
-                        this.playTone(baseNote * 1.5, 'sine', 0.3, 0.02);
+                        this.playTone(baseNote * 1.5, 'sine', 0.3, 0.015);
                     }
                     step++;
-                }, 500);
+                }, 550);
             }
         }
 
         const audio = new SoundEngine();
 
-        // --- GAME SYSTEM DATA & VARIABLES ---
         let scene, camera, renderer;
         let player, playerCollisionRadius = 0.6;
         let keyboard = {};
@@ -276,8 +277,8 @@
         // Flashlight Elements
         let flashlightLight;
         let flashlightMesh;
-        const FLASHLIGHT_RANGE = 14.0;
-        const FLASHLIGHT_ANGLE = Math.PI / 5.5;
+        const FLASHLIGHT_RANGE = 15.0;
+        const FLASHLIGHT_ANGLE = Math.PI / 5.0;
 
         // Assets / Entities lists
         let buildings = [];
@@ -286,6 +287,7 @@
         let weapons = [];
         let thrownNets = [];
         let blowingLeaves = [];
+        let streetlights = []; // Tracks streetlights for the subtle flickering effects
 
         // Touch Control Variables
         let touchActive = false;
@@ -304,22 +306,21 @@
             gameStarted: false
         };
 
-        const WORLD_SIZE = 56;
-        const GRID_CELLS = 10;
+        const WORLD_SIZE = 64; // Expanded size for rich city density
 
-        // Spooky but bright low-poly colors (derived from reference image styles like CleanShot 2026-06-18 at 10.56.16@2x.jpg)
+        // Palette matching style guides (CleanShot 2026-06-18 at 10.56.16@2x.jpg and 11.01.24)
         const PALETTE = {
-            grass: 0x223014,
-            water: 0x070c17,
-            road: 0x1c1e24,
-            houseWalls: [0x544f63, 0x474954, 0x3d3f4a, 0x2d3a3c],
-            houseRoofs: [0x5c2b29, 0x3b1c1c, 0x4a322c],
-            zombieSkin: 0x31a384, // Mint teal from image style
-            playerSkin: 0xe6b280,
-            treeCanopy: [0x183021, 0x142b20, 0x122416]
+            grass: 0x1a2920,       // Deep moody teal-green
+            water: 0x091122,       // Dark obsidian indigo water
+            road: 0x1f2229,        // Realistic dark asphalt road
+            bridgeStone: 0x4f5462, // Slate grey
+            houseWalls: [0xdba3a3, 0x9cb8cc, 0xa5cca3, 0xe0cca3, 0xc2a3e0, 0xf0c2a3], // Gorgeous pastels
+            houseRoofs: [0xa33f38, 0x3d6475, 0x517351, 0x82643a],          // Warm terracotta clay colors
+            zombieSkin: 0x3ac5a0,  // Teal mint color
+            playerSkin: 0xf3cca3,
+            treeCanopy: [0x153621, 0x24422e, 0x33523c, 0x6e563a]            // Forest & autumn ambers
         };
 
-        // --- WEB INTERFACE TRIGGERS ---
         document.getElementById('startBtn').addEventListener('click', () => {
             audio.init();
             document.getElementById('startScreen').classList.add('opacity-0');
@@ -345,7 +346,7 @@
         document.getElementById('restartBtn').addEventListener('click', handleRestart);
         document.getElementById('winRestartBtn').addEventListener('click', handleRestart);
 
-        // Mobile On-Screen Action Buttons
+        // Mobile Action controls
         document.getElementById('mobileBatBtn').addEventListener('click', (e) => {
             e.stopPropagation();
             triggerBatAttack();
@@ -362,15 +363,14 @@
             document.getElementById('mobileSprintBtn').classList.toggle('border-rose-400');
         });
 
-        // --- INITIALIZE THREE.JS SCENE ---
         function initEngine() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(PALETTE.water);
-            scene.fog = new THREE.FogExp2(0x0a0c16, 0.014);
+            scene.fog = new THREE.FogExp2(0x050914, 0.015); // Thick spooky nighttime mist
 
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-            camera.position.set(22, 28, 22);
+            camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 1000);
+            camera.position.set(24, 30, 24);
 
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -378,19 +378,20 @@
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-            // Ambient sky color inspired by CleanShot references
-            const ambientLight = new THREE.AmbientLight(0x353f58, 0.82);
+            // Ambient dark midnight twilight - brightened slightly for V6 visibility
+            const ambientLight = new THREE.AmbientLight(0x22304d, 1.15);
             scene.add(ambientLight);
 
-            // Spooky Moonlight casting soft shadows
-            const moonLight = new THREE.DirectionalLight(0x8ba2cc, 0.65);
-            moonLight.position.set(-25, 40, -15);
+            // Spooky full moon spotlight casting down (Reference: CleanShot 2026-06-18 at 10.56.57@2x.jpg)
+            const moonLight = new THREE.DirectionalLight(0x7da4f5, 1.6);
+            moonLight.position.set(-30, 45, -20);
             moonLight.castShadow = true;
             moonLight.shadow.mapSize.width = 1024;
             moonLight.shadow.mapSize.height = 1024;
+            moonLight.shadow.bias = -0.001;
             scene.add(moonLight);
 
-            buildIslandsAndGrid();
+            buildIslandsAndWater();
             spawnBackgroundScenery();
             spawnPlayer();
             rebuildGameWorld();
@@ -401,66 +402,222 @@
             setupTouchControls();
         }
 
+        function buildIslandsAndWater() {
+            // Background dynamic water slab
+            const waterGeo = new THREE.BoxGeometry(WORLD_SIZE + 40, 1.0, WORLD_SIZE + 40);
+            const waterMat = new THREE.MeshLambertMaterial({ color: PALETTE.water, flatShading: true });
+            const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+            waterMesh.position.y = -0.2;
+            scene.add(waterMesh);
+
+            // Instead of isolating every quadrant with cross canals, we keep only ONE canal on the East-West split.
+            // The North-South split is fully dry solid land, forming a continuous central city boulevard!
+            const islandWidth = (WORLD_SIZE - 4) / 2; // ~30 units each
+            const offset = islandWidth / 2 + 2;      // offset from center (~17)
+
+            // Two large main landscape chunks (North and South halves) divided East-West by water canal
+            const landGeo = new THREE.BoxGeometry(WORLD_SIZE, 0.8, islandWidth);
+            const landMat = new THREE.MeshLambertMaterial({ color: PALETTE.grass, flatShading: true });
+
+            // North Half
+            const landNorth = new THREE.Mesh(landGeo, landMat);
+            landNorth.position.set(0, 0.3, -offset);
+            landNorth.receiveShadow = true;
+            scene.add(landNorth);
+
+            // South Half
+            const landSouth = new THREE.Mesh(landGeo, landMat);
+            landSouth.position.set(0, 0.3, offset);
+            landSouth.receiveShadow = true;
+            scene.add(landSouth);
+
+            // Draw roads on the blocks (Continuous Central Boulevard running North-South, plus local cross streets)
+            drawContinuousRoadNetwork();
+
+            // Build physical arched Stone Bridges ONLY over the remaining water canal (East-West channel at Z = 0)
+            buildBridge(-16, 0.5, 0, Math.PI / 2); // Left Stone Canal Bridge
+            buildBridge(16, 0.5, 0, Math.PI / 2);  // Right Stone Canal Bridge
+
+            // In the center (North-South central boulevard crossing Z = 0), since it's solid dry land, we spawn
+            // an elevated pedestrian overpass bridge! (Reference: CleanShot 2026-06-18 at 10.57.18@2x.jpg)
+            spawnElevatedOverpass(0, 0);
+        }
+
+        function drawContinuousRoadNetwork() {
+            const roadMat = new THREE.MeshLambertMaterial({ color: PALETTE.road, flatShading: true });
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 }); // Golden center dashes
+
+            const rw = 4.2; // Clean comfortable street width
+
+            // 1. Central Boulevard running straight North-to-South on dry land (X = 0)
+            const centralBoulevard = new THREE.Mesh(new THREE.BoxGeometry(rw, 0.04, WORLD_SIZE), roadMat);
+            centralBoulevard.position.set(0, 0.72, 0);
+            centralBoulevard.receiveShadow = true;
+            scene.add(centralBoulevard);
+
+            // Golden dashes down Central Boulevard
+            const dashCount = 12;
+            for (let i = 0; i < dashCount; i++) {
+                const dash = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.01, 1.4), lineMat);
+                const offsetZ = (i - (dashCount - 1) / 2) * (WORLD_SIZE / dashCount);
+                // Omit center where the overpass stands
+                if (Math.abs(offsetZ) > 4) {
+                    dash.position.set(0, 0.73, offsetZ);
+                    scene.add(dash);
+                }
+            }
+
+            // 2. Cross roads inside North and South sectors
+            const positionsZ = [-16, 16];
+            positionsZ.forEach(zVal => {
+                const crossRoad = new THREE.Mesh(new THREE.BoxGeometry(WORLD_SIZE - 4, 0.04, rw), roadMat);
+                crossRoad.position.set(0, 0.72, zVal);
+                crossRoad.receiveShadow = true;
+                scene.add(crossRoad);
+
+                // Dashes on East-West cross roads
+                for (let i = 0; i < 8; i++) {
+                    const dash = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.01, 0.18), lineMat);
+                    const offsetX = (i - (8 - 1) / 2) * (WORLD_SIZE / 8);
+                    if (Math.abs(offsetX) > 3) {
+                        dash.position.set(offsetX, 0.73, zVal);
+                        scene.add(dash);
+                    }
+                }
+            });
+        }
+
+        function buildBridge(x, y, z, rotation) {
+            const bridgeGroup = new THREE.Group();
+            bridgeGroup.position.set(x, y, z);
+            bridgeGroup.rotation.y = rotation;
+
+            const stoneMat = new THREE.MeshLambertMaterial({ color: PALETTE.bridgeStone, flatShading: true });
+            const roadMat = new THREE.MeshLambertMaterial({ color: PALETTE.road, flatShading: true });
+            
+            // Bridge Arch Deck
+            const arch = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.8, 4.4), stoneMat);
+            arch.castShadow = true;
+            arch.receiveShadow = true;
+            bridgeGroup.add(arch);
+
+            // Asphalt road deck overlay on bridge
+            const roadOverlay = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.1, 3.8), roadMat);
+            roadOverlay.position.y = 0.41;
+            roadOverlay.receiveShadow = true;
+            bridgeGroup.add(roadOverlay);
+
+            // Left safety railing
+            const railL = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.7, 0.3), stoneMat);
+            railL.position.set(0, 0.6, 2.0);
+            railL.castShadow = true;
+            bridgeGroup.add(railL);
+
+            // Right safety railing
+            const railR = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.7, 0.3), stoneMat);
+            railR.position.set(0, 0.6, -2.0);
+            railR.castShadow = true;
+            bridgeGroup.add(railR);
+
+            scene.add(bridgeGroup);
+        }
+
+        function spawnElevatedOverpass(x, z) {
+            // An architectural walkway crossing Central Boulevard (Reference: CleanShot 2026-06-18 at 10.57.18@2x.jpg)
+            const overpass = new THREE.Group();
+            overpass.position.set(x, 0.7, z);
+
+            const structureMat = new THREE.MeshLambertMaterial({ color: 0xcccccc, flatShading: true }); // Tan/Plaster grey
+            const trimMat = new THREE.MeshLambertMaterial({ color: 0x818cf8, flatShading: true });
+
+            // 1. Cross Beam (Spanning across the 4.2-unit road)
+            const beam = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.45, 1.5), structureMat);
+            beam.position.set(0, 3.2, 0);
+            beam.castShadow = true;
+            overpass.add(beam);
+
+            // Side handrails of the walkway
+            const railN = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.8, 0.1), trimMat);
+            railN.position.set(0, 3.8, 0.7);
+            const railS = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.8, 0.1), trimMat);
+            railS.position.set(0, 3.8, -0.7);
+            overpass.add(railN);
+            overpass.add(railS);
+
+            // 2. Concrete Support Pillars on each sidewalk
+            const pillarL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 3.0, 0.5), structureMat);
+            pillarL.position.set(-3.3, 1.5, 0);
+            pillarL.castShadow = true;
+            const pillarR = pillarL.clone();
+            pillarR.position.x = 3.3;
+            overpass.add(pillarL);
+            overpass.add(pillarR);
+
+            // 3. Side stairs/steps detail (Decorative pillars to navigate around on sidewalks)
+            const stairGeo = new THREE.BoxGeometry(1.2, 0.3, 0.6);
+            for (let i = 0; i < 4; i++) {
+                const stepL = new THREE.Mesh(stairGeo, structureMat);
+                stepL.position.set(-3.8, 0.15 + i * 0.3, 0.8 + i * 0.45);
+                stepL.castShadow = true;
+                overpass.add(stepL);
+
+                const stepR = new THREE.Mesh(stairGeo, structureMat);
+                stepR.position.set(3.8, 0.15 + i * 0.3, -0.8 - i * 0.45);
+                stepR.castShadow = true;
+                overpass.add(stepR);
+            }
+
+            scene.add(overpass);
+
+            // Register pillars as obstacles
+            overpass.userData = { radius: 1.8, type: 'prop' };
+            buildings.push(overpass);
+        }
+
         function spawnBackgroundScenery() {
-            // Low-poly full moon
-            const moonGeo = new THREE.DodecahedronGeometry(3.5, 1);
+            // Low-poly full moon in sky (Reference: CleanShot 2026-06-18 at 10.56.57@2x.jpg)
+            const moonGeo = new THREE.DodecahedronGeometry(4.0, 1);
             const moonMat = new THREE.MeshBasicMaterial({ color: 0xfffcd3 });
             const moon = new THREE.Mesh(moonGeo, moonMat);
-            moon.position.set(-25, 30, -25);
+            moon.position.set(-25, 32, -25);
             scene.add(moon);
 
-            // Overhead background stars
-            const starGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
-            const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            for (let i = 0; i < 40; i++) {
+            // Overhead twinkling blocky stars
+            const starGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+            const starMat = new THREE.MeshBasicMaterial({ color: 0xfffdf0 });
+            for (let i = 0; i < 45; i++) {
                 const star = new THREE.Mesh(starGeo, starMat);
                 star.position.set(
-                    (Math.random() - 0.5) * 120,
-                    25 + Math.random() * 15,
-                    (Math.random() - 0.5) * 120
+                    (Math.random() - 0.5) * 140,
+                    28 + Math.random() * 15,
+                    (Math.random() - 0.5) * 140
                 );
                 scene.add(star);
             }
         }
 
-        function buildIslandsAndGrid() {
-            const baseGeo = new THREE.BoxGeometry(WORLD_SIZE, 4, WORLD_SIZE);
-            const baseMat = new THREE.MeshLambertMaterial({ color: 0x1d1a21, flatShading: true });
-            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-            baseMesh.position.y = -2;
-            baseMesh.receiveShadow = true;
-            scene.add(baseMesh);
-
-            const landGeo = new THREE.BoxGeometry(WORLD_SIZE - 2, 0.6, WORLD_SIZE - 2);
-            const landMat = new THREE.MeshLambertMaterial({ color: PALETTE.grass, flatShading: true });
-            const landMesh = new THREE.Mesh(landGeo, landMat);
-            landMesh.position.y = 0.1;
-            landMesh.receiveShadow = true;
-            scene.add(landMesh);
-        }
-
         function setupLeavesParticles() {
-            const leafGeo = new THREE.BoxGeometry(0.25, 0.04, 0.15);
-            const colors = [0xd97706, 0x223014, 0x15803d, 0x334155];
-            for (let i = 0; i < 35; i++) {
+            const leafGeo = new THREE.BoxGeometry(0.25, 0.05, 0.15);
+            const colors = [0xd97706, 0x1f2e1a, 0x3d5c46, 0x7a6344];
+            for (let i = 0; i < 40; i++) {
                 const leafMat = new THREE.MeshBasicMaterial({ 
                     color: colors[Math.floor(Math.random() * colors.length)], 
                     transparent: true,
-                    opacity: 0.8
+                    opacity: 0.75
                 });
                 const leaf = new THREE.Mesh(leafGeo, leafMat);
                 leaf.position.set(
                     (Math.random() - 0.5) * WORLD_SIZE,
-                    0.6 + Math.random() * 4,
+                    0.6 + Math.random() * 5,
                     (Math.random() - 0.5) * WORLD_SIZE
                 );
                 scene.add(leaf);
                 blowingLeaves.push({
                     mesh: leaf,
-                    speedX: -2.0 - Math.random() * 2.0,
-                    speedY: -0.1 - Math.random() * 0.2,
-                    speedZ: -0.5 - Math.random() * 1.0,
-                    rotSpeed: 0.05
+                    speedX: -2.5 - Math.random() * 2.5,
+                    speedY: -0.15 - Math.random() * 0.2,
+                    speedZ: -0.6 - Math.random() * 1.2,
+                    rotSpeed: 0.06
                 });
             }
         }
@@ -471,12 +628,12 @@
                 leaf.mesh.position.y += leaf.speedY * delta;
                 leaf.mesh.position.z += leaf.speedZ * delta;
                 leaf.mesh.rotation.y += leaf.rotSpeed;
-                leaf.mesh.rotation.z += leaf.rotSpeed * 0.5;
+                leaf.mesh.rotation.z += leaf.rotSpeed * 0.4;
 
-                if (leaf.mesh.position.y < 0.4 || Math.abs(leaf.mesh.position.x) > WORLD_SIZE / 2) {
+                if (leaf.mesh.position.y < 0.3 || Math.abs(leaf.mesh.position.x) > WORLD_SIZE / 2) {
                     leaf.mesh.position.set(
                         WORLD_SIZE / 2,
-                        1.5 + Math.random() * 3,
+                        1.5 + Math.random() * 4,
                         (Math.random() - 0.5) * WORLD_SIZE
                     );
                 }
@@ -489,48 +646,77 @@
             healthPacks.forEach(h => scene.remove(h.mesh));
             weapons.forEach(w => scene.remove(w.mesh));
             thrownNets.forEach(n => scene.remove(n.mesh));
+            streetlights.forEach(sl => scene.remove(sl.group));
 
             buildings = [];
             zombies = [];
             healthPacks = [];
             weapons = [];
             thrownNets = [];
+            streetlights = [];
 
-            const spacing = WORLD_SIZE / (GRID_CELLS - 1);
-            const halfSize = WORLD_SIZE / 2;
+            // Quadrant 1 (Top-Left: Commercial High-Rise Core)
+            spawnSkyscraper(-23, -23, 5, 0xcca5a5); // Pastel Pink Core Tower
+            spawnSkyscraper(-23, -11, 6, 0xa3bcca); // Blue Glass Tower
+            spawnStorefront(-11, -23, 0xe2cca3);    // Grocery Store with Stripe Canvas Awning
+            spawnTownhouse(-17, -23, 0xb7cca3);     // Side townhouse
+            spawnTownhouse(-23, -17, 0xcba3e2);
+            spawnParkedBus(-10, -12, Math.PI / 4, 0xa8413b); // Transit Bus Obstacle
+            spawnBusStop(-14, -16, 0);
+            spawnStreetLight(-13, -13);
+            spawnStreetLight(-20, -20);
 
-            for (let x = 0; x < GRID_CELLS; x++) {
-                for (let z = 0; z < GRID_CELLS; z++) {
-                    const posX = -halfSize + x * spacing;
-                    const posZ = -halfSize + z * spacing;
+            // Quadrant 2 (Top-Right: Packed Suburban Housing Estate)
+            spawnTownhouseRow(12, -24, 3, 'X', 0xa5cca3); // Dense rows of townhouses
+            spawnTownhouseRow(24, -12, 3, 'Z', 0xf0c2a3);
+            spawnCottage(18, -18, 0x82643a);
+            spawnCottage(12, -12, 0xa33f38);
+            spawnLowPolyTree(14, -15, 'autumn');
+            spawnLowPolyTree(20, -10, 'pine');
+            spawnParkedCab(18, -15, Math.PI / 3);
+            spawnStreetLight(15, -15);
+            spawnStreetLight(21, -21);
 
-                    if (Math.abs(posX) < 7 && Math.abs(posZ) < 7) {
-                        continue; // central safety zone
-                    }
+            // Quadrant 3 (Bottom-Left: Heavy Industrial Harbor & Logistics)
+            spawnIndustrialWarehouse(-22, 14, 0x4f5462);
+            spawnIndustrialWarehouse(-14, 22, 0x3d6475);
+            spawnSkyscraper(-23, 23, 4, 0xcba3e2);
+            spawnParkedBus(-18, 18, 0, 0x406d80);
+            spawnBusStop(-10, 20, Math.PI / 2);
+            spawnCrateStack(-21, 24);
+            spawnStreetLight(-15, 15);
+            spawnStreetLight(-22, 22);
 
-                    if (x % 3 === 0 || z % 3 === 0) {
-                        spawnRoadPatch(posX, posZ, spacing);
-                        continue;
-                    }
+            // Quadrant 4 (Bottom-Right: Botanical Park District with Gazebos & Gardens)
+            spawnParkFountain(18, 18);
+            spawnParkBench(14, 16, 0);
+            spawnParkBench(22, 16, Math.PI);
+            spawnTownhouse(24, 24, 0xe0cca3);
+            spawnTownhouse(12, 24, 0x9cb8cc);
+            spawnLowPolyTree(14, 22, 'puff');
+            spawnLowPolyTree(22, 22, 'puff');
+            spawnLowPolyTree(18, 25, 'autumn');
+            spawnFlowerPatch(15, 14);
+            spawnFlowerPatch(21, 14);
+            spawnStreetLight(15, 15);
+            spawnStreetLight(21, 21);
 
-                    const rand = Math.random();
-                    if (rand < 0.38) {
-                        spawnHouse(posX, posZ);
-                    } else if (rand < 0.65) {
-                        spawnLowPolyTree(posX, posZ);
-                    }
-                }
-            }
+            // General crosswalk indicator decorations
+            spawnCrosswalkIndicator(0, -16, 0);
+            spawnCrosswalkIndicator(0, 16, 0);
 
+            // Scatter health packs randomly (avoiding water & buildings)
             for (let i = 0; i < stats.totalPacks; i++) {
                 spawnHealthPack();
             }
+            // Scatter active defense weapon options
             for (let i = 0; i < 3; i++) {
                 spawnWeaponPickup('bat');
                 spawnWeaponPickup('net');
             }
 
-            const numZombies = 9;
+            // Spawn zombies scattered on multiple islands
+            const numZombies = 10;
             for (let i = 0; i < numZombies; i++) {
                 spawnZombie();
             }
@@ -540,63 +726,342 @@
             document.getElementById('netAmmo').innerText = `${stats.nets}`;
 
             if (player) {
-                player.position.set(0, 0.8, 0);
+                // Spawn safely at center boulevard
+                player.position.set(0, 0.9, 12);
             }
         }
 
-        function spawnRoadPatch(x, z, size) {
-            const roadGeo = new THREE.BoxGeometry(size, 0.05, size);
-            const roadMat = new THREE.MeshLambertMaterial({ color: PALETTE.road, flatShading: true });
-            const road = new THREE.Mesh(roadGeo, roadMat);
-            road.position.set(x, 0.42, z);
-            road.receiveShadow = true;
-            scene.add(road);
-            buildings.push(road);
-        }
+        function spawnSkyscraper(x, z, stories, colorHex) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
 
-        function spawnHouse(x, z) {
-            const houseGroup = new THREE.Group();
-            houseGroup.position.set(x, 0.4, z);
+            const storyHeight = 1.6;
+            const wallsMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // lit warm windows
 
-            const wallsMat = new THREE.MeshLambertMaterial({ 
-                color: PALETTE.houseWalls[Math.floor(Math.random() * PALETTE.houseWalls.length)], 
-                flatShading: true 
-            });
+            for (let i = 0; i < stories; i++) {
+                const bGeo = new THREE.BoxGeometry(3.6, storyHeight, 3.6);
+                const body = new THREE.Mesh(bGeo, wallsMat);
+                body.position.y = (storyHeight / 2) + (i * storyHeight);
+                body.castShadow = true;
+                body.receiveShadow = true;
+                group.add(body);
 
-            const mainWidth = 2.4 + Math.random() * 1.2;
-            const mainHeight = 2.4 + Math.random() * 1.4;
-            const mainDepth = 2.4 + Math.random() * 1.2;
+                // Grid of cute lit windows
+                for (let f = 0; f < 2; f++) {
+                    const win = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.05), winMat);
+                    win.position.set(-0.9 + f * 1.8, (storyHeight / 2) + (i * storyHeight), 1.82);
+                    group.add(win);
 
-            const mainGeo = new THREE.BoxGeometry(mainWidth, mainHeight, mainDepth);
-            const mainBody = new THREE.Mesh(mainGeo, wallsMat);
-            mainBody.position.y = mainHeight / 2;
-            mainBody.castShadow = true;
-            mainBody.receiveShadow = true;
-            houseGroup.add(mainBody);
+                    const winBack = win.clone();
+                    winBack.position.z = -1.82;
+                    group.add(winBack);
+                }
+            }
 
-            const roofGeo = new THREE.ConeGeometry(mainWidth * 0.8, 1.7, 4);
-            const roofMat = new THREE.MeshLambertMaterial({ 
-                color: PALETTE.houseRoofs[Math.floor(Math.random() * PALETTE.houseRoofs.length)], 
-                flatShading: true 
-            });
+            // Pitched cute roof (Styled after CleanShot references)
+            const roofGeo = new THREE.ConeGeometry(3.2, 1.4, 4);
+            const roofMat = new THREE.MeshLambertMaterial({ color: PALETTE.houseRoofs[0], flatShading: true });
             const roof = new THREE.Mesh(roofGeo, roofMat);
-            roof.position.y = mainHeight + 0.75;
+            roof.position.y = (stories * storyHeight) + 0.7;
             roof.rotation.y = Math.PI / 4;
             roof.castShadow = true;
-            houseGroup.add(roof);
+            group.add(roof);
 
-            scene.add(houseGroup);
-
-            houseGroup.userData = {
-                radius: Math.max(mainWidth, mainDepth) * 0.75,
-                type: 'building'
-            };
-            buildings.push(houseGroup);
+            scene.add(group);
+            group.userData = { radius: 2.5, type: 'building' };
+            buildings.push(group);
         }
 
-        function spawnLowPolyTree(x, z) {
+        function spawnTownhouse(x, z, colorHex) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const wallsMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const bodyGeo = new THREE.BoxGeometry(3.2, 2.8, 3.2);
+            const body = new THREE.Mesh(bodyGeo, wallsMat);
+            body.position.y = 1.4;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            // Double sloped standard roof (CleanShot 2026-06-18 at 10.57.18@2x.jpg style)
+            const roofGeo = new THREE.BoxGeometry(3.6, 0.8, 3.6);
+            const roofMat = new THREE.MeshLambertMaterial({ color: PALETTE.houseRoofs[1], flatShading: true });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 3.0;
+            roof.rotation.x = Math.PI / 12;
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Chimney detail!
+            const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.4), new THREE.MeshLambertMaterial({ color: 0x444444 }));
+            chimney.position.set(0.9, 3.2, 0.9);
+            group.add(chimney);
+
+            scene.add(group);
+            group.userData = { radius: 2.2, type: 'building' };
+            buildings.push(group);
+        }
+
+        function spawnTownhouseRow(startX, startZ, count, direction, colorHex) {
+            const step = 3.3; // Rows closely aligned
+            for (let i = 0; i < count; i++) {
+                const px = startX + (direction === 'X' ? i * step : 0);
+                const pz = startZ + (direction === 'Z' ? i * step : 0);
+                spawnTownhouse(px, pz, colorHex);
+            }
+        }
+
+        function spawnCottage(x, z, colorHex) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const wallsMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const bodyGeo = new THREE.BoxGeometry(2.4, 1.8, 2.4);
+            const body = new THREE.Mesh(bodyGeo, wallsMat);
+            body.position.y = 0.9;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            const roofGeo = new THREE.ConeGeometry(2.0, 1.2, 4);
+            const roofMat = new THREE.MeshLambertMaterial({ color: PALETTE.houseRoofs[3], flatShading: true });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 2.4;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            group.add(roof);
+
+            scene.add(group);
+            group.userData = { radius: 1.8, type: 'building' };
+            buildings.push(group);
+        }
+
+        function spawnIndustrialWarehouse(x, z, colorHex) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const wallsMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const bodyGeo = new THREE.BoxGeometry(4.5, 3.2, 4.5);
+            const body = new THREE.Mesh(bodyGeo, wallsMat);
+            body.position.y = 1.6;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            // Double curved/sawtooth profile roofs (Typical warehouse)
+            const roofGeo = new THREE.CylinderGeometry(2.4, 2.4, 4.7, 4, 1, false, 0, Math.PI);
+            const roofMat = new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true });
+            const roof = new THREE.Mesh(roofGeo, roofMat);
+            roof.position.y = 3.2;
+            roof.rotation.z = Math.PI / 2;
+            roof.rotation.y = Math.PI / 2;
+            group.add(roof);
+
+            scene.add(group);
+            group.userData = { radius: 3.1, type: 'building' };
+            buildings.push(group);
+        }
+
+        function spawnStorefront(x, z, colorHex) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const wallsMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const bodyGeo = new THREE.BoxGeometry(4.2, 2.5, 3.8);
+            const body = new THREE.Mesh(bodyGeo, wallsMat);
+            body.position.y = 1.25;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            group.add(body);
+
+            // Striped Canvas Awning (Inspired by CleanShot references)
+            const awningGroup = new THREE.Group();
+            awningGroup.position.set(0, 1.6, 1.95);
+
+            const colors = [0xd97706, 0xffffff]; // orange & white stripes
+            for (let i = 0; i < 7; i++) {
+                const strip = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.6, 0.1, 0.9),
+                    new THREE.MeshLambertMaterial({ color: colors[i % 2], flatShading: true })
+                );
+                strip.rotation.x = Math.PI / 6;
+                strip.position.x = -1.8 + i * 0.6;
+                awningGroup.add(strip);
+            }
+            group.add(awningGroup);
+
+            // Cute door and shop window
+            const door = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.4, 0.05), new THREE.MeshLambertMaterial({ color: 0x4f46e5 }));
+            door.position.set(-1.0, 0.7, 1.92);
+            group.add(door);
+
+            const windowShop = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 0.05), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+            windowShop.position.set(0.8, 0.9, 1.92);
+            group.add(windowShop);
+
+            scene.add(group);
+            group.userData = { radius: 2.8, type: 'building' };
+            buildings.push(group);
+        }
+
+        function spawnStreetLight(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const poleGeo = new THREE.CylinderGeometry(0.08, 0.08, 3.2, 5);
+            const poleMat = new THREE.MeshLambertMaterial({ color: 0x42312b });
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.y = 1.6;
+            group.add(pole);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.6), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            head.position.set(0, 3.2, 0.25);
+            group.add(head);
+
+            // Soft glowing yellow bulb
+            const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe082 });
+            const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), bulbMat);
+            bulb.position.set(0, 3.1, 0.25);
+            group.add(bulb);
+
+            // Light caster pointing downwards (Softened intensity to remain secondary to player's flashlight)
+            const light = new THREE.PointLight(0xfff59d, 1.2, 6.0);
+            light.position.set(0, 3.0, 0.25);
+            group.add(light);
+
+            scene.add(group);
+
+            // Save details to register for the interactive subtle flickering loop
+            streetlights.push({
+                group: group,
+                light: light,
+                bulb: bulb,
+                baseIntensity: 1.2,
+                flickerTimer: Math.random() * 2.0
+            });
+        }
+
+        function spawnParkedBus(x, z, rot, colorHex) {
+            const bus = new THREE.Group();
+            bus.position.set(x, 0.9, z);
+            bus.rotation.y = rot;
+
+            const bodyMat = new THREE.MeshLambertMaterial({ color: colorHex, flatShading: true });
+            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee, flatShading: true });
+            const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111, flatShading: true });
+
+            // Lower Chassis
+            const lower = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.2, 1.8), bodyMat);
+            lower.castShadow = true;
+            lower.receiveShadow = true;
+            bus.add(lower);
+
+            // Upper roof and windows
+            const upper = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.8, 1.7), whiteMat);
+            upper.position.y = 1.0;
+            upper.castShadow = true;
+            bus.add(upper);
+
+            // Box wheels
+            for (let i = 0; i < 4; i++) {
+                const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.3), wheelMat);
+                const wx = (i < 2 ? -1.6 : 1.6);
+                const wz = (i % 2 === 0 ? -0.95 : 0.95);
+                wheel.position.set(wx, -0.6, wz);
+                bus.add(wheel);
+            }
+
+            scene.add(bus);
+            bus.userData = { radius: 2.6, type: 'prop' };
+            buildings.push(bus);
+        }
+
+        function spawnParkedCab(x, z, rot) {
+            const cab = new THREE.Group();
+            cab.position.set(x, 0.7, z);
+            cab.rotation.y = rot;
+
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xfacc15, flatShading: true }); // Yellow taxi
+            const cabinMat = new THREE.MeshLambertMaterial({ color: 0x222222, flatShading: true });
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 1.1), bodyMat);
+            base.position.y = 0.25;
+            base.castShadow = true;
+            cab.add(base);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.95), cabinMat);
+            cabin.position.set(-0.2, 0.75, 0);
+            cabin.castShadow = true;
+            cab.add(cabin);
+
+            scene.add(cab);
+            cab.userData = { radius: 1.5, type: 'prop' };
+            buildings.push(cab);
+        }
+
+        function spawnBusStop(x, z, rot) {
+            const shelter = new THREE.Group();
+            shelter.position.set(x, 0.7, z);
+            shelter.rotation.y = rot;
+
+            const metalMat = new THREE.MeshLambertMaterial({ color: 0x475569, flatShading: true });
+            const glassMat = new THREE.MeshBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.4 });
+
+            // Back support glass wall
+            const back = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 0.1), glassMat);
+            back.position.y = 0.9;
+            shelter.add(back);
+
+            // Roof
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.15, 1.4), metalMat);
+            roof.position.set(0, 1.8, 0.6);
+            shelter.add(roof);
+
+            // Columns
+            const col1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.8, 0.15), metalMat);
+            col1.position.set(-1.2, 0.9, 1.2);
+            const col2 = col1.clone();
+            col2.position.x = 1.2;
+            shelter.add(col1);
+            shelter.add(col2);
+
+            scene.add(shelter);
+            shelter.userData = { radius: 1.5, type: 'prop' };
+            buildings.push(shelter);
+        }
+
+        function spawnCrateStack(x, z) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.7, z);
+
+            const crateMat = new THREE.MeshLambertMaterial({ color: 0xb45309, flatShading: true });
+            const cGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+
+            const c1 = new THREE.Mesh(cGeo, crateMat);
+            c1.position.set(-0.4, 0.45, -0.4);
+            c1.castShadow = true;
+            group.add(c1);
+
+            const c2 = new THREE.Mesh(cGeo, crateMat);
+            c2.position.set(0.4, 0.45, 0.4);
+            c2.castShadow = true;
+            group.add(c2);
+
+            const c3 = new THREE.Mesh(cGeo, crateMat);
+            c3.position.set(-0.1, 1.35, 0.1);
+            c3.castShadow = true;
+            group.add(c3);
+
+            scene.add(group);
+            group.userData = { radius: 1.2, type: 'prop' };
+            buildings.push(group);
+        }
+
+        function spawnLowPolyTree(x, z, type) {
             const treeGroup = new THREE.Group();
-            treeGroup.position.set(x, 0.4, z);
+            treeGroup.position.set(x, 0.7, z);
 
             const trunkGeo = new THREE.CylinderGeometry(0.18, 0.28, 1.6, 5);
             const trunkMat = new THREE.MeshLambertMaterial({ color: 0x42312b, flatShading: true });
@@ -605,26 +1070,135 @@
             trunk.castShadow = true;
             treeGroup.add(trunk);
 
-            const canopyGeo = new THREE.DodecahedronGeometry(1.1, 1);
-            const canopyMat = new THREE.MeshLambertMaterial({ 
-                color: PALETTE.treeCanopy[Math.floor(Math.random() * PALETTE.treeCanopy.length)], 
-                flatShading: true 
-            });
-            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-            canopy.position.y = 2.0;
-            canopy.castShadow = true;
-            treeGroup.add(canopy);
+            let canopy;
+            if (type === 'pine') {
+                canopy = new THREE.Group();
+                const greenMat = new THREE.MeshLambertMaterial({ color: PALETTE.treeCanopy[0], flatShading: true });
+                for (let i = 0; i < 3; i++) {
+                    const layer = new THREE.Mesh(new THREE.ConeGeometry(1.2 - i * 0.35, 1.2, 5), greenMat);
+                    layer.position.y = 1.4 + i * 0.8;
+                    layer.castShadow = true;
+                    canopy.add(layer);
+                }
+            } else if (type === 'autumn') {
+                const amberMat = new THREE.MeshLambertMaterial({ color: PALETTE.treeCanopy[3], flatShading: true });
+                canopy = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2, 1), amberMat);
+                canopy.position.y = 2.1;
+                canopy.castShadow = true;
+            } else { // Round tree
+                const greenMat = new THREE.MeshLambertMaterial({ color: PALETTE.treeCanopy[1], flatShading: true });
+                canopy = new THREE.Mesh(new THREE.DodecahedronGeometry(1.1, 1), greenMat);
+                canopy.position.y = 2.0;
+                canopy.castShadow = true;
+            }
 
+            treeGroup.add(canopy);
             scene.add(treeGroup);
 
-            treeGroup.userData = {
-                radius: 0.85,
-                type: 'tree'
-            };
+            treeGroup.userData = { radius: 0.9, type: 'tree' };
             buildings.push(treeGroup);
         }
 
-        // --- SPAWN CHARACTERS, FLOATING METER & LIGHT ---
+        function spawnParkFountain(x, z) {
+            const fountain = new THREE.Group();
+            fountain.position.set(x, 0.7, z);
+
+            const greyMat = new THREE.MeshLambertMaterial({ color: 0x64748b, flatShading: true });
+            const waterMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+            // Base basin ring
+            const basin = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.45, 8), greyMat);
+            basin.position.y = 0.22;
+            basin.castShadow = true;
+            fountain.add(basin);
+
+            // Water surface
+            const surface = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.1, 8), waterMat);
+            surface.position.y = 0.38;
+            fountain.add(surface);
+
+            // Center spout
+            const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 5), greyMat);
+            spout.position.y = 0.8;
+            spout.castShadow = true;
+            fountain.add(spout);
+
+            // Sparkling water jet top
+            const jet = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 1), waterMat);
+            jet.position.y = 1.4;
+            fountain.add(jet);
+
+            scene.add(fountain);
+            fountain.userData = { radius: 2.0, type: 'prop' };
+            buildings.push(fountain);
+        }
+
+        function spawnParkBench(x, z, rot) {
+            const bench = new THREE.Group();
+            bench.position.set(x, 0.7, z);
+            bench.rotation.y = rot;
+
+            const woodMat = new THREE.MeshLambertMaterial({ color: 0xd97706, flatShading: true });
+            const frameMat = new THREE.MeshLambertMaterial({ color: 0x1e293b, flatShading: true });
+
+            // Seat slats
+            const seat = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.65), woodMat);
+            seat.position.set(0, 0.45, 0);
+            seat.castShadow = true;
+            bench.add(seat);
+
+            // Back rest
+            const back = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 0.1), woodMat);
+            back.position.set(0, 0.8, -0.3);
+            back.castShadow = true;
+            bench.add(back);
+
+            // Frames
+            const frame1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.6, 0.8), frameMat);
+            frame1.position.set(-0.75, 0.3, -0.05);
+            const frame2 = frame1.clone();
+            frame2.position.x = 0.75;
+            bench.add(frame1);
+            bench.add(frame2);
+
+            scene.add(bench);
+            bench.userData = { radius: 0.9, type: 'prop' };
+            buildings.push(bench);
+        }
+
+        function spawnFlowerPatch(x, z) {
+            const patch = new THREE.Group();
+            patch.position.set(x, 0.6, z);
+
+            const colors = [0xf43f5e, 0x10b981, 0xeab308, 0x8b5cf6];
+            for (let i = 0; i < 5; i++) {
+                const flMat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length] });
+                const fl = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), flMat);
+                fl.position.set(
+                    (Math.random() - 0.5) * 1.5,
+                    0.09,
+                    (Math.random() - 0.5) * 1.5
+                );
+                patch.add(fl);
+            }
+            scene.add(patch);
+        }
+
+        function spawnCrosswalkIndicator(x, z, rot) {
+            const group = new THREE.Group();
+            group.position.set(x, 0.71, z);
+            group.rotation.y = rot;
+
+            const stripMat = new THREE.MeshBasicMaterial({ color: 0xdddddd });
+            for (let i = 0; i < 4; i++) {
+                const strip = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.35), stripMat);
+                strip.rotation.x = -Math.PI / 2;
+                strip.position.z = -0.9 + i * 0.6;
+                group.add(strip);
+            }
+            scene.add(group);
+        }
+
         function spawnPlayer() {
             player = new THREE.Group();
 
@@ -642,7 +1216,7 @@
             head.castShadow = true;
             player.add(head);
 
-            const capGeo = new THREE.BoxGeometry(0.8, 0.2, 0.8);
+            const capGeo = new THREE.BoxGeometry(0.8, 0.18, 0.8);
             const capMat = new THREE.MeshLambertMaterial({ color: 0x10b981, flatShading: true });
             const cap = new THREE.Mesh(capGeo, capMat);
             cap.position.y = 2.1;
@@ -665,15 +1239,16 @@
             flHandle.position.set(0.4, 1.0, 0.3);
             player.add(flHandle);
 
-            // --- SOFT FLASHLIGHT LIGHT CONE ---
+            // --- FEATHERED FLASHLIGHT CONE ---
             const coneGeo = new THREE.ConeGeometry(FLASHLIGHT_RANGE * Math.sin(FLASHLIGHT_ANGLE), FLASHLIGHT_RANGE, 16, 1, true);
             coneGeo.translate(0, -FLASHLIGHT_RANGE / 2, 0);
             coneGeo.rotateX(-Math.PI / 2);
 
+            // Soft radial visualization (very low opacity, additive blending for feathered visual)
             const coneMat = new THREE.MeshBasicMaterial({
                 color: 0xfef08a,
                 transparent: true,
-                opacity: 0.06,
+                opacity: 0.05,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
                 side: THREE.DoubleSide
@@ -682,11 +1257,12 @@
             flashlightMesh.position.set(0.4, 1.0, 0.4);
             player.add(flashlightMesh);
 
-            // Real light caster
-            flashlightLight = new THREE.SpotLight(0xfffcd3, 5.0, FLASHLIGHT_RANGE + 4.0, FLASHLIGHT_ANGLE, 1.0, 0.6);
+            // Real spot light caster with maximum penumbra for soft feathered edge
+            flashlightLight = new THREE.SpotLight(0xfffcd3, 6.0, FLASHLIGHT_RANGE + 4.0, FLASHLIGHT_ANGLE, 1.0, 0.65);
             flashlightLight.castShadow = true;
             flashlightLight.shadow.mapSize.width = 512;
             flashlightLight.shadow.mapSize.height = 512;
+            flashlightLight.penumbra = 1.0; // Perfect feathered edge falloff!
             flashlightLight.position.set(0.4, 1.0, 0.4);
 
             const spotTarget = new THREE.Object3D();
@@ -697,7 +1273,7 @@
             player.add(flashlightLight);
 
             scene.add(player);
-            player.position.set(0, 0.4, 0);
+            player.position.set(0, 0.9, 12); // Safe start position on dry central road
 
             // Circular noise indicator
             const noiseRingGeo = new THREE.RingGeometry(0.1, 0.2, 32);
@@ -709,7 +1285,7 @@
                 opacity: 0.35 
             });
             noiseRadiusVisualizer = new THREE.Mesh(noiseRingGeo, noiseRingMat);
-            noiseRadiusVisualizer.position.y = 0.45;
+            noiseRadiusVisualizer.position.y = 0.5;
             scene.add(noiseRadiusVisualizer);
 
             updateFloatingMeter();
@@ -722,7 +1298,6 @@
                 countEl.innerText = countText;
             }
 
-            // Reference our HTML segmented blocks and update styling
             const segments = document.querySelectorAll('.hud-segment');
             segments.forEach((seg, index) => {
                 if (index < stats.collectedPacks) {
@@ -750,6 +1325,7 @@
             head.castShadow = true;
             zombieMesh.add(head);
 
+            // Wide-eyed clunky eyes (Matching CleanShot 11.01.17@2x.png)
             const eyeGeo = new THREE.BoxGeometry(0.18, 0.18, 0.08);
             const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             const pupilMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
@@ -780,7 +1356,7 @@
             zombieMesh.add(armL);
             zombieMesh.add(armR);
 
-            // Exclamation sign on alert
+            // Exclamation sign on alert (Spooky-cute juice!)
             const alertGroup = new THREE.Group();
             alertGroup.position.set(0, 2.5, 0);
 
@@ -799,13 +1375,14 @@
             alertGroup.scale.set(0.001, 0.001, 0.001);
             zombieMesh.add(alertGroup);
 
+            // Pick coordinate on solid ground (avoiding remaining water and buildings)
             let rx, rz;
             do {
-                rx = (Math.random() - 0.5) * (WORLD_SIZE - 6);
-                rz = (Math.random() - 0.5) * (WORLD_SIZE - 6);
-            } while (Math.abs(rx) < 12 && Math.abs(rz) < 12);
+                rx = (Math.random() - 0.5) * (WORLD_SIZE - 8);
+                rz = (Math.random() - 0.5) * (WORLD_SIZE - 8);
+            } while (isWaterAt(rx, rz) || isCollidingWithBuildings(rx, rz, 1.2) || (Math.abs(rx) < 8 && Math.abs(rz - 12) < 8));
 
-            zombieMesh.position.set(rx, 0.4, rz);
+            zombieMesh.position.set(rx, 0.7, rz);
             scene.add(zombieMesh);
 
             zombies.push({
@@ -816,13 +1393,12 @@
                 targetX: rx,
                 targetZ: rz,
                 actionTimer: 0,
-                groanTimer: Math.random() * 600,
-                speed: 1.2 + Math.random() * 0.8,
+                groanTimer: Math.random() * 500,
+                speed: 1.1 + Math.random() * 0.7,
                 exclamationAnimState: 0.0
             });
         }
 
-        // --- ITEMS & INTERACTABLES ---
         function spawnHealthPack() {
             const hpGroup = new THREE.Group();
             const cubeGeo = new THREE.BoxGeometry(0.55, 0.55, 0.55);
@@ -838,9 +1414,9 @@
 
             let rx, rz;
             do {
-                rx = (Math.random() - 0.5) * (WORLD_SIZE - 10);
-                rz = (Math.random() - 0.5) * (WORLD_SIZE - 10);
-            } while (isCollidingWithBuildings(rx, rz, 1.1));
+                rx = (Math.random() - 0.5) * (WORLD_SIZE - 12);
+                rz = (Math.random() - 0.5) * (WORLD_SIZE - 12);
+            } while (isWaterAt(rx, rz) || isCollidingWithBuildings(rx, rz, 1.2));
 
             hpGroup.position.set(rx, 0.9, rz);
             scene.add(hpGroup);
@@ -873,9 +1449,9 @@
 
             let rx, rz;
             do {
-                rx = (Math.random() - 0.5) * (WORLD_SIZE - 10);
-                rz = (Math.random() - 0.5) * (WORLD_SIZE - 10);
-            } while (isCollidingWithBuildings(rx, rz, 1.1));
+                rx = (Math.random() - 0.5) * (WORLD_SIZE - 12);
+                rz = (Math.random() - 0.5) * (WORLD_SIZE - 12);
+            } while (isWaterAt(rx, rz) || isCollidingWithBuildings(rx, rz, 1.2));
 
             wGroup.position.set(rx, 0.9, rz);
             scene.add(wGroup);
@@ -887,7 +1463,29 @@
             });
         }
 
-        // --- COLLISIONS ---
+        function isWaterAt(x, z) {
+            const canalWidth = 2.4;
+            
+            // Bridge walkable ranges: Walkable paths crossing the East-West canal
+            // Since we only have the canal running East-West (at z = 0), bridges are at x = -16 and x = 16.
+            const overLeftBridge = (x >= -19.5 && x <= -12.5 && Math.abs(z) <= 3.2);
+            const overRightBridge = (x >= 12.5 && x <= 19.5 && Math.abs(z) <= 3.2);
+
+            // Also, the central boulevard at x = 0 is dry solid land, so z = 0 crossing there is fully walkable
+            const centralWalkway = (Math.abs(x) <= 3.2);
+
+            if (overLeftBridge || overRightBridge || centralWalkway) {
+                return false; // Walkable!
+            }
+
+            // East-West canal split
+            if (Math.abs(z) < canalWidth) {
+                return true;
+            }
+
+            return false;
+        }
+
         function isCollidingWithBuildings(x, z, checkRadius) {
             for (let b of buildings) {
                 if (b.userData && b.userData.radius) {
@@ -902,7 +1500,6 @@
             return false;
         }
 
-        // --- INPUT CONFIGURATIONS ---
         function setupInput() {
             window.addEventListener('keydown', (e) => {
                 keyboard[e.key.toLowerCase()] = true;
@@ -918,20 +1515,17 @@
         }
 
         function setupTouchControls() {
-            const canvas = document.getElementById('gameCanvas');
             const joyContainer = document.getElementById('joystickContainer');
             const joyKnob = document.getElementById('joystickKnob');
 
             window.addEventListener('touchstart', (e) => {
                 if (!stats.gameStarted || stats.gameOver || stats.victory) return;
 
-                // Stop virtual touches if interacting with HUD / Buttons
                 const target = e.target;
                 if (target.closest('#hud') || target.closest('#mobileActionGrid') || target.closest('#gameOverScreen') || target.closest('#victoryScreen') || target.closest('#startScreen')) {
                     return;
                 }
 
-                // Initialize dynamic joystick drag zone
                 if (activeTouchId === null) {
                     const touch = e.changedTouches[0];
                     activeTouchId = touch.identifier;
@@ -969,7 +1563,6 @@
 
                         joyKnob.style.transform = `translate(${pullX}px, ${pullY}px)`;
 
-                        // Normalize vector for translation engine relative to screen
                         touchVector.x = pullX / maxRadius;
                         touchVector.y = pullY / maxRadius;
                     }
@@ -989,7 +1582,6 @@
             });
         }
 
-        // Actions
         function triggerBatAttack() {
             if (stats.batSwings <= 0 || stats.gameOver || !stats.gameStarted) return;
 
@@ -997,7 +1589,7 @@
             audio.playSwing();
             document.getElementById('weaponAmmo').innerText = `${stats.batSwings} swings`;
 
-            const swingGeo = new THREE.RingGeometry(0.2, 1.6, 16, 1, 0, Math.PI);
+            const swingGeo = new THREE.RingGeometry(0.2, 1.8, 16, 1, 0, Math.PI);
             const swingMat = new THREE.MeshBasicMaterial({ color: 0x6366f1, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
             const swingVisual = new THREE.Mesh(swingGeo, swingMat);
             swingVisual.position.copy(player.position);
@@ -1008,7 +1600,7 @@
 
             setTimeout(() => scene.remove(swingVisual), 160);
 
-            const attackRange = 3.2;
+            const attackRange = 3.5;
             zombies.forEach((z, index) => {
                 const dx = z.mesh.position.x - player.position.x;
                 const dz = z.mesh.position.z - player.position.z;
@@ -1035,10 +1627,10 @@
             document.getElementById('netAmmo').innerText = `${stats.nets}`;
 
             const angle = player.rotation.y;
-            const netX = player.position.x + Math.sin(angle) * 2.5;
-            const netZ = player.position.z + Math.cos(angle) * 2.5;
+            const netX = player.position.x + Math.sin(angle) * 2.8;
+            const netZ = player.position.z + Math.cos(angle) * 2.8;
 
-            const netGeo = new THREE.PlaneGeometry(3.5, 3.5);
+            const netGeo = new THREE.PlaneGeometry(3.6, 3.6);
             const netMat = new THREE.MeshBasicMaterial({ 
                 color: 0x10b981, 
                 wireframe: true, 
@@ -1088,7 +1680,6 @@
             }
         }
 
-        // --- GAME LOOP & UPDATES ---
         let lastFrameTime = performance.now();
         let stepCount = 0;
 
@@ -1110,14 +1701,15 @@
             }
 
             updatePlayerInput(delta);
+            updateStreetlights(delta);
             updateZombies(delta);
             updateCollectibles();
             updateNets();
             updateLeaves(delta);
 
-            // Isometric Camera Tracking
-            const targetCamX = player.position.x + 22;
-            const targetCamZ = player.position.z + 22;
+            // Smooth Camera tracking player (Isometric view)
+            const targetCamX = player.position.x + 24;
+            const targetCamZ = player.position.z + 24;
             camera.position.x += (targetCamX - camera.position.x) * 0.05;
             camera.position.z += (targetCamZ - camera.position.z) * 0.05;
             camera.lookAt(player.position);
@@ -1125,46 +1717,42 @@
             renderer.render(scene, camera);
         }
 
-        // Correct isometric screen navigation inputs
         function updatePlayerInput(delta) {
             let inputX = 0;
             let inputZ = 0;
 
-            // Check desktop keyboard first
             if (keyboard['w'] || keyboard['arrowup']) inputZ = -1;
             if (keyboard['s'] || keyboard['arrowdown']) inputZ = 1;
             if (keyboard['a'] || keyboard['arrowleft']) inputX = -1;
             if (keyboard['d'] || keyboard['arrowright']) inputX = 1;
 
-            // Fallback to Touch Vector values if active
             if (touchActive) {
                 inputX = touchVector.x;
                 inputZ = touchVector.y;
             }
 
             const isMoving = Math.abs(inputX) > 0.05 || Math.abs(inputZ) > 0.05;
-            let speed = 6.0;
+            let speed = 6.2;
 
             if (isMoving) {
                 if (isSprinting) {
-                    speed = 10.0;
-                    noiseLevel = 13.0;
+                    speed = 10.5;
+                    noiseLevel = 13.5;
                     document.getElementById('noiseBar').style.width = '100%';
                     document.getElementById('noiseBar').className = "bg-rose-500 h-full transition-all duration-100";
                     document.getElementById('noiseIndicator').innerText = '🏃‍♂️🚨';
                 } else {
-                    speed = 6.0;
-                    noiseLevel = 5.5;
+                    speed = 6.2;
+                    noiseLevel = 5.8;
                     document.getElementById('noiseBar').style.width = '45%';
                     document.getElementById('noiseBar').className = "bg-amber-500 h-full transition-all duration-100";
                     document.getElementById('noiseIndicator').innerText = '🚶‍♂️';
                 }
 
-                // Aligned View Translation Space mapping
+                // Translate movement directions based on isometric view angle (Clean, view-relative controls!)
                 const cameraAngle = Math.atan2(camera.position.x - player.position.x, camera.position.z - player.position.z);
                 
                 let moveDir = new THREE.Vector3(inputX, 0, inputZ);
-                // Cap magnitude to avoid speeding on diagonal dual inputs
                 if (moveDir.length() > 1.0) {
                     moveDir.normalize();
                 }
@@ -1174,36 +1762,57 @@
                 player.rotation.y = targetAngle;
 
                 stepCount++;
-                if (stepCount % (isSprinting ? 12 : 20) === 0) {
+                if (stepCount % (isSprinting ? 11 : 19) === 0) {
                     audio.playStep();
                 }
 
-                player.position.y = 0.4 + Math.sin(performance.now() * 0.015) * 0.15;
+                player.position.y = 0.9 + Math.sin(performance.now() * 0.015) * 0.15;
 
                 const nextX = player.position.x + moveDir.x * speed * delta;
                 const nextZ = player.position.z + moveDir.z * speed * delta;
 
-                const margin = WORLD_SIZE / 2 - 1.2;
-                if (Math.abs(nextX) < margin && !isCollidingWithBuildings(nextX, player.position.z, playerCollisionRadius)) {
+                const margin = WORLD_SIZE / 2 - 1.0;
+                // Walk condition checks: avoid buildings and don't fall off into canals
+                if (Math.abs(nextX) < margin && !isWaterAt(nextX, player.position.z) && !isCollidingWithBuildings(nextX, player.position.z, playerCollisionRadius)) {
                     player.position.x = nextX;
                 }
-                if (Math.abs(nextZ) < margin && !isCollidingWithBuildings(player.position.x, nextZ, playerCollisionRadius)) {
+                if (Math.abs(nextZ) < margin && !isWaterAt(player.position.x, nextZ) && !isCollidingWithBuildings(player.position.x, nextZ, playerCollisionRadius)) {
                     player.position.z = nextZ;
                 }
             } else {
-                noiseLevel = 1.5;
+                noiseLevel = 1.6;
                 document.getElementById('noiseBar').style.width = '10%';
                 document.getElementById('noiseBar').className = "bg-emerald-500 h-full transition-all duration-100";
                 document.getElementById('noiseIndicator').innerText = '🤫';
-                player.position.y = 0.4;
+                player.position.y = 0.9;
             }
 
             if (noiseRadiusVisualizer) {
                 const pulseScale = (performance.now() % 1000) / 1000;
                 noiseRadiusVisualizer.scale.setScalar(noiseLevel * pulseScale);
                 noiseRadiusVisualizer.position.copy(player.position);
-                noiseRadiusVisualizer.position.y = 0.44;
+                noiseRadiusVisualizer.position.y = 0.52;
             }
+        }
+
+        function updateStreetlights(delta) {
+            streetlights.forEach(sl => {
+                sl.flickerTimer -= delta;
+                if (sl.flickerTimer <= 0) {
+                    // Spooky, secondary subtle flickering logic
+                    if (Math.random() > 0.85) {
+                        sl.light.intensity = sl.baseIntensity * 0.25; // momentary soft dim
+                        sl.bulb.material.color.setHex(0x555540);
+                    } else {
+                        sl.light.intensity = sl.baseIntensity * (0.85 + Math.random() * 0.25); // normal ambient wave
+                        sl.bulb.material.color.setHex(0xffe082);
+                    }
+                    sl.flickerTimer = 0.08 + Math.random() * 0.35; // Random flicker speed
+                } else {
+                    // Smooth recovery wave back to base secondary intensity
+                    sl.light.intensity += (sl.baseIntensity - sl.light.intensity) * 0.12;
+                }
+            });
         }
 
         function updateZombies(delta) {
@@ -1218,29 +1827,28 @@
                 const toZombieVec = new THREE.Vector3().subVectors(zPos, pPos);
                 const distanceToZombie = toZombieVec.length();
 
-                // Caught player collision hitbox trigger
                 if (distanceToZombie < 0.95) {
                     triggerGameOver();
                 }
 
                 let wasDetectedThisFrame = false;
 
-                // Sound triggers
+                // Sound wave detection trigger
                 if (distanceToZombie <= noiseLevel) {
                     wasDetectedThisFrame = true;
                 }
 
-                // Soft Flashlight beam triggers
+                // Feathered flashlights sweep calculations
                 if (distanceToZombie <= FLASHLIGHT_RANGE) {
                     const toZombieNormalized = new THREE.Vector3(toZombieVec.x, 0, toZombieVec.z).normalize();
                     const dotProduct = toZombieNormalized.dot(flDirection);
 
+                    // If in light cone angle
                     if (dotProduct > Math.cos(FLASHLIGHT_ANGLE)) {
                         wasDetectedThisFrame = true;
                     }
                 }
 
-                // Slow trap interaction checks
                 let isSlowed = false;
                 thrownNets.forEach((net) => {
                     const ndx = net.x - zPos.x;
@@ -1263,14 +1871,20 @@
                 } else {
                     if (z.state === 'chase') {
                         z.state = 'search';
-                        z.actionTimer = 150;
+                        z.actionTimer = 160;
                     }
                 }
 
                 z.actionTimer--;
                 if (z.state === 'roam' && z.actionTimer <= 0) {
-                    z.targetX = zPos.x + (Math.random() - 0.5) * 10;
-                    z.targetZ = zPos.z + (Math.random() - 0.5) * 10;
+                    let tx, tz;
+                    do {
+                        tx = zPos.x + (Math.random() - 0.5) * 12;
+                        tz = zPos.z + (Math.random() - 0.5) * 12;
+                    } while (isWaterAt(tx, tz));
+                    
+                    z.targetX = tx;
+                    z.targetZ = tz;
                     z.actionTimer = 220 + Math.random() * 220;
                 } else if (z.state === 'search' && z.actionTimer <= 0) {
                     z.state = 'roam';
@@ -1281,15 +1895,15 @@
                 const targetDist = Math.sqrt(tdx * tdx + tdz * tdz);
 
                 if (targetDist > 0.4) {
-                    const runSpeed = isSlowed ? z.speed * 0.25 : (z.state === 'chase' ? z.speed * 1.55 : z.speed);
+                    const runSpeed = isSlowed ? z.speed * 0.25 : (z.state === 'chase' ? z.speed * 1.5 : z.speed);
                     const zDirX = tdx / targetDist;
                     const zDirZ = tdz / targetDist;
 
                     const nextZX = zPos.x + zDirX * runSpeed * delta;
                     const nextZZ = zPos.z + zDirZ * runSpeed * delta;
 
-                    if (!isCollidingWithBuildings(nextZX, nextZZ, 0.55)) {
-                        z.mesh.position.set(nextZX, 0.4, nextZZ);
+                    if (!isWaterAt(nextZX, nextZZ) && !isCollidingWithBuildings(nextZX, nextZZ, 0.55)) {
+                        z.mesh.position.set(nextZX, 0.7, nextZZ);
                     } else {
                         z.actionTimer = 0;
                     }
@@ -1297,7 +1911,7 @@
                     z.mesh.rotation.y = Math.atan2(zDirX, zDirZ);
                 }
 
-                z.mesh.position.y = 0.4 + Math.abs(Math.sin(performance.now() * 0.012)) * 0.12;
+                z.mesh.position.y = 0.7 + Math.abs(Math.sin(performance.now() * 0.012)) * 0.12;
 
                 if (z.state === 'chase') {
                     z.exclamationAnimState += (1.0 - z.exclamationAnimState) * 0.15;
@@ -1326,7 +1940,6 @@
             }
         }
 
-        // --- COLLECTIBLES ---
         function updateCollectibles() {
             healthPacks.forEach((hp, index) => {
                 hp.mesh.rotation.y += hp.rotSpeed;
@@ -1343,7 +1956,6 @@
                     stats.collectedPacks++;
                     document.getElementById('healthCount').innerText = `${stats.collectedPacks} / ${stats.totalPacks}`;
 
-                    // Refresh both text HUD and 3D floating blocks
                     updateFloatingMeter();
 
                     if (stats.collectedPacks >= stats.totalPacks) {
@@ -1389,7 +2001,6 @@
             });
         }
 
-        // --- END STATES ---
         function triggerGameOver() {
             stats.gameOver = true;
             audio.playTone(90, 'sawtooth', 0.9, 0.25);
@@ -1411,7 +2022,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // STARTUP KICKSTART LOOP
         window.onload = () => {
             initEngine();
             updateGame();
